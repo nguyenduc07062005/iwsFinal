@@ -1,8 +1,20 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { User, Mail, Shield, Settings, LogOut, Camera, Bell, Lock, CreditCard } from 'lucide-react';
-import { cn } from '../lib/utils';
+import {
+  Bell,
+  Camera,
+  CreditCard,
+  Lock,
+  LogOut,
+  Settings,
+  Shield,
+  User,
+} from 'lucide-react';
 import { MOCK_USER } from '../constants';
+
+function cx(...values: Array<string | false | null | undefined>) {
+  return values.filter(Boolean).join(' ');
+}
 
 export default function Profile() {
   const menuItems = [
@@ -14,124 +26,139 @@ export default function Profile() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar Menu */}
-          <div className="lg:col-span-1 space-y-2">
-            {menuItems.map((item) => (
-              <button
-                key={item.label}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold transition-all",
-                  item.active 
-                    ? "bg-brand-900 text-white shadow-lg shadow-brand-900/20" 
-                    : "text-slate-500 hover:bg-white hover:text-brand-600"
-                )}
-              >
-                <item.icon size={18} />
-                {item.label}
+    <div className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="glass overflow-hidden rounded-[2rem] border border-white/60 p-6 shadow-sm"
+      >
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-5">
+            <div className="relative">
+              <div className="h-24 w-24 overflow-hidden rounded-full border-4 border-white bg-white shadow-lg">
+                <img src={MOCK_USER.avatar} alt="Avatar" className="h-full w-full object-cover" />
+              </div>
+              <button className="absolute bottom-0 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-brand-900 text-white shadow-sm transition-colors hover:bg-brand-600">
+                <Camera className="h-4 w-4" />
               </button>
-            ))}
-            <hr className="my-4 border-slate-200" />
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-bold text-red-500 hover:bg-red-50 transition-all">
-              <LogOut size={18} />
-              Đăng xuất
-            </button>
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-extrabold uppercase tracking-[0.22em] text-brand-600 shadow-sm">
+                <Shield className="h-4 w-4" />
+                Profile Center
+              </div>
+              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-800">
+                {MOCK_USER.name}
+              </h1>
+              <p className="mt-2 text-sm font-medium text-slate-500">{MOCK_USER.email}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-600">
+                  Sinh viên năm 3
+                </span>
+                <span className="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-600">
+                  Tài khoản Pro
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Main Content */}
-          <div className="lg:col-span-3 space-y-8">
-            {/* Profile Header */}
-            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-brand-600 to-accent opacity-10"></div>
-              <div className="relative flex flex-col sm:flex-row items-center gap-6 mt-8 sm:mt-0">
-                <div className="relative group">
-                  <div className="w-32 h-32 rounded-full border-4 border-white shadow-xl overflow-hidden bg-slate-100">
-                    <img src={MOCK_USER.avatar} alt="" className="w-full h-full object-cover" />
-                  </div>
-                  <button className="absolute bottom-0 right-0 w-10 h-10 bg-brand-900 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-brand-600 transition-all">
-                    <Camera size={18} />
-                  </button>
-                </div>
-                <div className="text-center sm:text-left">
-                  <h1 className="text-3xl font-extrabold text-slate-900">{MOCK_USER.name}</h1>
-                  <p className="text-slate-500 font-medium">{MOCK_USER.email}</p>
-                  <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
-                    <span className="bg-brand-50 text-brand-600 text-xs font-bold px-3 py-1 rounded-full border border-brand-100">Sinh viên năm 3</span>
-                    <span className="bg-green-50 text-green-600 text-xs font-bold px-3 py-1 rounded-full border border-green-100">Tài khoản Pro</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Edit Form */}
-            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
-              <h3 className="text-xl font-bold text-slate-800 mb-6">Thông tin chi tiết</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Họ và tên</label>
-                  <input
-                    type="text"
-                    defaultValue={MOCK_USER.name}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Email</label>
-                  <input
-                    type="email"
-                    defaultValue={MOCK_USER.email}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Số điện thoại</label>
-                  <input
-                    type="text"
-                    placeholder="Chưa cập nhật"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Trường đại học</label>
-                  <input
-                    type="text"
-                    placeholder="Ví dụ: Đại học Bách Khoa"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-brand-500 focus:bg-white outline-none transition-all"
-                  />
-                </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                <button className="px-6 py-3 rounded-2xl text-sm font-bold text-slate-500 hover:bg-slate-50 transition-all">Hủy bỏ</button>
-                <button className="px-8 py-3 bg-brand-900 text-white rounded-2xl text-sm font-bold hover:bg-brand-600 shadow-lg shadow-brand-900/20 transition-all transform hover:-translate-y-1">Lưu thay đổi</button>
-              </div>
-            </div>
-
-            {/* Storage Info */}
-            <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Dung lượng lưu trữ</h3>
-                <button className="text-brand-600 text-sm font-bold hover:underline">Nâng cấp gói</button>
-              </div>
-              <div className="space-y-4">
-                <div className="flex justify-between text-sm font-bold">
-                  <span className="text-slate-500">Đã sử dụng 2.4 GB trong tổng số 5 GB</span>
-                  <span className="text-brand-600">48%</span>
-                </div>
-                <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: '48%' }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="h-full bg-gradient-to-r from-brand-500 to-accent"
-                  ></motion.div>
-                </div>
-                <p className="text-xs text-slate-400">Bạn còn 2.6 GB dung lượng trống. Hãy nâng cấp lên gói Pro để có dung lượng không giới hạn.</p>
-              </div>
+          <div className="glass rounded-[1.5rem] border border-white/60 p-4 shadow-sm">
+            <p className="text-sm font-bold text-slate-800">Storage usage</p>
+            <p className="mt-2 text-sm leading-7 text-slate-500">
+              2.4 GB / 5 GB used. Khu vực này sẽ được nối dữ liệu thật trong phase tích hợp backend.
+            </p>
+            <div className="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: '48%' }}
+                transition={{ duration: 0.9, ease: 'easeOut' }}
+                className="h-full rounded-full bg-gradient-to-r from-brand-500 to-[var(--color-accent)]"
+              />
             </div>
           </div>
         </div>
+      </motion.div>
+
+      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="glass rounded-[2rem] border border-white/60 p-4 shadow-sm"
+        >
+          <p className="mb-4 px-2 text-xs font-extrabold uppercase tracking-[0.22em] text-slate-400">
+            Profile Navigation
+          </p>
+          <div className="space-y-2">
+            {menuItems.map((item) => (
+              <button
+                key={item.label}
+                className={cx(
+                  'flex w-full items-center gap-3 rounded-[1.25rem] px-4 py-3 text-left text-sm font-bold transition-all',
+                  item.active
+                    ? 'bg-brand-900 text-white shadow-sm'
+                    : 'bg-white/60 text-slate-600 hover:bg-white hover:text-slate-800',
+                )}
+              >
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 border-t border-white/60 pt-5">
+            <button className="flex w-full items-center gap-3 rounded-[1.25rem] px-4 py-3 text-left text-sm font-bold text-rose-500 transition-colors hover:bg-rose-50">
+              <LogOut className="h-4 w-4" />
+              Đăng xuất
+            </button>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.08 }}
+          className="glass rounded-[2rem] border border-white/60 p-6 shadow-sm"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-400">
+                Personal Information
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-800">
+                Hồ sơ người dùng
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-500">
+                Đây là foundation profile page cho shell mới. Các phase sau sẽ nối profile API,
+                password update, notification settings và membership data vào đây.
+              </p>
+            </div>
+            <button className="rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-sm transition-transform hover:-translate-y-0.5 hover:bg-brand-600">
+              Lưu thay đổi
+            </button>
+          </div>
+
+          <div className="mt-8 grid gap-5 md:grid-cols-2">
+            {[
+              { label: 'Họ và tên', defaultValue: MOCK_USER.name },
+              { label: 'Email', defaultValue: MOCK_USER.email },
+              { label: 'Số điện thoại', defaultValue: 'Chưa cập nhật' },
+              { label: 'Trường đại học', defaultValue: 'Ví dụ: Đại học Bách Khoa' },
+            ].map((field) => (
+              <label key={field.label} className="block space-y-2">
+                <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-400">
+                  {field.label}
+                </span>
+                <input
+                  type="text"
+                  defaultValue={field.defaultValue}
+                  className="w-full rounded-[1.25rem] border border-white/60 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-brand-100 focus:bg-white focus:ring-4 focus:ring-brand-100/60"
+                />
+              </label>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );
