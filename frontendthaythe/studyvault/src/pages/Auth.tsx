@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ArrowLeft,
@@ -11,8 +11,11 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import studyIllustration from '../assets/study_illustration.png';
+import AppInput from '../components/ui/AppInput';
+import AppButton from '../components/ui/AppButton';
+import AppFieldError from '../components/ui/AppFieldError';
 
-type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
+export type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 type AuthConfig = {
   mode: AuthMode;
@@ -25,6 +28,15 @@ type AuthConfig = {
   secondaryLinkLabel?: string;
   secondaryLinkTo?: string;
 };
+
+type AuthFormValues = {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type AuthFormErrors = Partial<Record<keyof AuthFormValues, string>>;
 
 const AUTH_CONTENT: Record<AuthMode, AuthConfig> = {
   login: {
@@ -78,35 +90,93 @@ function resolveMode(pathname: string): AuthMode {
   return 'login';
 }
 
-function AuthField({
-  icon,
-  type,
-  placeholder,
-}: {
-  icon: React.ReactNode;
-  type: string;
-  placeholder: string;
-}) {
-  return (
-    <label className="block">
-      <div className="relative">
-        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-          {icon}
-        </span>
-        <input
-          type={type}
-          placeholder={placeholder}
-          className="w-full rounded-[1.25rem] border border-white/60 bg-white/80 px-4 py-4 pl-12 text-sm font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:font-medium placeholder:text-slate-400 focus:border-brand-100 focus:bg-white focus:ring-4 focus:ring-brand-100/60"
-        />
-      </div>
-    </label>
-  );
+function createInitialValues(): AuthFormValues {
+  return {
+    fullName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  };
 }
 
-export default function Auth() {
+function validateEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateForm(mode: AuthMode, values: AuthFormValues): AuthFormErrors {
+  const errors: AuthFormErrors = {};
+
+  if (mode === 'register' && !values.fullName.trim()) {
+    errors.fullName = 'Vui lòng nhập họ và tên.';
+  }
+
+  if (!values.email.trim()) {
+    errors.email = 'Vui lòng nhập email.';
+  } else if (!validateEmail(values.email.trim())) {
+    errors.email = 'Email chưa đúng định dạng.';
+  }
+
+  if (mode !== 'forgot' && !values.password.trim()) {
+    errors.password = 'Vui lòng nhập mật khẩu.';
+  } else if (mode !== 'forgot' && values.password.trim().length < 6) {
+    errors.password = 'Mật khẩu cần tối thiểu 6 ký tự.';
+  }
+
+  if (mode === 'reset' && !values.confirmPassword.trim()) {
+    errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới.';
+  } else if (
+    mode === 'reset' &&
+    values.confirmPassword.trim() &&
+    values.confirmPassword !== values.password
+  ) {
+    errors.confirmPassword = 'Xác nhận mật khẩu chưa khớp.';
+  }
+
+  return errors;
+}
+
+interface AuthProps {
+  mode?: AuthMode;
+}
+
+export default function Auth({ mode: modeProp }: AuthProps) {
   const location = useLocation();
-  const mode = resolveMode(location.pathname);
+  const mode = modeProp ?? resolveMode(location.pathname);
   const config = AUTH_CONTENT[mode];
+  const [values, setValues] = useState<AuthFormValues>(createInitialValues());
+  const [errors, setErrors] = useState<AuthFormErrors>({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const successMessage = useMemo(() => {
+    if (!isSubmitted) return '';
+
+    if (mode === 'forgot') {
+      return 'Đã sẵn sàng nối API gửi liên kết khôi phục ở Phase 3. Giao diện và validation phía client đã được chuẩn hóa.';
+    }
+
+    if (mode === 'reset') {
+      return 'Luồng đặt lại mật khẩu đã sẵn sàng để nối backend reset password trong Phase 3.';
+    }
+
+    if (mode === 'register') {
+      return 'Form đăng ký đã sẵn sàng để nối API register và xử lý phản hồi từ backend.';
+    }
+
+    return 'Form đăng nhập đã sẵn sàng để nối API login trong Phase 3.';
+  }, [isSubmitted, mode]);
+
+  const updateField = (field: keyof AuthFormValues, nextValue: string) => {
+    setValues((current) => ({ ...current, [field]: nextValue }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+    setIsSubmitted(false);
+  };
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nextErrors = validateForm(mode, values);
+    setErrors(nextErrors);
+    setIsSubmitted(Object.keys(nextErrors).length === 0);
+  };
 
   return (
     <div className="w-full">
@@ -114,7 +184,7 @@ export default function Auth() {
         initial={{ opacity: 0, y: 18 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="glass overflow-hidden rounded-[2rem] border border-white/60 p-6 shadow-sm sm:p-8"
+        className="overflow-hidden"
       >
         <div className="mb-8 flex items-center justify-between gap-4">
           <Link
@@ -145,24 +215,57 @@ export default function Auth() {
               </p>
             </div>
 
-            <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-              {mode === 'register' && (
-                <AuthField icon={<User className="h-5 w-5" />} type="text" placeholder="Họ và tên" />
-              )}
-
-              <AuthField icon={<Mail className="h-5 w-5" />} type="email" placeholder="Email của bạn" />
-
-              {mode !== 'forgot' && (
-                <AuthField icon={<Lock className="h-5 w-5" />} type="password" placeholder="Mật khẩu" />
-              )}
-
-              {mode === 'reset' && (
-                <AuthField
-                  icon={<ShieldCheck className="h-5 w-5" />}
-                  type="password"
-                  placeholder="Xác nhận mật khẩu mới"
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              {mode === 'register' ? (
+                <AppInput
+                  name="fullName"
+                  label="Họ và tên"
+                  placeholder="Nhập họ và tên"
+                  value={values.fullName}
+                  onChange={(event) => updateField('fullName', event.target.value)}
+                  leftIcon={<User className="h-5 w-5" />}
+                  error={errors.fullName}
                 />
-              )}
+              ) : null}
+
+              <AppInput
+                name="email"
+                type="email"
+                label="Email"
+                placeholder="Email của bạn"
+                value={values.email}
+                onChange={(event) => updateField('email', event.target.value)}
+                leftIcon={<Mail className="h-5 w-5" />}
+                error={errors.email}
+              />
+
+              {mode !== 'forgot' ? (
+                <AppInput
+                  name="password"
+                  type="password"
+                  label={mode === 'reset' ? 'Mật khẩu mới' : 'Mật khẩu'}
+                  placeholder={mode === 'reset' ? 'Nhập mật khẩu mới' : 'Nhập mật khẩu'}
+                  value={values.password}
+                  onChange={(event) => updateField('password', event.target.value)}
+                  leftIcon={<Lock className="h-5 w-5" />}
+                  error={errors.password}
+                />
+              ) : null}
+
+              {mode === 'reset' ? (
+                <AppInput
+                  name="confirmPassword"
+                  type="password"
+                  label="Xác nhận mật khẩu mới"
+                  placeholder="Nhập lại mật khẩu mới"
+                  value={values.confirmPassword}
+                  onChange={(event) =>
+                    updateField('confirmPassword', event.target.value)
+                  }
+                  leftIcon={<ShieldCheck className="h-5 w-5" />}
+                  error={errors.confirmPassword}
+                />
+              ) : null}
 
               {config.secondaryLinkLabel && config.secondaryLinkTo ? (
                 <div className="flex justify-end">
@@ -175,11 +278,25 @@ export default function Auth() {
                 </div>
               ) : null}
 
-              <button className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-brand-900 px-6 py-4 text-sm font-extrabold text-white shadow-lg shadow-brand-900/15 transition-all hover:-translate-y-1 hover:bg-brand-600">
-                <span>{config.submitLabel}</span>
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </button>
+              <AppButton
+                type="submit"
+                fullWidth
+                size="lg"
+                rightIcon={<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />}
+                className="group"
+              >
+                {config.submitLabel}
+              </AppButton>
             </form>
+
+            <AppFieldError
+              className="mt-4"
+              message={
+                isSubmitted
+                  ? successMessage
+                  : undefined
+              }
+            />
 
             {config.helperLabel && config.helperActionLabel && config.helperActionTo ? (
               <p className="mt-8 text-center text-sm font-medium text-slate-500">
@@ -205,15 +322,15 @@ export default function Auth() {
               </div>
               <div className="mt-4 space-y-3">
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
-                  <p className="text-sm font-bold text-slate-800">Phase 1 Goal</p>
+                  <p className="text-sm font-bold text-slate-800">Phase 2 Goal</p>
                   <p className="mt-2 text-sm leading-7 text-slate-500">
-                    Khóa visual language và auth shell trước khi nối backend thật.
+                    Auth UI dùng shared components, page structure rõ ràng, sẵn sàng nối API thật.
                   </p>
                 </div>
                 <div className="rounded-2xl bg-brand-900 p-4 text-white shadow-sm">
                   <p className="text-sm font-bold">Next phases</p>
                   <p className="mt-2 text-sm leading-7 text-white/80">
-                    Phase 2 refactor router, Phase 3 nối login/register/forgot/reset password.
+                    Phase 3 sẽ nối login/register/forgot/reset password với backend và protected route logic.
                   </p>
                 </div>
               </div>
