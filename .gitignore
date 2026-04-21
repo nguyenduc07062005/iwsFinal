@@ -1,0 +1,21 @@
+/week-6-folder-rag-ui-plan.md
+/temp-rag-doc.txt
+
+# Dependencies
+**/node_modules/
+
+# Build output
+**/dist/
+**/build/
+**/.next/
+**/coverage/
+**/uploads/
+
+# Environment files
+**/.env*
+!**/.env.example
+
+# Logs
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
