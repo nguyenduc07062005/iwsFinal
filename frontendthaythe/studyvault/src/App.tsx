@@ -18,9 +18,12 @@ import {
   useLocation,
 } from 'react-router-dom';
 import Home from './pages/Home';
-import Auth from './pages/Auth';
 import Profile from './pages/Profile';
 import Library from './pages/Library';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import PublicLayout from './layouts/PublicLayout';
 import AuthLayout from './layouts/AuthLayout';
 import AppShell from './layouts/AppShell';
@@ -135,11 +138,10 @@ function DetailSidebar() {
         Summary Panel Placeholder
       </p>
       <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-800">
-        Phase 1 foundation
+        Phase 2 routing shell
       </h2>
       <p className="mt-4 text-sm leading-7 text-slate-500">
-        Summary panel thật sẽ được triển khai ở phase riêng. Giai đoạn này ưu tiên
-        dựng shell, spacing, layout và visual language chuẩn theo rule.
+        Detail route đã được tách riêng để phase sau nối preview file, metadata, summary panel và các hành động theo tài liệu.
       </p>
     </div>
   );
@@ -168,7 +170,7 @@ function AppContent() {
                 description="Tiếp tục vào workspace tài liệu với trải nghiệm thống nhất, hiện đại và dễ bảo vệ trong dự án cuối kỳ."
                 aside={<AuthAside />}
               >
-                <Auth />
+                <LoginPage />
               </AuthLayout>
             }
           />
@@ -180,7 +182,7 @@ function AppContent() {
                 description="Đăng ký nhanh để bắt đầu quản lý thư mục, tài liệu và các tính năng học tập cốt lõi của hệ thống."
                 aside={<AuthAside />}
               >
-                <Auth />
+                <RegisterPage />
               </AuthLayout>
             }
           />
@@ -192,7 +194,7 @@ function AppContent() {
                 description="Nhập email để bắt đầu quy trình đặt lại mật khẩu đúng chuẩn yêu cầu môn học và luồng xác thực hoàn chỉnh."
                 aside={<AuthAside />}
               >
-                <Auth />
+                <ForgotPasswordPage />
               </AuthLayout>
             }
           />
@@ -204,7 +206,7 @@ function AppContent() {
                 description="Hoàn tất bước xác thực cuối cùng để quay lại workspace một cách an toàn và liền mạch."
                 aside={<AuthAside />}
               >
-                <Auth />
+                <ResetPasswordPage />
               </AuthLayout>
             }
           />
