@@ -1,11 +1,14 @@
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import AppErrorBoundary from './components/system/AppErrorBoundary.jsx';
 import './App.css';
 
 function App() {
   return (
     <div className="app-shell">
-      <Outlet />
+      <AppErrorBoundary>
+        <Outlet />
+      </AppErrorBoundary>
       <Toaster 
         position="bottom-right" 
         toastOptions={{

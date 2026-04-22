@@ -1,82 +1,29 @@
 import { Fragment, useMemo, useState } from 'react';
 import {
+  ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight,
+  FolderClosed,
+  FolderPlus,
+  PencilLine,
+  Trash2,
+} from 'lucide-react';
+import {
   createFolder,
   deleteFolder,
   moveFolder,
   updateFolder,
 } from '../../service/folderAPI.js';
 import { useDocumentsContext } from '../DocumentsContext.jsx';
-
-const FolderIcon = ({ className = '' }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={className}
-  >
-    <path d="M3.75 5.25A2.25 2.25 0 0 1 6 3h3.21c.596 0 1.17.237 1.591.659l1.54 1.54a.75.75 0 0 0 .53.22H18A2.25 2.25 0 0 1 20.25 7.5v8.25A2.25 2.25 0 0 1 18 18H6a2.25 2.25 0 0 1-2.25-2.25V5.25Z" />
-  </svg>
-);
-
-const IconButton = ({
-  label,
-  onClick,
-  children,
-  tone = 'default',
-  disabled = false,
-}) => {
-  const tones = {
-    default:
-      'border-[var(--sks-border)] bg-white text-[var(--sks-text-soft)] hover:border-[var(--sks-teal-soft)] hover:bg-[var(--sks-surface)] hover:text-[var(--sks-teal-deep)]',
-    danger:
-      'border-rose-200 bg-white text-rose-500 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700',
-  };
-
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      disabled={disabled}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick(event);
-      }}
-      className={`flex h-10 w-10 items-center justify-center rounded-[18px] border text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${tones[tone]}`}
-    >
-      {children}
-    </button>
-  );
-};
-
-const ModalShell = ({ title, children, onClose }) => (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 px-4 backdrop-blur-sm"
-    onClick={onClose}
-  >
-    <div
-      className="w-full max-w-lg rounded-[32px] border border-[var(--sks-border)] bg-white p-7 shadow-[0_40px_120px_rgba(9,30,27,0.18)]"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="sks-kicker">Folder Action</p>
-          <h2 className="mt-3 font-['Fraunces'] text-3xl font-semibold tracking-tight text-[var(--sks-text)]">
-            {title}
-          </h2>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="sks-button-secondary px-4 py-2 text-sm font-semibold"
-        >
-          Close
-        </button>
-      </div>
-      <div className="mt-5">{children}</div>
-    </div>
-  </div>
-);
+import {
+  AppButton,
+  AppEmptyState,
+  AppInput,
+  AppModal,
+  AppSkeleton,
+} from '@/components/ui/index.js';
+import { cn } from '@/lib/utils.js';
+import { getApiErrorMessage } from '../../utils/apiError.js';
 
 const findFolderPath = (folders, folderId, trail = []) => {
   for (const folder of folders) {
@@ -87,7 +34,6 @@ const findFolderPath = (folders, folderId, trail = []) => {
     }
 
     const nestedTrail = findFolderPath(folder.children || [], folderId, nextTrail);
-
     if (nestedTrail.length > 0) {
       return nestedTrail;
     }
@@ -96,7 +42,61 @@ const findFolderPath = (folders, folderId, trail = []) => {
   return [];
 };
 
-const FoldersPanel = () => {
+const buildFolderOptionLabel = (folder) => {
+  if (folder.depth === 0) {
+    return 'Workspace';
+  }
+
+  return `${'-- '.repeat(folder.depth)}${folder.name}`;
+};
+
+const toneForIndex = (index) => {
+  const tones = [
+    'bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white',
+    'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white',
+    'bg-fuchsia-50 text-fuchsia-500 group-hover:bg-fuchsia-500 group-hover:text-white',
+  ];
+
+  return tones[index % tones.length];
+};
+
+const FolderActionButton = ({ icon, label, onClick, tone = 'default' }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className={cn(
+      'inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+      tone === 'danger'
+        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
+        : 'bg-white text-slate-400 hover:bg-brand-50 hover:text-brand-600',
+    )}
+  >
+    {icon}
+  </button>
+);
+
+const SelectField = ({ label, onChange, options, value }) => (
+  <label className="flex w-full flex-col gap-2">
+    <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+      {label}
+    </span>
+    <select
+      value={value}
+      onChange={onChange}
+      className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition-all focus:border-brand-200 focus:bg-white focus:ring-2 focus:ring-brand-500/15"
+    >
+      {options.map((option) => (
+        <option key={option.id} value={option.id}>
+          {buildFolderOptionLabel(option)}
+        </option>
+      ))}
+    </select>
+  </label>
+);
+
+const FoldersPanel = ({ onFolderSelectionChange }) => {
   const {
     foldersLoading,
     folderOptions,
@@ -118,20 +118,16 @@ const FoldersPanel = () => {
   const [modalError, setModalError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const folderChoices = useMemo(
-    () =>
-      folderOptions.map((folder) => ({
-        ...folder,
-        label:
-          folder.depth === 0
-            ? 'Workspace'
-            : `${'\u00A0'.repeat(folder.depth * 4)}${folder.name}`,
-      })),
-    [folderOptions],
-  );
+  const goToFolder = (folderId) => {
+    if (!folderId || folderId === rootFolder?.id) {
+      selectFolder(null);
+      onFolderSelectionChange?.(null);
+      return;
+    }
 
-  const getFolderLabel = (folder) =>
-    folder?.id === rootFolder?.id ? 'Workspace' : folder?.name || 'Untitled folder';
+    selectFolder(folderId);
+    onFolderSelectionChange?.(folderId);
+  };
 
   const folderPath = useMemo(() => {
     if (!rootFolder) {
@@ -140,14 +136,25 @@ const FoldersPanel = () => {
 
     const activeFolderId = selectedFolderId || rootFolder.id;
     const nextPath = findFolderPath([rootFolder], activeFolderId);
-
     return nextPath.length > 0 ? nextPath : [rootFolder];
   }, [rootFolder, selectedFolderId]);
 
   const currentExplorerFolder = folderPath[folderPath.length - 1] || rootFolder;
-  const parentFolder =
-    folderPath.length > 1 ? folderPath[folderPath.length - 2] : null;
+  const parentFolder = folderPath.length > 1 ? folderPath[folderPath.length - 2] : null;
   const visibleFolders = currentExplorerFolder?.children || [];
+
+  const getFolderLabel = (folder) =>
+    folder?.id === rootFolder?.id ? 'Workspace' : folder?.name || 'Untitled folder';
+
+  const closeModals = () => {
+    setShowCreateModal(false);
+    setShowRenameModal(false);
+    setShowMoveModal(false);
+    setShowDeleteModal(false);
+    setModalError('');
+    setActiveFolder(null);
+    setIsSubmitting(false);
+  };
 
   const openCreateModal = () => {
     setCreateName('');
@@ -176,16 +183,6 @@ const FoldersPanel = () => {
     setShowDeleteModal(true);
   };
 
-  const closeModals = () => {
-    setShowCreateModal(false);
-    setShowRenameModal(false);
-    setShowMoveModal(false);
-    setShowDeleteModal(false);
-    setModalError('');
-    setActiveFolder(null);
-    setIsSubmitting(false);
-  };
-
   const handleCreateFolder = async () => {
     if (!createName.trim()) {
       setModalError('Please enter a folder name.');
@@ -194,17 +191,13 @@ const FoldersPanel = () => {
 
     try {
       setIsSubmitting(true);
-      await createFolder(createName.trim(), createParentId || rootFolder?.id);
-      const nextFolderId = createParentId || rootFolder?.id;
-      await refreshFolders(nextFolderId);
-      if (nextFolderId) {
-        selectFolder(nextFolderId);
-      }
+      const targetParentId = createParentId || rootFolder?.id;
+      await createFolder(createName.trim(), targetParentId);
+      await refreshFolders(targetParentId);
+      goToFolder(targetParentId);
       closeModals();
-    } catch (err) {
-      setModalError(
-        err.response?.data?.message || err.message || 'Failed to create folder.',
-      );
+    } catch (error) {
+      setModalError(getApiErrorMessage(error, 'Failed to create folder.'));
       setIsSubmitting(false);
     }
   };
@@ -220,10 +213,8 @@ const FoldersPanel = () => {
       await updateFolder(activeFolder.id, renameName.trim(), activeFolder.parentId);
       await refreshFolders(activeFolder.id);
       closeModals();
-    } catch (err) {
-      setModalError(
-        err.response?.data?.message || err.message || 'Failed to rename folder.',
-      );
+    } catch (error) {
+      setModalError(getApiErrorMessage(error, 'Failed to rename folder.'));
       setIsSubmitting(false);
     }
   };
@@ -235,13 +226,12 @@ const FoldersPanel = () => {
 
     try {
       setIsSubmitting(true);
-      await moveFolder(activeFolder.id, moveParentId || rootFolder?.id);
+      const targetParentId = moveParentId || rootFolder?.id;
+      await moveFolder(activeFolder.id, targetParentId);
       await refreshFolders(activeFolder.id);
       closeModals();
-    } catch (err) {
-      setModalError(
-        err.response?.data?.message || err.message || 'Failed to move folder.',
-      );
+    } catch (error) {
+      setModalError(getApiErrorMessage(error, 'Failed to move folder.'));
       setIsSubmitting(false);
     }
   };
@@ -256,378 +246,290 @@ const FoldersPanel = () => {
       const nextFolderId = activeFolder.parentId || rootFolder?.id;
       await deleteFolder(activeFolder.id);
       await refreshFolders(nextFolderId);
-      if (selectedFolderId === activeFolder.id && nextFolderId) {
-        selectFolder(nextFolderId);
+
+      if (selectedFolderId === activeFolder.id) {
+        goToFolder(nextFolderId);
       }
+
       closeModals();
-    } catch (err) {
-      setModalError(
-        err.response?.data?.message || err.message || 'Failed to delete folder.',
-      );
+    } catch (error) {
+      setModalError(getApiErrorMessage(error, 'Failed to delete folder.'));
       setIsSubmitting(false);
     }
   };
 
-  const renderFolderRow = (folder) => {
-    const isActive = selectedFolderId === folder.id;
-    const childCount = folder.children?.length || 0;
-
-    return (
-      <button
-        key={folder.id}
-        type="button"
-        onClick={() => selectFolder(folder.id)}
-        className={`group flex w-full items-center gap-4 rounded-[28px] border px-4 py-4 text-left shadow-[0_10px_30px_rgba(9,30,27,0.04)] transition ${
-          isActive
-            ? 'border-[var(--sks-teal-soft)] bg-white'
-            : 'border-[var(--sks-border)] bg-[var(--sks-surface)] hover:-translate-y-0.5 hover:border-[var(--sks-teal-soft)] hover:bg-white'
-        }`}
-      >
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] ring-1 ring-inset ${
-          isActive
-            ? 'bg-teal-50 text-[var(--sks-teal-deep)] ring-teal-200'
-            : 'bg-white text-[var(--sks-text-soft)] ring-[var(--sks-border)]'
-        }`}>
-          <FolderIcon className="h-5 w-5" />
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold text-[var(--sks-text)]">
-            {getFolderLabel(folder)}
-          </p>
-          <p className="mt-1 text-sm leading-6 text-[var(--sks-text-soft)]">
-            {childCount > 0 ? `${childCount} subfolders` : 'Open folder'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 opacity-100 transition md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
-          <IconButton label="Rename folder" onClick={() => openRenameModal(folder)}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-              <path d="m13.879 2.697 3.424 3.424a1.5 1.5 0 0 1 0 2.121l-8.264 8.264a4.5 4.5 0 0 1-1.897 1.11l-2.685.806a.75.75 0 0 1-.93-.93l.806-2.685a4.5 4.5 0 0 1 1.11-1.897l8.264-8.264a1.5 1.5 0 0 1 2.121 0Z" />
-            </svg>
-          </IconButton>
-          <IconButton label="Move folder" onClick={() => openMoveModal(folder)}>
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-              <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h9.19L10.72 7.03a.75.75 0 0 1 1.06-1.06l3.5 3.5a.75.75 0 0 1 0 1.06l-3.5 3.5a.75.75 0 1 1-1.06-1.06l2.22-2.22H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-            </svg>
-          </IconButton>
-          <IconButton
-            label="Delete folder"
-            onClick={() => openDeleteModal(folder)}
-            tone="danger"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-              <path fillRule="evenodd" d="M8.75 3a1.75 1.75 0 0 0-1.75 1.75V5H4.75a.75.75 0 0 0 0 1.5h.318l.764 9.167A2.25 2.25 0 0 0 8.074 17.75h3.852a2.25 2.25 0 0 0 2.242-2.083l.764-9.167h.318a.75.75 0 0 0 0-1.5H13V4.75A1.75 1.75 0 0 0 11.25 3h-2.5ZM11.5 5v-.25a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25V5h3Z" clipRule="evenodd" />
-            </svg>
-          </IconButton>
-        </div>
-      </button>
-    );
-  };
+  const modalFooter = (label, onConfirm, variant = 'primary') => (
+    <>
+      <AppButton variant="secondary" onClick={closeModals} disabled={isSubmitting}>
+        Cancel
+      </AppButton>
+      <AppButton variant={variant} onClick={() => void onConfirm()} loading={isSubmitting}>
+        {label}
+      </AppButton>
+    </>
+  );
 
   return (
     <>
-      <aside className="sks-card flex h-full flex-col overflow-hidden">
-        <div className="border-b border-[var(--sks-border)] bg-[linear-gradient(180deg,rgba(247,251,249,0.94)_0%,rgba(255,255,255,0.98)_100%)] px-6 py-6">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div>
-                  <p className="sks-kicker">Folder Explorer</p>
-                  <h2 className="mt-3 font-['Fraunces'] text-3xl font-semibold tracking-tight text-[var(--sks-text)]">
-                    {getFolderLabel(currentExplorerFolder || rootFolder)}
-                  </h2>
-                  <p className="mt-3 text-sm leading-7 text-[var(--sks-text-soft)]">
-                    Keep folder hierarchy on the left so the main document library and future AI rail stay clear.
-                  </p>
-                </div>
+      <div className="space-y-6">
+        <div className="glass rounded-3xl border border-white/60 p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brand-600">
+                Thư mục
+              </p>
+              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900">
+                {getFolderLabel(currentExplorerFolder || rootFolder)}
+              </h2>
+              <p className="mt-3 text-sm leading-7 text-slate-500">
+                Giữ cây thư mục gọn gàng để upload, di chuyển, xóa, và đánh dấu
+                yêu thích luôn rõ ràng khi demo.
+              </p>
+            </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  {currentExplorerFolder?.id !== rootFolder?.id ? (
-                    <>
-                      <IconButton
-                        label="Rename folder"
-                        onClick={() => openRenameModal(currentExplorerFolder)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                          <path d="m13.879 2.697 3.424 3.424a1.5 1.5 0 0 1 0 2.121l-8.264 8.264a4.5 4.5 0 0 1-1.897 1.11l-2.685.806a.75.75 0 0 1-.93-.93l.806-2.685a4.5 4.5 0 0 1 1.11-1.897l8.264-8.264a1.5 1.5 0 0 1 2.121 0Z" />
-                        </svg>
-                      </IconButton>
-                      <IconButton
-                        label="Move folder"
-                        onClick={() => openMoveModal(currentExplorerFolder)}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                          <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h9.19L10.72 7.03a.75.75 0 0 1 1.06-1.06l3.5 3.5a.75.75 0 0 1 0 1.06l-3.5 3.5a.75.75 0 1 1-1.06-1.06l2.22-2.22H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-                        </svg>
-                      </IconButton>
-                      <IconButton
-                        label="Delete folder"
-                        onClick={() => openDeleteModal(currentExplorerFolder)}
-                        tone="danger"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                          <path fillRule="evenodd" d="M8.75 3a1.75 1.75 0 0 0-1.75 1.75V5H4.75a.75.75 0 0 0 0 1.5h.318l.764 9.167A2.25 2.25 0 0 0 8.074 17.75h3.852a2.25 2.25 0 0 0 2.242-2.083l.764-9.167h.318a.75.75 0 0 0 0-1.5H13V4.75A1.75 1.75 0 0 0 11.25 3h-2.5ZM11.5 5v-.25a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25V5h3Z" clipRule="evenodd" />
-                        </svg>
-                      </IconButton>
-                    </>
-                  ) : null}
+            <AppButton
+              onClick={openCreateModal}
+              leadingIcon={<FolderPlus className="h-4.5 w-4.5" />}
+            >
+              Thư mục mới
+            </AppButton>
+          </div>
+
+          {parentFolder ? (
+            <button
+              type="button"
+              onClick={() => goToFolder(parentFolder.id)}
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:text-brand-600"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Quay lại
+            </button>
+          ) : null}
+
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            {folderPath.map((folder, index) => {
+              const isCurrent = index === folderPath.length - 1;
+
+              return (
+                <Fragment key={folder.id}>
+                  {index > 0 ? <ChevronRight className="h-4 w-4 text-slate-300" /> : null}
                   <button
                     type="button"
-                    onClick={openCreateModal}
-                    className="sks-button-primary px-5 py-3 text-sm font-semibold"
+                    onClick={() => goToFolder(folder.id)}
+                    disabled={isCurrent}
+                    className={cn(
+                      'rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition-all',
+                      isCurrent
+                        ? 'bg-brand-900 text-white shadow-md'
+                        : 'bg-white text-slate-500 hover:text-brand-600',
+                    )}
                   >
-                    New folder
+                    {getFolderLabel(folder)}
                   </button>
+                </Fragment>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {foldersLoading ? (
+            Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100/50 flex items-center gap-4"
+              >
+                <AppSkeleton className="h-12 w-12 rounded-2xl" />
+                <div className="flex-1 space-y-2">
+                  <AppSkeleton className="h-4 w-32" />
+                  <AppSkeleton className="h-4 w-24" />
                 </div>
               </div>
-
-              {parentFolder ? (
-                <button
-                  type="button"
-                  onClick={() => selectFolder(parentFolder.id)}
-                  className="sks-button-secondary w-fit px-4 py-2.5 text-sm font-semibold"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                    <path fillRule="evenodd" d="M12.78 15.53a.75.75 0 0 1-1.06 0l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 1 1 1.06 1.06L9.06 10l3.72 3.72a.75.75 0 0 1 0 1.06Z" clipRule="evenodd" />
-                  </svg>
-                  Back
-                </button>
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {folderPath.map((folder, index) => {
-                const isCurrent = index === folderPath.length - 1;
+            ))
+          ) : rootFolder ? (
+            visibleFolders.length > 0 ? (
+              visibleFolders.map((folder, index) => {
+                const isActive = selectedFolderId === folder.id;
+                const childCount = folder.children?.length || 0;
 
                 return (
-                  <Fragment key={folder.id}>
-                    {index > 0 ? (
-                      <span className="text-xs font-bold text-[var(--sks-text-soft)]/45">/</span>
-                    ) : null}
+                  <div
+                    key={folder.id}
+                    className={cn(
+                      'bg-white/80 backdrop-blur-sm p-4 rounded-3xl shadow-sm border border-slate-100/50 flex items-start gap-4 transition-all group',
+                      isActive && 'border-brand-200 shadow-md',
+                    )}
+                  >
                     <button
                       type="button"
-                      onClick={() => selectFolder(folder.id)}
-                      disabled={isCurrent}
-                      className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] transition ${
-                        isCurrent
-                          ? 'bg-[var(--sks-teal-deep)] text-white'
-                          : 'bg-[var(--sks-surface)] text-[var(--sks-text-soft)] hover:bg-white'
-                      }`}
+                      onClick={() => goToFolder(folder.id)}
+                      className="flex min-w-0 flex-1 items-start gap-4 text-left"
                     >
-                      {getFolderLabel(folder)}
+                      <div
+                        className={cn(
+                          'w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-colors',
+                          isActive
+                            ? 'bg-brand-900 text-white'
+                            : toneForIndex(index),
+                        )}
+                      >
+                        <FolderClosed size={24} />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-800 text-sm truncate">
+                          {getFolderLabel(folder)}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                          {childCount > 0 ? `${childCount} subfolders` : 'Open folder'}
+                          {childCount > 0 ? `${childCount} thư mục con` : 'Mở thư mục'}
+                        </p>
+                      </div>
                     </button>
-                  </Fragment>
-                );
-              })}
-            </div>
-          </div>
-        </div>
 
-        <div className="scrollbar-none max-h-[calc(100vh-15rem)] flex-1 overflow-auto px-4 py-4">
-          {foldersLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="h-20 animate-pulse rounded-[28px] bg-[var(--sks-surface)]" />
-              ))}
-            </div>
-          ) : rootFolder ? (
-            <div className="space-y-3">
-              {visibleFolders.length > 0 ? (
-                visibleFolders.map(renderFolderRow)
-              ) : (
-                <div className="rounded-[28px] border border-dashed border-[var(--sks-border)] bg-[var(--sks-surface)] px-5 py-12 text-center text-sm leading-7 text-[var(--sks-text-soft)]">
-                  No subfolders yet. Create a new folder to split your material into clearer study areas.
-                </div>
-              )}
-            </div>
+                    <div className="flex gap-2">
+                      <FolderActionButton
+                        label="Rename folder"
+                        onClick={() => openRenameModal(folder)}
+                        icon={<PencilLine className="h-4 w-4" />}
+                      />
+                      <FolderActionButton
+                        label="Move folder"
+                        onClick={() => openMoveModal(folder)}
+                        icon={<ArrowRightLeft className="h-4 w-4" />}
+                      />
+                      <FolderActionButton
+                        label="Delete folder"
+                        onClick={() => openDeleteModal(folder)}
+                        tone="danger"
+                        icon={<Trash2 className="h-4 w-4" />}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <AppEmptyState
+                icon={<FolderClosed className="h-7 w-7" />}
+                title="No subfolders yet"
+                description="Create the first folder inside this branch to start structuring the workspace."
+                action={(
+                  <AppButton
+                    onClick={openCreateModal}
+                    leadingIcon={<FolderPlus className="h-4.5 w-4.5" />}
+                  >
+                    Create folder
+                  </AppButton>
+                )}
+              />
+            )
           ) : (
-            <div className="rounded-[28px] border border-dashed border-[var(--sks-border)] bg-[var(--sks-surface)] px-5 py-10 text-center text-sm leading-7 text-[var(--sks-text-soft)]">
-              No folders yet.
-            </div>
+            <AppEmptyState
+              icon={<FolderClosed className="h-7 w-7" />}
+              title="Workspace unavailable"
+              description="Folders will appear here after the initial tree is loaded."
+            />
           )}
         </div>
-      </aside>
+      </div>
 
-      {showCreateModal ? (
-        <ModalShell title="Create folder" onClose={closeModals}>
+      <AppModal
+        open={showCreateModal}
+        onClose={closeModals}
+        eyebrow="Folder action"
+        title="Tạo thư mục"
+        description="Thêm một thư mục mới vào đúng nhánh bạn đang làm việc."
+        footer={modalFooter('Tạo thư mục', handleCreateFolder)}
+      >
+        <div className="space-y-4">
           {modalError ? (
-            <div className="mb-4 rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {modalError}
             </div>
           ) : null}
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--sks-text)]">
-                Folder name
-              </span>
-              <input
-                type="text"
-                value={createName}
-                onChange={(event) => setCreateName(event.target.value)}
-                className="sks-input w-full bg-white"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--sks-text)]">
-                Parent folder
-              </span>
-              <select
-                value={createParentId}
-                onChange={(event) => setCreateParentId(event.target.value)}
-                className="sks-input w-full bg-white"
-              >
-                {folderChoices.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={isSubmitting}
-                className="sks-button-secondary flex-1 justify-center px-4 py-3.5 text-base font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleCreateFolder}
-                disabled={isSubmitting}
-                className="sks-button-primary flex-1 justify-center px-4 py-3.5 text-base font-semibold disabled:opacity-60"
-              >
-                {isSubmitting ? 'Creating...' : 'Create'}
-              </button>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
+          <AppInput
+            label="Tên thư mục"
+            value={createName}
+            onChange={(event) => setCreateName(event.target.value)}
+            placeholder="Phân tích thiết kế hệ thống"
+            autoFocus
+          />
+          <SelectField
+            label="Thư mục cha"
+            value={createParentId}
+            onChange={(event) => setCreateParentId(event.target.value)}
+            options={folderOptions}
+          />
+        </div>
+      </AppModal>
 
-      {showRenameModal ? (
-        <ModalShell title="Rename folder" onClose={closeModals}>
+      <AppModal
+        open={showRenameModal}
+        onClose={closeModals}
+        eyebrow="Folder action"
+        title="Đổi tên thư mục"
+        description="Dùng tên rõ ràng để workspace dễ quét và dễ bảo vệ hơn."
+        footer={modalFooter('Lưu tên mới', handleRenameFolder)}
+      >
+        <div className="space-y-4">
           {modalError ? (
-            <div className="mb-4 rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {modalError}
             </div>
           ) : null}
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--sks-text)]">
-                New name
-              </span>
-              <input
-                type="text"
-                value={renameName}
-                onChange={(event) => setRenameName(event.target.value)}
-                className="sks-input w-full bg-white"
-              />
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={isSubmitting}
-                className="sks-button-secondary flex-1 justify-center px-4 py-3.5 text-base font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleRenameFolder}
-                disabled={isSubmitting}
-                className="sks-button-primary flex-1 justify-center px-4 py-3.5 text-base font-semibold disabled:opacity-60"
-              >
-                {isSubmitting ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
+          <AppInput
+            label="Tên mới"
+            value={renameName}
+            onChange={(event) => setRenameName(event.target.value)}
+            placeholder="Tên thư mục đã cập nhật"
+            autoFocus
+          />
+        </div>
+      </AppModal>
 
-      {showMoveModal ? (
-        <ModalShell title="Move folder" onClose={closeModals}>
+      <AppModal
+        open={showMoveModal}
+        onClose={closeModals}
+        eyebrow="Folder action"
+        title="Di chuyển thư mục"
+        description="Chọn thư mục cha mới cho nhánh tài liệu này."
+        footer={modalFooter('Di chuyển thư mục', handleMoveFolder)}
+      >
+        <div className="space-y-4">
           {modalError ? (
-            <div className="mb-4 rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {modalError}
             </div>
           ) : null}
-          <div className="space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-[var(--sks-text)]">
-                Destination
-              </span>
-              <select
-                value={moveParentId}
-                onChange={(event) => setMoveParentId(event.target.value)}
-                className="sks-input w-full bg-white"
-              >
-                {folderChoices
-                  .filter((folder) => folder.id !== activeFolder?.id)
-                  .map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.label}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={isSubmitting}
-                className="sks-button-secondary flex-1 justify-center px-4 py-3.5 text-base font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleMoveFolder}
-                disabled={isSubmitting}
-                className="sks-button-primary flex-1 justify-center px-4 py-3.5 text-base font-semibold disabled:opacity-60"
-              >
-                {isSubmitting ? 'Moving...' : 'Move'}
-              </button>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
+          <SelectField
+            label="Thư mục đích"
+            value={moveParentId}
+            onChange={(event) => setMoveParentId(event.target.value)}
+            options={folderOptions.filter((folder) => folder.id !== activeFolder?.id)}
+          />
+        </div>
+      </AppModal>
 
-      {showDeleteModal ? (
-        <ModalShell title="Delete folder" onClose={closeModals}>
+      <AppModal
+        open={showDeleteModal}
+        onClose={closeModals}
+        eyebrow="Folder action"
+        title="Xóa thư mục"
+        description="Tài liệu và thư mục con sẽ được đưa về nhánh cha để không mất dữ liệu."
+        footer={modalFooter('Xóa thư mục', handleDeleteFolder, 'danger')}
+      >
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm leading-7 text-rose-700">
+            Xóa <strong>{activeFolder?.name}</strong>. Backend sẽ dời toàn bộ nội dung
+            con về thư mục cha để workspace vẫn nhất quán.
+          </div>
+
           {modalError ? (
-            <div className="mb-4 rounded-[24px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+            <div className="rounded-2xl border border-rose-100 bg-white px-4 py-3 text-sm font-semibold text-rose-700">
               {modalError}
             </div>
           ) : null}
-          <div className="space-y-5">
-            <p className="text-sm leading-7 text-[var(--sks-text-soft)]">
-              Delete <strong className="text-[var(--sks-text)]">{activeFolder?.name}</strong>.
-              Documents inside will be moved back to the parent folder.
-            </p>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closeModals}
-                disabled={isSubmitting}
-                className="sks-button-secondary flex-1 justify-center px-4 py-3.5 text-base font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteFolder}
-                disabled={isSubmitting}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-rose-600 px-4 py-3.5 text-base font-semibold text-white shadow-[0_20px_40px_rgba(225,29,72,0.16)] transition hover:bg-rose-500 disabled:opacity-60"
-              >
-                {isSubmitting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </ModalShell>
-      ) : null}
+        </div>
+      </AppModal>
     </>
   );
 };

@@ -210,14 +210,23 @@ export class FolderService {
     }
 
     const parentId = folder.parentId;
+    let movedDocumentsCount = 0;
+    let movedChildFoldersCount = 0;
 
     await this.dataSource.transaction(async (manager) => {
-      await manager.query(
-        `UPDATE user_documents SET folder_id = $1 WHERE folder_id = $2 AND user_id = $3`,
-        [parentId, folderId, ownerId],
-      );
+      const rehomedDocuments = await manager
+        .getRepository(UserDocument)
+        .createQueryBuilder()
+        .update(UserDocument)
+        .set({ folder: { id: parentId } })
+        .where('folder_id = :folderId AND user_id = :ownerId', {
+          folderId,
+          ownerId,
+        })
+        .execute();
+      movedDocumentsCount = rehomedDocuments.affected ?? 0;
 
-      await manager
+      const rehomedFolders = await manager
         .getRepository(Folder)
         .createQueryBuilder()
         .update(Folder)
@@ -227,11 +236,18 @@ export class FolderService {
           ownerId,
         })
         .execute();
+      movedChildFoldersCount = rehomedFolders.affected ?? 0;
 
       await manager.getRepository(Folder).delete({ id: folderId, ownerId });
     });
 
-    return { message: 'Folder deleted successfully' };
+    return {
+      deletedFolderId: folderId,
+      fallbackFolderId: parentId,
+      message: 'Folder deleted successfully',
+      movedChildFoldersCount,
+      movedDocumentsCount,
+    };
   }
 
   async addDocumentToFolder(
@@ -271,7 +287,11 @@ export class FolderService {
       throw new NotFoundException('Document relation not found');
     }
 
-    return { message: 'Document added to folder successfully' };
+    return {
+      message: 'Document added to folder successfully',
+      document: await this.getUserDocumentSummary(ownerId, documentId),
+      folder,
+    };
   }
 
   async removeDocumentFromFolder(
@@ -300,7 +320,11 @@ export class FolderService {
       throw new NotFoundException('Document not found in this folder');
     }
 
-    return { message: 'Document removed from folder successfully' };
+    return {
+      message: 'Document removed from folder successfully',
+      document: await this.getUserDocumentSummary(ownerId, documentId),
+      folder: rootFolder,
+    };
   }
 
   async getDocumentsByFolder(
@@ -381,6 +405,33 @@ export class FolderService {
     }
 
     return false;
+  }
+
+  private async getUserDocumentSummary(ownerId: string, documentId: string) {
+    const userDocument = await this.userDocumentRepository
+      .getRepository()
+      .createQueryBuilder('userDocument')
+      .leftJoinAndSelect('userDocument.document', 'document')
+      .leftJoinAndSelect('userDocument.folder', 'folder')
+      .leftJoin('userDocument.user', 'user')
+      .where('user.id = :ownerId', { ownerId })
+      .andWhere('document.id = :documentId', { documentId })
+      .getOne();
+
+    if (!userDocument) {
+      throw new NotFoundException('Document not found or not owned by user');
+    }
+
+    return {
+      ...userDocument.document,
+      title: userDocument.documentName || userDocument.document?.title,
+      isFavorite: userDocument.isFavorite,
+      formattedFileSize: this.formatFileSize(
+        userDocument.document?.fileSize || 0,
+      ),
+      folderId: userDocument.folder?.id || null,
+      folderName: userDocument.folder?.name || 'Workspace',
+    };
   }
 
   private formatFileSize(bytes: number): string {

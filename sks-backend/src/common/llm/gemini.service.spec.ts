@@ -32,8 +32,7 @@ describe('GeminiService', () => {
         const values: Record<string, string> = {
           GEMINI_API_KEY: 'test-key',
           GEMINI_TEXT_MODEL: 'gemini-2.5-flash',
-          GEMINI_TEXT_MODEL_FALLBACKS:
-            'gemini-3-flash,gemini-3.1-flash-lite',
+          GEMINI_TEXT_MODEL_FALLBACKS: 'gemini-3-flash,gemini-3.1-flash-lite',
           GEMINI_EMBEDDING_MODEL: 'gemini-embedding-001',
         };
 

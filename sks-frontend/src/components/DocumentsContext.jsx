@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 import { getFolders, getDocumentsByFolder } from '../service/folderAPI.js';
+import { getApiErrorMessage } from '../utils/apiError.js';
 
 const DocumentsContext = createContext(null);
 const ITEMS_PER_PAGE = 8;
@@ -91,7 +92,7 @@ export const DocumentsProvider = ({ children }) => {
       setTotal(0);
       setCurrentPage(1);
       setTotalPages(1);
-      setError(err.response?.data?.message || 'Failed to load folders.');
+      setError(getApiErrorMessage(err, 'Failed to load folders.'));
     } finally {
       setFoldersLoading(false);
     }
@@ -132,7 +133,7 @@ export const DocumentsProvider = ({ children }) => {
       setTotal(0);
       setCurrentPage(1);
       setTotalPages(1);
-      setError(err.response?.data?.message || 'Failed to load documents.');
+      setError(getApiErrorMessage(err, 'Failed to load documents.'));
     } finally {
       if (requestId === documentsRequestRef.current) {
         setDocumentsLoading(false);

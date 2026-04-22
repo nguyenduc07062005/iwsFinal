@@ -25,8 +25,7 @@ export class GeminiService {
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.generationModel =
-      this.configService.get<string>('GEMINI_TEXT_MODEL') ??
-      DEFAULT_TEXT_MODEL;
+      this.configService.get<string>('GEMINI_TEXT_MODEL') ?? DEFAULT_TEXT_MODEL;
     this.textModelCandidates = this.buildTextModelCandidates();
     this.embeddingModel =
       this.configService.get<string>('GEMINI_EMBEDDING_MODEL') ??
@@ -56,7 +55,9 @@ export class GeminiService {
         });
 
         if (!result.text) {
-          throw new Error(`Gemini model "${model}" returned an empty response.`);
+          throw new Error(
+            `Gemini model "${model}" returned an empty response.`,
+          );
         }
 
         this.clearModelCooldown(model);

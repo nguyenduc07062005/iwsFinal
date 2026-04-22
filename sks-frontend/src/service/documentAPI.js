@@ -1,5 +1,25 @@
 import apiClient from '../services/apiClient.js';
 
+const buildListQueryParams = (options = {}) => {
+  const normalizedOptions =
+    typeof options === 'number' ? { page: options } : options;
+
+  return {
+    ...(normalizedOptions.page ? { page: normalizedOptions.page } : {}),
+    ...(normalizedOptions.limit ? { limit: normalizedOptions.limit } : {}),
+    ...(normalizedOptions.sortBy ? { sortBy: normalizedOptions.sortBy } : {}),
+    ...(normalizedOptions.sortOrder
+      ? { sortOrder: normalizedOptions.sortOrder }
+      : {}),
+    ...(normalizedOptions.folderId ? { folderId: normalizedOptions.folderId } : {}),
+    ...(normalizedOptions.favorite !== undefined
+      ? { favorite: normalizedOptions.favorite }
+      : {}),
+    ...(normalizedOptions.type ? { type: normalizedOptions.type } : {}),
+    ...(normalizedOptions.keyword ? { keyword: normalizedOptions.keyword } : {}),
+  };
+};
+
 const uploadDocument = async (file, title, folderId) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -16,8 +36,10 @@ const uploadDocument = async (file, title, folderId) => {
   return response.data;
 };
 
-const getDocuments = async (page = 1, limit = 10) => {
-  const response = await apiClient.get(`/documents?page=${page}&limit=${limit}`);
+const getDocuments = async (options = {}) => {
+  const response = await apiClient.get('/documents', {
+    params: buildListQueryParams(options),
+  });
   return response.data;
 };
 
@@ -33,8 +55,10 @@ const toggleFavorite = async (documentId) => {
   return response.data;
 };
 
-const getFavorites = async () => {
-  const response = await apiClient.get('/documents/favorites');
+const getFavorites = async (options = {}) => {
+  const response = await apiClient.get('/documents/favorites', {
+    params: buildListQueryParams(options),
+  });
   return response.data;
 };
 

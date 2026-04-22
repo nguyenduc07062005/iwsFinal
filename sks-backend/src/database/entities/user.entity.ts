@@ -30,6 +30,20 @@ export class User extends BaseEntity {
   @Column({ name: 'is_active', default: true })
   isActive: boolean;
 
+  @Column({
+    name: 'reset_password_token_hash',
+    type: 'varchar',
+    nullable: true,
+  })
+  resetPasswordTokenHash: string | null;
+
+  @Column({
+    name: 'reset_password_token_expires_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  resetPasswordTokenExpiresAt: Date | null;
+
   /** Relations */
   @OneToMany(() => UserDocument, (userDocument) => userDocument.user)
   userDocuments: UserDocument[];

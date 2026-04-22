@@ -12,8 +12,14 @@ import { DocumentRepository } from 'src/database/repositories/document.repositor
 import { ChunkRepository } from 'src/database/repositories/chunks.repository';
 import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
 import { FolderRepository } from 'src/database/repositories/folder.repository';
+import {
+  DocumentSortField,
+  DocumentSortOrder,
+  DocumentTypeFilter,
+  ListDocumentsDto,
+} from './dtos/list-documents.dto';
 
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, IsNull, SelectQueryBuilder } from 'typeorm';
 
 import * as crypto from 'crypto';
 import { PDFParse } from 'pdf-parse';
@@ -45,6 +51,37 @@ type UploadDocumentResult = {
 
 type UserDocumentAccessRow = {
   fileRef: string | null;
+  documentId: string;
+  title: string | null;
+};
+
+type DeleteDocumentResult = {
+  documentId: string;
+  message: string;
+  removedFromLibraryOnly: boolean;
+  title: string | null;
+};
+
+type DocumentListFilters = {
+  favorite?: boolean;
+  folderId?: string;
+  keyword?: string;
+  sortBy: DocumentSortField;
+  sortOrder: Uppercase<DocumentSortOrder>;
+  type?: DocumentTypeFilter;
+};
+
+type DocumentListResult = {
+  documents: ReturnType<DocumentService['toDocumentSummary']>[];
+  filters: DocumentListFilters;
+  pagination: {
+    currentPage: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 };
 
 @Injectable()
@@ -338,6 +375,24 @@ export class DocumentService {
     }
   }
 
+  async getDocumentSummaryForOwner(documentId: string, ownerId: string) {
+    const userDocument = await this.dataSource
+      .getRepository(UserDocument)
+      .createQueryBuilder('userDocument')
+      .leftJoinAndSelect('userDocument.document', 'document')
+      .leftJoinAndSelect('userDocument.folder', 'folder')
+      .leftJoin('userDocument.user', 'user')
+      .where('document.id = :documentId', { documentId })
+      .andWhere('user.id = :ownerId', { ownerId })
+      .getOne();
+
+    if (!userDocument) {
+      throw new NotFoundException('Document not found or not owned by user');
+    }
+
+    return this.toDocumentSummary(userDocument);
+  }
+
   /**
    * Chunk text into pieces of maxLength characters
    */
@@ -370,44 +425,136 @@ export class DocumentService {
     return crypto.createHash('sha256').update(buffer).digest('hex');
   }
 
+  private createOwnerDocumentQueryBuilder(ownerId: string) {
+    return this.dataSource
+      .createQueryBuilder(UserDocument, 'userDocument')
+      .leftJoin('userDocument.document', 'document')
+      .leftJoin('userDocument.user', 'user')
+      .leftJoinAndSelect('userDocument.folder', 'folder')
+      .select([
+        'userDocument.id',
+        'userDocument.isFavorite',
+        'userDocument.documentName',
+        'document.id',
+        'document.metadata',
+        'document.docDate',
+        'document.extraAttributes',
+        'document.fileRef',
+        'document.fileSize',
+        'document.contentHash',
+        'document.status',
+        'document.createdAt',
+        'document.updatedAt',
+        'folder.id',
+        'folder.name',
+      ])
+      .where('user.id = :ownerId', { ownerId });
+  }
+
+  private async applyFolderFilter(
+    queryBuilder: SelectQueryBuilder<UserDocument>,
+    ownerId: string,
+    folderId: string,
+  ) {
+    const folder = await this.folderRepository.findOne({
+      where: { id: folderId, ownerId },
+    });
+
+    if (!folder) {
+      throw new NotFoundException('Folder not found');
+    }
+
+    if (!folder.parentId) {
+      queryBuilder.andWhere(
+        '(folder.id = :folderId OR userDocument.folder IS NULL)',
+        {
+          folderId,
+        },
+      );
+      return;
+    }
+
+    queryBuilder.andWhere('folder.id = :folderId', { folderId });
+  }
+
+  private applyDocumentSort(
+    queryBuilder: SelectQueryBuilder<UserDocument>,
+    sortBy: DocumentSortField,
+    sortOrder: Uppercase<DocumentSortOrder>,
+  ) {
+    const sortMap: Record<DocumentSortField, string> = {
+      createdAt: 'document.createdAt',
+      docDate: 'document.docDate',
+      fileSize: 'document.fileSize',
+      title: "LOWER(COALESCE(userDocument.document_name, document.title, ''))",
+      updatedAt: 'document.updatedAt',
+    };
+
+    queryBuilder.orderBy(sortMap[sortBy], sortOrder, 'NULLS LAST');
+
+    if (sortBy !== 'createdAt') {
+      queryBuilder.addOrderBy('document.createdAt', 'DESC');
+    }
+  }
+
   /**
-   * Get all documents for a user with pagination
+   * Get all documents for a user with server-side search, filter, sort, and pagination.
    */
-  async getDocuments(ownerId: string, page: number = 1, limit: number = 5) {
+  async getDocuments(
+    ownerId: string,
+    query: ListDocumentsDto = {},
+  ): Promise<DocumentListResult> {
     try {
+      const page = query.page ?? 1;
+      const limit = query.limit ?? 8;
       const offset = (page - 1) * limit;
+      const sortOrder = (
+        query.sortOrder ?? 'desc'
+      ).toUpperCase() as Uppercase<DocumentSortOrder>;
+      const sortBy = query.sortBy ?? 'createdAt';
 
-      const queryBuilder = this.dataSource
-        .createQueryBuilder(UserDocument, 'userDocument')
-        .leftJoin('userDocument.document', 'document')
-        .leftJoin('userDocument.user', 'user')
-        .leftJoinAndSelect('userDocument.folder', 'folder')
-        .select([
-          'userDocument.id',
-          'userDocument.isFavorite',
-          'userDocument.documentName',
-          'document.id',
-          'document.metadata',
-          'document.docDate',
-          'document.extraAttributes',
-          'document.fileRef',
-          'document.fileSize',
-          'document.contentHash',
-          'document.status',
-          'document.createdAt',
-          'document.updatedAt',
-          'folder.id',
-          'folder.name',
-        ])
-        .where('user.id = :ownerId', { ownerId })
-        .orderBy('document.createdAt', 'DESC')
+      const queryBuilder = this.createOwnerDocumentQueryBuilder(ownerId);
+
+      if (query.folderId) {
+        await this.applyFolderFilter(queryBuilder, ownerId, query.folderId);
+      }
+
+      if (query.favorite !== undefined) {
+        queryBuilder.andWhere('userDocument.isFavorite = :favorite', {
+          favorite: query.favorite,
+        });
+      }
+
+      if (query.type) {
+        queryBuilder.andWhere(
+          "LOWER(COALESCE(document.file_ref, '')) LIKE :typePattern",
+          {
+            typePattern: `%.${query.type}`,
+          },
+        );
+      }
+
+      if (query.keyword) {
+        queryBuilder.andWhere(
+          `(
+            LOWER(COALESCE(userDocument.document_name, document.title, '')) LIKE :keyword
+            OR LOWER(COALESCE(document.metadata::text, '')) LIKE :keyword
+            OR LOWER(COALESCE(document.extra_attributes::text, '')) LIKE :keyword
+          )`,
+          {
+            keyword: `%${query.keyword.trim().toLowerCase()}%`,
+          },
+        );
+      }
+
+      this.applyDocumentSort(queryBuilder, sortBy, sortOrder);
+
+      const [userDocuments, total] = await queryBuilder
         .skip(offset)
-        .take(limit);
+        .take(limit)
+        .getManyAndCount();
 
-      const [userDocuments, total] = await queryBuilder.getManyAndCount();
-
-      const totalPages = Math.ceil(total / limit);
-
+      const totalPages = Math.max(Math.ceil(total / limit), 1);
       const documents = userDocuments.map((userDoc) =>
         this.toDocumentSummary(userDoc),
       );
@@ -417,12 +564,29 @@ export class DocumentService {
       );
 
       return {
-        total,
-        currentPage: page,
-        totalPages,
         documents,
+        filters: {
+          favorite: query.favorite,
+          folderId: query.folderId,
+          keyword: query.keyword,
+          sortBy,
+          sortOrder,
+          type: query.type,
+        },
+        pagination: {
+          currentPage: page,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+          limit,
+          total,
+          totalPages,
+        },
       };
     } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
       this.logger.error(
         `Failed to retrieve documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
@@ -439,7 +603,7 @@ export class DocumentService {
   async deleteDocument(
     ownerId: string,
     documentId: string,
-  ): Promise<{ message: string }> {
+  ): Promise<DeleteDocumentResult> {
     return this.dataSource.transaction(async (manager) => {
       const documentRepo = manager.getRepository(Document);
       const chunkRepo = manager.getRepository(Chunk);
@@ -452,6 +616,11 @@ export class DocumentService {
         .leftJoin('userDocument.user', 'user')
         .select('userDocument.id')
         .addSelect('document.file_ref', 'fileRef')
+        .addSelect('document.id', 'documentId')
+        .addSelect(
+          'COALESCE(userDocument.document_name, document.title)',
+          'title',
+        )
         .where('document.id = :id AND user.id = :ownerId', {
           id: documentId,
           ownerId,
@@ -483,7 +652,12 @@ export class DocumentService {
       });
 
       if (remainingUserDocs > 0) {
-        return { message: 'Document removed from your library' };
+        return {
+          documentId: userDocument.documentId,
+          message: 'Document removed from your library',
+          removedFromLibraryOnly: true,
+          title: userDocument.title,
+        };
       }
 
       // No other users — full deletion
@@ -511,7 +685,12 @@ export class DocumentService {
         await fs.rm(fileRef, { force: true });
       }
 
-      return { message: 'Document removed successfully' };
+      return {
+        documentId: userDocument.documentId,
+        message: 'Document removed successfully',
+        removedFromLibraryOnly: false,
+        title: userDocument.title,
+      };
     });
   }
 
@@ -520,11 +699,22 @@ export class DocumentService {
    */
   async toggleFavorite(userId: string, documentId: string) {
     try {
-      return await this.userDocumentRepository.toggleFavorite(
-        userId,
-        documentId,
-      );
+      const userDocument =
+        await this.userDocumentRepository.findByUserAndDocument(
+          userId,
+          documentId,
+        );
+
+      if (!userDocument) {
+        throw new NotFoundException('Document not found or not owned by user');
+      }
+
+      await this.userDocumentRepository.toggleFavorite(userId, documentId);
+      return this.getDocumentSummaryForOwner(documentId, userId);
     } catch (error: unknown) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
       this.logger.error(
         `Failed to toggle favorite: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
@@ -536,10 +726,15 @@ export class DocumentService {
   /**
    * Get favorite documents
    */
-  async getFavorites(userId: string) {
+  async getFavorites(
+    userId: string,
+    query: ListDocumentsDto = {},
+  ): Promise<DocumentListResult> {
     try {
-      const favorites = await this.userDocumentRepository.getFavorites(userId);
-      return favorites.map((userDoc) => this.toDocumentSummary(userDoc));
+      return this.getDocuments(userId, {
+        ...query,
+        favorite: true,
+      });
     } catch (error: unknown) {
       this.logger.error(
         `Failed to get favorites: ${this.getErrorMessage(error)}`,
@@ -883,7 +1078,10 @@ export class DocumentService {
     userDocument.documentName = newName;
     await this.dataSource.getRepository(UserDocument).save(userDocument);
 
-    return { message: 'Document name updated successfully' };
+    return {
+      message: 'Document name updated successfully',
+      document: await this.getDocumentSummaryForOwner(documentId, userId),
+    };
   }
 
   private toDocumentSummary(

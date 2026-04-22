@@ -1,5 +1,9 @@
 /week-6-folder-rag-ui-plan.md
 /temp-rag-doc.txt
+/docs/
+/plan.md
+/*.docx
+**/runtime-logs/
 
 # Dependencies
 **/node_modules/

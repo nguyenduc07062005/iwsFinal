@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  RequestTimeoutException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { PromptTemplate } from '@langchain/core/prompts';
@@ -25,6 +26,9 @@ import { parseJsonWithRepair } from '../utils/llm-json';
 
 const MAX_SUMMARY_CONTEXT_CHUNKS = 18;
 const SUMMARY_ARTIFACT_VERSION = 3;
+const SUMMARY_GENERATION_TIMEOUT_MS = 45_000;
+const SUMMARY_TIMEOUT_MESSAGE =
+  'Summary generation timed out. Please try again in a moment.';
 
 const SUMMARY_PROMPT_TEMPLATE = [
   'You are a senior academic and technical analyst.',
@@ -282,26 +286,32 @@ export class RagSummaryService {
     instructionBlock: string;
   }): Promise<StructuredDocumentSummary> {
     try {
-      return await this.ragStructuredGenerationService.generate({
-        input,
-        prompt: this.summaryPrompt,
-        fallbackPrompt: this.summaryJsonFallbackPrompt,
-        outputSchema: SUMMARY_OUTPUT_SCHEMA,
-        schemaName: 'document_summary',
-        operationLabel: 'Summary generation',
-        skipJsonSchema: true,
-        skipFunctionCalling: true,
-        modelOptions: {
-          temperature: 0.2,
-          maxOutputTokens: 1400,
-          topP: 0.85,
-        },
-        coerce: (value) => this.coerceStructuredSummary(value),
-        parseRawResponse: (rawResponse) =>
-          this.parseRawSummaryResponse(rawResponse),
-        logger: this.logger,
-      });
+      return await this.withSummaryTimeout(
+        this.ragStructuredGenerationService.generate({
+          input,
+          prompt: this.summaryPrompt,
+          fallbackPrompt: this.summaryJsonFallbackPrompt,
+          outputSchema: SUMMARY_OUTPUT_SCHEMA,
+          schemaName: 'document_summary',
+          operationLabel: 'Summary generation',
+          skipJsonSchema: true,
+          skipFunctionCalling: true,
+          modelOptions: {
+            temperature: 0.2,
+            maxOutputTokens: 1400,
+            topP: 0.85,
+          },
+          coerce: (value) => this.coerceStructuredSummary(value),
+          parseRawResponse: (rawResponse) =>
+            this.parseRawSummaryResponse(rawResponse),
+          logger: this.logger,
+        }),
+      );
     } catch (rawFallbackError) {
+      if (rawFallbackError instanceof RequestTimeoutException) {
+        throw rawFallbackError;
+      }
+
       this.logger.error(
         'Summary generation failed after LangChain and raw Gemini fallback.',
         this.toErrorStack(rawFallbackError),
@@ -338,6 +348,17 @@ export class RagSummaryService {
             conclusion:
               'This summary reflects only the content that was successfully extracted.',
           };
+
+    if (language === 'vi') {
+      fallbackCopy.title = `Tom tat ${documentTitle}`;
+      fallbackCopy.overview =
+        'Khong the trich xuat day du phan tong quan tu ngu canh hien co cua tai lieu.';
+      fallbackCopy.keyPoints = [
+        'Ngu canh trich xuat tu tai lieu chua du ro de rut ra toan bo y chinh.',
+      ];
+      fallbackCopy.conclusion =
+        'Ban tom tat hien tai chi phan anh phan noi dung da duoc trich xuat thanh cong.';
+    }
 
     const keyPoints = Array.isArray(safeSummary?.key_points)
       ? safeSummary.key_points
@@ -487,9 +508,8 @@ export class RagSummaryService {
   private parseRawSummaryResponse(
     rawResponse: string,
   ): StructuredDocumentSummary {
-    const parsed = parseJsonWithRepair<Partial<StructuredDocumentSummary>>(
-      rawResponse,
-    );
+    const parsed =
+      parseJsonWithRepair<Partial<StructuredDocumentSummary>>(rawResponse);
 
     const structuredSummary = this.coerceStructuredSummary({
       format: typeof parsed.format === 'string' ? parsed.format : 'structured',
@@ -577,10 +597,40 @@ export class RagSummaryService {
     return undefined;
   }
 
+  private async withSummaryTimeout<T>(promise: Promise<T>): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            reject(new RequestTimeoutException(SUMMARY_TIMEOUT_MESSAGE));
+          }, SUMMARY_GENERATION_TIMEOUT_MS);
+        }),
+      ]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
+
   private toSummaryGenerationException(
     error: unknown,
-  ): BadGatewayException | ServiceUnavailableException {
+  ):
+    | BadGatewayException
+    | ServiceUnavailableException
+    | RequestTimeoutException {
     const normalizedMessage = this.toErrorMessage(error).toLowerCase();
+
+    if (
+      error instanceof RequestTimeoutException ||
+      normalizedMessage.includes('timed out') ||
+      normalizedMessage.includes('timeout')
+    ) {
+      return new RequestTimeoutException(SUMMARY_TIMEOUT_MESSAGE);
+    }
 
     if (
       normalizedMessage.includes('resource_exhausted') ||

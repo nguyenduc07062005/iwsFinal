@@ -1,98 +1,79 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# StudyVault Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS REST API for the StudyVault final project. This service owns:
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- authentication: register, login, forgot password, reset password, profile
+- document CRUD and upload
+- folder CRUD and document organization
+- server-side search, filter, sort, and pagination
+- AI summary and document Q&A endpoints
 
-## Description
+## Tech Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- NestJS 11
+- PostgreSQL + TypeORM
+- JWT authentication
+- class-validator / class-transformer
 
-## Project setup
+## Quick Start
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env
+npm run migration:run
+npm run start:dev
 ```
 
-## Compile and run the project
+The API runs on `http://localhost:8000` by default and uses the global prefix `/api`.
+
+## Environment Variables
+
+Copy [`.env.example`](/D:/S2026/iws/projectfinal/sks-backend/.env.example) and update the values for your machine.
+
+Important variables:
+
+- `PORT`: API port, default `8000`
+- `CORS_ORIGIN`: comma-separated allowed frontend origins
+- `DATABASE_*`: PostgreSQL connection. The default local database name is `studyvault_iws`.
+- `JWT_SECRET`: JWT signing secret
+- `JWT_EXPIRES_IN`: token lifetime, default `1d`
+- `RESET_PASSWORD_TTL_MINUTES`: reset token lifetime
+- `AUTH_RETURN_RESET_TOKEN`: set `true` in local demo mode if you want the forgot-password API to return the reset token
+- `GEMINI_*`: model configuration for AI summary / Q&A
+
+## Useful Scripts
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev
+npm run build
+npm run migration:run
+npm run test:e2e
 ```
 
-## Run tests
+`npm run lint` still reports legacy lint debt in older AI/RAG files outside the Phase 8 scope. Build and targeted lint checks for the critical backend paths pass.
 
-```bash
-# unit tests
-$ npm run test
+## Main API Areas
 
-# e2e tests
-$ npm run test:e2e
+- `/api/auth`
+- `/api/documents`
+- `/api/folders`
+- `/api/rag`
 
-# test coverage
-$ npm run test:cov
-```
+The production frontend is expected to call the backend directly through `VITE_API_BASE_URL`.
 
-## Deployment
+## Phase 8 Test Coverage
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+The E2E suite in [test/studyvault.e2e-spec.ts](/D:/S2026/iws/projectfinal/sks-backend/test/studyvault.e2e-spec.ts) covers the scoring-critical HTTP flows:
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- auth: register, login, forgot password, reset password, profile
+- folders: create, update, move, delete, list
+- documents: upload, rename, favorite, delete
+- server-side query contract: pagination, sorting, filtering, search validation
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+These tests run against Nest HTTP routes with mocked services so the suite stays stable and does not depend on a local PostgreSQL or external AI service.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Demo Notes
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- For local defense/demo, keep `AUTH_RETURN_RESET_TOKEN=true`.
+- For a stricter deployment, switch it to `false`.
+- The frontend production flow no longer depends on mindmap.

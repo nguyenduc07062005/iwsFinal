@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { getProfile } from '../../service/authAPI.js';
-import { clearToken } from '../../utils/auth.js';
+import { logout } from '../../utils/auth.js';
 
 const NAV_ITEMS = [
   { to: '/app/home', label: 'Home' },
@@ -59,7 +59,7 @@ const WorkspaceShell = () => {
   }, [profileName]);
 
   const handleLogout = () => {
-    clearToken();
+    logout();
     navigate('/login', { replace: true });
   };
 

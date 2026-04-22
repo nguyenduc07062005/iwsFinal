@@ -1,4 +1,5 @@
 import apiClient from '../services/apiClient.js';
+import { getApiErrorMessage } from '../utils/apiError.js';
 
 const postLogin = async (email, password) => {
   const response = await apiClient.post('/auth/login', {
@@ -19,4 +20,24 @@ const getProfile = async () => {
   return response.data;
 };
 
-export { getProfile, postLogin, postRegister };
+const requestPasswordReset = async (email) => {
+  const response = await apiClient.post('/auth/forgot-password', { email });
+  return response.data;
+};
+
+const submitPasswordReset = async (token, password) => {
+  const response = await apiClient.post('/auth/reset-password', {
+    token,
+    password,
+  });
+  return response.data;
+};
+
+export {
+  getApiErrorMessage,
+  getProfile,
+  postLogin,
+  postRegister,
+  requestPasswordReset,
+  submitPasswordReset,
+};

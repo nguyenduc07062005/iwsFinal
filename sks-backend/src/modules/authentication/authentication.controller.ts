@@ -11,7 +11,9 @@ import {
 import { Request } from 'express';
 import { AuthenticationService } from './authentication.service';
 import { CreateUserDto } from './dtos/create-user.dto';
+import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { LoginDto } from './dtos/login.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
 
 @Controller('auth')
@@ -27,6 +29,18 @@ export class AuthenticationController {
   @Post('login')
   async login(@Body() dto: LoginDto) {
     return this.authService.login(dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @UseGuards(JwtAuthGuard)

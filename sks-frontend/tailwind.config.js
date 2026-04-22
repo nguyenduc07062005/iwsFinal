@@ -4,38 +4,50 @@ export default {
   theme: {
     extend: {
       colors: {
-        'sks-primary': '#0ea5e9', // Sky-500 (Cyan-Blue)
-        'sks-primary-dark': '#0284c7', // Sky-600
-        'sks-primary-light': '#e0f2fe', // Sky-100
-        'sks-accent': '#06b6d4', // Cyan-500
+        brand: {
+          50: '#faebe8',
+          100: '#f4d6d0',
+          500: '#e2725b',
+          600: '#cc6652',
+          900: '#8c4238',
+        },
+        base: {
+          50: '#faf9f6',
+          100: '#f5f2eb',
+        },
+        accent: '#b87333',
+        'sks-primary': '#e2725b',
+        'sks-primary-dark': '#8c4238',
+        'sks-primary-light': '#faebe8',
+        'sks-accent': '#b87333',
         'sks-slate': {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617',
+          50: '#faf9f6',
+          100: '#f5f2eb',
+          200: '#eadfd5',
+          300: '#d7c2b2',
+          400: '#b69d91',
+          500: '#8a756b',
+          600: '#6f625d',
+          700: '#514744',
+          800: '#3a3230',
+          900: '#2d2c2f',
+          950: '#1c1a1d',
         }
       },
       fontFamily: {
-        'sans': ['Inter', 'sans-serif'],
+        'sans': ['Plus Jakarta Sans', 'sans-serif'],
         'display': ['Plus Jakarta Sans', 'sans-serif'],
-        'serif': ['Noto Serif', 'serif'],
+        'serif': ['Plus Jakarta Sans', 'sans-serif'],
       },
       boxShadow: {
-        'sks-soft': '0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 10px -1px rgba(15, 23, 42, 0.02)',
-        'sks-medium': '0 12px 40px -10px rgba(15, 23, 42, 0.08), 0 4px 20px -5px rgba(15, 23, 42, 0.04)',
-        'sks-heavy': '0 25px 60px -15px rgba(15, 23, 42, 0.12), 0 10px 30px -10px rgba(15, 23, 42, 0.08)',
-        'sks-glow': '0 0 40px 10px rgba(79, 70, 229, 0.05)',
+        'sks-soft': '0 18px 45px -28px rgba(45, 44, 47, 0.22)',
+        'sks-medium': '0 22px 60px -30px rgba(45, 44, 47, 0.28)',
+        'sks-heavy': '0 28px 70px -40px rgba(45, 44, 47, 0.32)',
+        'sks-glow': '0 22px 55px -28px rgba(140, 66, 56, 0.42)',
       },
       borderRadius: {
-        'sks-xl': '1.25rem',
-        'sks-2xl': '1.5rem',
+        'sks-xl': '1.1rem',
+        'sks-2xl': '1.75rem',
         'sks-3xl': '2rem',
       },
       animation: {

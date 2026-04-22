@@ -22,6 +22,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentService } from './document.service';
 import { DocumentDto } from './dtos/document.dto';
 import { DeleteDocumentDto } from './dtos/delete-document.dto';
+import { ListDocumentsDto } from './dtos/list-documents.dto';
 import { SearchDocumentDto } from './dtos/search-document.dto';
 import { UpdateDocumentNameDto } from './dtos/update-document-name.dto';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
@@ -58,7 +59,9 @@ export class DocumentController {
         }
 
         callback(
-          new Error('Only PDF, DOCX, or TXT files are supported.'),
+          new BadRequestException(
+            'Only PDF, DOCX, or TXT files are supported.',
+          ),
           false,
         );
       },
@@ -87,12 +90,15 @@ export class DocumentController {
       ownerId,
     );
     await this.ragService.ensureDocumentIndexed(uploaded.id);
-    const updatedList = await this.documentService.getDocuments(ownerId);
+    const document = await this.documentService.getDocumentSummaryForOwner(
+      uploaded.id,
+      ownerId,
+    );
 
     return {
-      message: 'Document uploaded and list refreshed successfully',
+      message: 'Document uploaded successfully',
+      document,
       uploaded,
-      updatedList,
     };
   }
 
@@ -102,22 +108,14 @@ export class DocumentController {
   @Get()
   async getDocuments(
     @Request() req: ExpressRequest,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '5',
+    @Query() query: ListDocumentsDto,
   ) {
     const ownerId = this.getUserId(req);
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 5;
-    const result = await this.documentService.getDocuments(
-      ownerId,
-      pageNum,
-      limitNum,
-    );
+    const result = await this.documentService.getDocuments(ownerId, query);
     return {
       message: 'Documents retrieved successfully',
-      total: result.total,
-      currentPage: result.currentPage,
-      totalPages: result.totalPages,
+      pagination: result.pagination,
+      filters: result.filters,
       documents: result.documents,
     };
   }
@@ -153,7 +151,7 @@ export class DocumentController {
     );
     return {
       message: 'Favorite toggled successfully',
-      data: result,
+      document: result,
     };
   }
 
@@ -161,12 +159,17 @@ export class DocumentController {
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @Get('favorites')
-  async getFavorites(@Request() req: ExpressRequest) {
+  async getFavorites(
+    @Request() req: ExpressRequest,
+    @Query() query: ListDocumentsDto,
+  ) {
     const userId = this.getUserId(req);
-    const result = await this.documentService.getFavorites(userId);
+    const result = await this.documentService.getFavorites(userId, query);
     return {
       message: 'Favorites retrieved successfully',
-      favorites: result,
+      pagination: result.pagination,
+      filters: result.filters,
+      favorites: result.documents,
     };
   }
 

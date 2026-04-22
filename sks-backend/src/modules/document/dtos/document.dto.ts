@@ -1,9 +1,12 @@
 import {
+  IsInt,
   IsOptional,
   IsString,
   IsDateString,
   IsArray,
   IsObject,
+  IsUUID,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -29,7 +32,7 @@ export class MetadataDto {
 }
 
 export class DocumentDto {
-  @IsString()
+  @IsString({ message: 'title must be a string.' })
   @IsOptional()
   title?: string;
 
@@ -38,7 +41,7 @@ export class DocumentDto {
   @Type(() => MetadataDto)
   metadata?: MetadataDto;
 
-  @IsDateString()
+  @IsDateString({}, { message: 'docDate must be a valid ISO date string.' })
   @IsOptional()
   docDate?: Date;
 
@@ -46,15 +49,17 @@ export class DocumentDto {
   @IsObject()
   extraAttributes?: Record<string, any>;
 
-  @IsString()
+  @IsString({ message: 'fileRef must be a string.' })
   @IsOptional()
   fileRef?: string;
 
   @IsOptional()
+  @IsInt({ message: 'fileSize must be an integer number of bytes.' })
+  @Min(0, { message: 'fileSize cannot be negative.' })
   fileSize?: number;
 
-  @IsString()
   @IsOptional()
+  @IsUUID('4', { message: 'folderId must be a valid folder id.' })
   folderId?: string;
 
   @IsArray()
