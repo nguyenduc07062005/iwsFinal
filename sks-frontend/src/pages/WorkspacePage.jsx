@@ -1,25 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Search,
-  Filter,
-  Plus,
-  FolderOpen,
+  CloudUpload,
   FolderClosed,
-  Star,
-  ChevronRight,
-  MoreVertical,
   LayoutGrid,
   List,
+  Search,
   Sparkles,
-  Clock,
-  HardDrive,
-  BarChart3,
-  Calendar,
 } from 'lucide-react';
 import { useDocumentsContext } from '../components/DocumentsContext.jsx';
 import UploadModal from '../components/documents/UploadModal.jsx';
+import FoldersPanel from '../components/folders/FoldersPanel.jsx';
 import DocumentLibraryPanel from '../components/workspace/DocumentLibraryPanel.jsx';
 import WorkspaceDocumentModals from '../components/workspace/WorkspaceDocumentModals.jsx';
 import { addDocumentToFolder } from '../service/folderAPI.js';
@@ -40,6 +32,21 @@ const DEFAULT_SORT_ORDER = 'desc';
 const VALID_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'docDate', 'fileSize']);
 const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
 const VALID_TYPES = new Set(['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']);
+
+const TYPE_FILTERS = [
+  { label: 'Tất cả', value: '' },
+  { label: 'PDF', value: 'pdf' },
+  { label: 'Word', value: 'docx' },
+  { label: 'Text', value: 'txt' },
+];
+
+const SORT_OPTIONS = [
+  { label: 'Mới', sortBy: 'createdAt', sortOrder: 'desc' },
+  { label: 'Cập nhật', sortBy: 'updatedAt', sortOrder: 'desc' },
+  { label: 'A-Z', sortBy: 'title', sortOrder: 'asc' },
+  { label: 'Dung lượng', sortBy: 'fileSize', sortOrder: 'desc' },
+];
+
 const MotionDiv = motion.div;
 const MotionButton = motion.button;
 
@@ -48,21 +55,9 @@ const readPositiveInt = (value, fallback) => {
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
-// Component thống kê nhỏ gọn
-const StatCard = ({ icon, label, value, color }) => {
-  const IconComponent = icon;
-
-  return (
-  <div className="flex items-center gap-4 px-5 py-4 rounded-[1.5rem] bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-    <div className={cn("p-2.5 rounded-2xl transition-colors", color)}>
-      <IconComponent size={18} />
-    </div>
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="text-sm font-black text-slate-800">{value}</p>
-    </div>
-  </div>
-  );
+const getFolderLabel = (folder, rootFolder) => {
+  if (!folder) return 'Workspace';
+  return folder.id === rootFolder?.id ? 'Workspace' : folder.name || 'Workspace';
 };
 
 const WorkspacePage = () => {
@@ -76,28 +71,26 @@ const WorkspacePage = () => {
     selectedFolder,
     selectedFolderId,
     selectFolder,
-    total: totalDocuments,
   } = useDocumentsContext();
 
   const [flash, setFlash] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(searchParams.get('openUpload') === 'true');
-  const [viewMode, setViewMode] = useState('grid');
-  
-  // Modals state
+  const [viewMode, setViewMode] = useState('table');
+
   const [renameTarget, setRenameTarget] = useState(null);
   const [renameName, setRenameName] = useState('');
   const [renameError, setRenameError] = useState('');
   const [renaming, setRenaming] = useState(false);
-  
+
   const [moveTarget, setMoveTarget] = useState(null);
   const [moveDestinationId, setMoveDestinationId] = useState('');
   const [moveError, setMoveError] = useState('');
   const [moving, setMoving] = useState(false);
-  
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
-  
+
   const [documents, setDocuments] = useState([]);
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [documentsError, setDocumentsError] = useState('');
@@ -109,7 +102,7 @@ const WorkspacePage = () => {
     total: 0,
     totalPages: 1,
   });
-  
+
   const [searchInput, setSearchInput] = useState(searchParams.get('keyword') || '');
   const [reloadKey, setReloadKey] = useState(0);
   const requestIdRef = useRef(0);
@@ -123,11 +116,24 @@ const WorkspacePage = () => {
   const favorite = searchParams.get('favorite') === 'true';
   const folderIdParam = searchParams.get('folderId') || '';
 
+  const activeFolder = selectedFolder || rootFolder;
+  const activeFolderId = activeFolder?.id || null;
+  const activeFolderLabel = getFolderLabel(activeFolder, rootFolder);
+
   useEffect(() => {
-    if (!flash) return;
+    if (!flash) return undefined;
     const timer = window.setTimeout(() => setFlash(null), 4500);
     return () => window.clearTimeout(timer);
   }, [flash]);
+
+  useEffect(() => {
+    if (searchParams.get('openUpload') !== 'true') return;
+
+    setShowUploadModal(true);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.delete('openUpload');
+    setSearchParams(nextParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     setSearchInput(keyword);
@@ -140,10 +146,6 @@ const WorkspacePage = () => {
       selectFolder(normalizedFolderId);
     }
   }, [folderIdParam, rootFolder, selectFolder, selectedFolderId]);
-
-  const activeFolder = selectedFolder || rootFolder;
-  const activeFolderId = activeFolder?.id || null;
-  const childFolders = activeFolder?.children || [];
 
   const updateQuery = (updates, options = {}) => {
     const { resetPage = false } = options;
@@ -165,6 +167,7 @@ const WorkspacePage = () => {
         nextParams.delete(key);
         return;
       }
+
       nextParams.set(key, String(value));
     });
 
@@ -211,8 +214,15 @@ const WorkspacePage = () => {
       } catch (requestError) {
         if (requestId !== requestIdRef.current) return;
         setDocuments([]);
-        setPagination({ currentPage: page, hasNextPage: false, hasPreviousPage: false, limit, total: 0, totalPages: 1 });
-        setDocumentsError(getApiErrorMessage(requestError, 'Failed to load documents.'));
+        setPagination({
+          currentPage: page,
+          hasNextPage: false,
+          hasPreviousPage: false,
+          limit,
+          total: 0,
+          totalPages: 1,
+        });
+        setDocumentsError(getApiErrorMessage(requestError, 'Không tải được danh sách tài liệu.'));
       } finally {
         if (requestId === requestIdRef.current) {
           setDocumentsLoading(false);
@@ -226,7 +236,7 @@ const WorkspacePage = () => {
   const showSuccess = (message) => setFlash({ tone: 'success', message });
   const showError = (message) => setFlash({ tone: 'error', message });
 
-  const getFallbackPage = () => documents.length === 1 && page > 1 ? page - 1 : page;
+  const getFallbackPage = () => (documents.length === 1 && page > 1 ? page - 1 : page);
 
   const handleFolderSelectionChange = (folderId) => {
     if (!rootFolder) return;
@@ -244,7 +254,7 @@ const WorkspacePage = () => {
     await uploadDocument(file, title, targetFolderId);
     await refreshFolders(targetFolderId);
     refreshList();
-    showSuccess('Đã tải lên tài liệu thành công.');
+    showSuccess('Đã tải tài liệu lên workspace.');
   };
 
   const handleToggleFavorite = async (documentId) => {
@@ -252,7 +262,7 @@ const WorkspacePage = () => {
       await toggleFavorite(documentId);
       refreshList();
     } catch (requestError) {
-      showError(getApiErrorMessage(requestError, 'Lỗi cập nhật yêu thích.'));
+      showError(getApiErrorMessage(requestError, 'Không cập nhật được yêu thích.'));
     }
   };
 
@@ -260,7 +270,7 @@ const WorkspacePage = () => {
     try {
       await downloadDocumentFile(documentId, title);
     } catch (requestError) {
-      showError(getApiErrorMessage(requestError, 'Lỗi tải xuống tài liệu.'));
+      showError(getApiErrorMessage(requestError, 'Không tải xuống được tài liệu.'));
     }
   };
 
@@ -270,15 +280,16 @@ const WorkspacePage = () => {
       setRenameError('Vui lòng nhập tên tài liệu.');
       return;
     }
+
     try {
       setRenaming(true);
       await updateDocumentName(renameTarget.id, renameName.trim());
       setRenameTarget(null);
       setRenaming(false);
       refreshList();
-      showSuccess('Đã sửa tên thành công.');
+      showSuccess('Đã đổi tên tài liệu.');
     } catch (requestError) {
-      setRenameError(getApiErrorMessage(requestError, 'Lỗi đổi tên.'));
+      setRenameError(getApiErrorMessage(requestError, 'Không đổi tên được tài liệu.'));
       setRenaming(false);
     }
   };
@@ -286,14 +297,17 @@ const WorkspacePage = () => {
   const handleMoveDocumentConfirm = async () => {
     if (!moveTarget) return;
     const destinationId = moveDestinationId || rootFolder?.id;
+
     if (!destinationId) {
       setMoveError('Vui lòng chọn thư mục đến.');
       return;
     }
+
     if (destinationId === moveTarget.folderId) {
       setMoveTarget(null);
       return;
     }
+
     try {
       setMoving(true);
       await addDocumentToFolder(destinationId, moveTarget.id);
@@ -304,13 +318,14 @@ const WorkspacePage = () => {
       refreshList();
       showSuccess('Đã di chuyển tài liệu.');
     } catch (requestError) {
-      setMoveError(getApiErrorMessage(requestError, 'Lỗi di chuyển.'));
+      setMoveError(getApiErrorMessage(requestError, 'Không di chuyển được tài liệu.'));
       setMoving(false);
     }
   };
 
   const handleDeleteDocumentConfirm = async () => {
     if (!deleteTarget) return;
+
     try {
       setDeleting(true);
       await deleteDocument(deleteTarget.id);
@@ -320,198 +335,236 @@ const WorkspacePage = () => {
       refreshList();
       showSuccess('Đã xóa tài liệu.');
     } catch (requestError) {
-      setDeleteError(getApiErrorMessage(requestError, 'Lỗi xóa tài liệu.'));
+      setDeleteError(getApiErrorMessage(requestError, 'Không xóa được tài liệu.'));
       setDeleting(false);
     }
   };
 
   return (
-    <div className="w-full flex flex-col items-center pb-20 px-6 max-w-7xl mx-auto">
+    <div className="relative min-h-screen overflow-x-hidden pb-20">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(135deg,#f9e8f6_0%,#f4eafe_44%,#f1ecff_100%)]"
+      />
+
       <AnimatePresence>
         {flash && (
-          <MotionDiv 
-            initial={{ opacity: 0, y: 30, scale: 0.9 }}
+          <MotionDiv
+            initial={{ opacity: 0, y: 30, scale: 0.94 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className={`fixed bottom-10 z-[100] rounded-full px-8 py-3.5 shadow-2xl text-xs font-black uppercase tracking-widest border ${flash.tone === 'error' ? 'bg-rose-600 border-rose-500 text-white' : 'bg-slate-900 border-slate-800 text-white'}`}
+            exit={{ opacity: 0, y: 20, scale: 0.94 }}
+            className={cn(
+              'fixed bottom-10 left-1/2 z-[100] -translate-x-1/2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-[0.18em] shadow-2xl',
+              flash.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white',
+            )}
           >
             {flash.message}
           </MotionDiv>
         )}
       </AnimatePresence>
 
-      {/* --- HEADER BLOCK (NEAT & ARTISTIC) --- */}
-      <div className="w-full flex flex-col lg:flex-row items-center justify-between gap-8 pt-8 pb-12">
-        <div className="text-center lg:text-left">
-          <MotionDiv 
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="inline-flex items-center gap-2 mb-4 px-3 py-1.5 rounded-full bg-brand-50 text-brand-700 text-[10px] font-black uppercase tracking-widest border border-brand-100"
-          >
-            <Sparkles size={12} /> Personal Workspace
-          </MotionDiv>
-          <h1 className="text-4xl md:text-5xl font-black tracking-tighter leading-tight text-slate-900 mb-2">
-            Chào ngày mới!
-          </h1>
-          <p className="text-slate-400 font-medium max-w-md">Quản lý tri thức của bạn một cách nghệ thuật và khoa học.</p>
-        </div>
+      <main className="relative z-10 w-full">
+        <MotionDiv
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative mx-auto flex min-h-[360px] max-w-6xl flex-col items-center justify-start overflow-visible px-3 pb-12 pt-1 text-center sm:px-6 lg:pt-3"
+        >
+          <div className="pointer-events-none absolute left-[-7%] top-12 h-72 w-72 rounded-full bg-white/45 blur-3xl" />
+          <div className="pointer-events-none absolute right-[-8%] top-20 h-80 w-80 rounded-full bg-brand-100/60 blur-3xl" />
 
-        {/* Stats Section */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full lg:w-auto">
-          <StatCard icon={BarChart3} label="Tài liệu" value={totalDocuments || 0} color="bg-blue-50 text-blue-600" />
-          <StatCard icon={HardDrive} label="Dung lượng" value="1.2 GB" color="bg-brand-50 text-brand-600" />
-          <StatCard icon={Calendar} label="Cập nhật" value="Hôm nay" color="bg-purple-50 text-purple-600" />
-        </div>
-      </div>
-
-      {/* --- SUPER SEARCH BAR (COMPACT VERSION) --- */}
-      <div className="w-full max-w-4xl mb-16">
-        <div className="bg-white/80 backdrop-blur-xl rounded-full shadow-[0_15px_45px_-10px_rgba(0,0,0,0.08)] border border-white/50 flex items-center p-2 group transition-all duration-500 hover:shadow-[0_20px_60px_-10px_rgba(0,0,0,0.12)] focus-within:ring-8 focus-within:ring-brand-500/5">
-          <div className="pl-6 pr-3 text-slate-400 group-focus-within:text-brand-500 transition-colors">
-            <Search size={22} />
-          </div>
-          
-          <input 
-            type="text" 
-            placeholder="Tìm nhanh tài liệu, môn học..." 
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleApplySearch()}
-            className="flex-1 bg-transparent border-none outline-none py-4 text-base font-semibold text-slate-700 placeholder:text-slate-300"
-          />
-
-          <div className="hidden sm:flex items-center gap-2 px-6 border-l border-slate-100 mr-2">
-            <select 
-              value={type || ''} 
-              onChange={(e) => updateQuery({ type: e.target.value }, { resetPage: true })}
-              className="bg-transparent border-none outline-none text-xs font-black uppercase tracking-widest text-slate-400 cursor-pointer hover:text-brand-600 transition-colors appearance-none pr-4"
-            >
-              <option value="">Tất cả</option>
-              <option value="pdf">PDF</option>
-              <option value="docx">DOC</option>
-              <option value="xlsx">XLS</option>
-            </select>
-          </div>
-
-          <MotionButton 
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleApplySearch}
-            className="bg-brand-900 text-white rounded-full px-8 py-3.5 font-black text-xs uppercase tracking-widest shadow-xl shadow-brand-500/20 hover:bg-slate-900 transition-all"
-          >
-            Tìm kiếm
-          </MotionButton>
-        </div>
-      </div>
-
-      {/* --- REFINED NAVIGATION --- */}
-      <div className="w-full mb-12 flex flex-col md:flex-row items-center justify-between gap-6 border-b border-slate-100 pb-8">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar w-full md:w-auto">
-          <button 
-            onClick={() => { updateQuery({ favorite: undefined, folderId: undefined }, { resetPage: true }); selectFolder(null); }}
-            className={cn(
-              "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap",
-              !favorite && (!selectedFolderId || selectedFolderId === rootFolder?.id)
-                ? "bg-brand-900 text-white shadow-xl shadow-brand-500/20"
-                : "text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent"
-            )}
-          >
-            Mọi tài liệu
-          </button>
-          <button 
-            onClick={() => { updateQuery({ favorite: true, folderId: undefined }, { resetPage: true }); selectFolder(null); }}
-            className={cn(
-              "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
-              favorite 
-                ? "bg-amber-500 text-white shadow-xl shadow-amber-500/20"
-                : "text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent"
-            )}
-          >
-            <Star size={14} fill={favorite ? "currentColor" : "none"} /> Yêu thích
-          </button>
-          <div className="h-4 w-px bg-slate-200 mx-2 hidden md:block" />
-          <div className="flex items-center gap-2">
-            {childFolders.slice(0, 4).map(folder => (
-              <button 
-                key={folder.id}
-                onClick={() => handleFolderSelectionChange(folder.id)}
-                className={cn(
-                  "px-6 py-2.5 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-2",
-                  selectedFolderId === folder.id
-                    ? "bg-brand-50 text-brand-600 border border-brand-200"
-                    : "text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent"
-                )}
-              >
-                <FolderClosed size={14} /> {folder.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4 shrink-0">
-          <button 
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-full bg-slate-900 text-white text-xs font-black uppercase tracking-widest hover:bg-brand-900 transition-all shadow-lg"
-          >
-            <Plus size={16} /> Tải lên
-          </button>
-          <div className="h-6 w-px bg-slate-200" />
-          <div className="flex bg-slate-100 p-1 rounded-full border border-slate-200">
-            <button 
-              className={cn("p-2 rounded-full transition-all", viewMode === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-              onClick={() => setViewMode('grid')}
-            >
-              <LayoutGrid size={16} />
-            </button>
-            <button 
-              className={cn("p-2 rounded-full transition-all", viewMode === 'table' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}
-              onClick={() => setViewMode('table')}
-            >
-              <List size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* --- MAIN GRID SECTION --- */}
-      <div className="w-full">
-        {/* Recent Section (What's missing) */}
-        {!keyword && !favorite && !selectedFolderId && (
-          <div className="mb-12">
-            <div className="flex items-center gap-2 mb-6">
-              <Clock size={16} className="text-brand-500" />
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400">Gần đây</h2>
+          <div className="relative flex flex-col items-center">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/70 px-5 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-brand-600 shadow-sm backdrop-blur-xl">
+              <Sparkles size={14} />
+              Không gian học tập
             </div>
-            {/* We could render a small carousel or first 4 docs here */}
+
+            <h1 className="max-w-5xl pb-3 text-4xl font-black leading-[1.2] tracking-[-0.05em] text-brand-900 sm:text-5xl lg:text-[4rem]">
+              Tri thức của bạn,
+              <span className="block pb-2 leading-[1.18] bg-gradient-to-r from-brand-600 via-violet-500 to-pink-500 bg-clip-text text-transparent">
+                Gọn gàng & Nghệ thuật.
+              </span>
+            </h1>
           </div>
-        )}
 
-        <DocumentLibraryPanel
-          viewMode={viewMode}
-          childFolders={favorite ? [] : childFolders}
-          documents={documents}
-          emptyTitle={favorite ? "Danh sách yêu thích trống" : "Không có tài liệu"}
-          emptyDescription="Bắt đầu hành trình bằng cách tải lên tài liệu đầu tiên của bạn."
-          error={documentsError}
-          loading={foldersLoading || documentsLoading}
-          onOpenFolder={handleFolderSelectionChange}
-          onOpenDocument={(id) => navigate(`/app/documents/${id}`)}
-          onDownloadDocument={handleDownloadDocument}
-          onToggleFavorite={handleToggleFavorite}
-          onMoveDocument={(doc) => { setMoveTarget(doc); setMoveDestinationId(doc.folderId || rootFolder?.id); }}
-          onRenameDocument={(doc) => { setRenameTarget(doc); setRenameName(doc.title); }}
-          onDeleteDocument={(doc) => setDeleteTarget(doc)}
-          pagination={{
-            currentPage: pagination.currentPage,
-            totalPages: pagination.totalPages,
-            total: pagination.total,
-            onPageChange: (nextPage) => updateQuery({ page: nextPage }),
-          }}
-          showFolderContext={favorite || searchInput !== ''}
-        />
-      </div>
+          <div className="relative mt-7 flex w-full max-w-3xl items-center rounded-full border border-white/70 bg-white/80 p-1.5 shadow-[0_24px_70px_-45px_rgba(45,44,47,0.62)] backdrop-blur-xl">
+            <div className="pl-5 pr-2 text-slate-400">
+              <Search size={19} />
+            </div>
 
-      {/* Modals */}
+            <input
+              type="text"
+              placeholder="Tìm tài liệu, môn học, bài tập lớn..."
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleApplySearch();
+              }}
+              className="min-w-0 flex-1 bg-transparent px-3 py-3 text-left text-sm font-semibold text-slate-700 outline-none placeholder:text-slate-400"
+            />
+
+            <MotionButton
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleApplySearch}
+              className="rounded-full bg-gradient-to-r from-brand-500 to-brand-600 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-brand-500/20 transition-opacity hover:opacity-90"
+            >
+              Tìm kiếm
+            </MotionButton>
+          </div>
+
+        </MotionDiv>
+
+        <section className="-mt-4 grid grid-cols-1 gap-6 xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[400px_minmax(0,1fr)]">
+          <aside className="min-w-0 rounded-[2rem] border border-white/70 bg-white/55 p-4 shadow-[0_30px_90px_-62px_rgba(45,44,47,0.55)] backdrop-blur-xl">
+            <FoldersPanel onFolderSelectionChange={handleFolderSelectionChange} />
+          </aside>
+
+          <div className="min-w-0 rounded-[2rem] border border-white/70 bg-white/55 p-4 shadow-[0_30px_90px_-62px_rgba(45,44,47,0.55)] backdrop-blur-xl sm:p-5">
+            <div className="mb-6 flex flex-col gap-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-2xl font-extrabold text-slate-900">Tài liệu</h3>
+                    <span className="rounded-full bg-white/70 px-3 py-1 text-xs font-extrabold text-slate-500">
+                      {pagination.total} file
+                    </span>
+                  </div>
+                  <p className="mt-1 inline-flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
+                    <FolderClosed size={16} />
+                    {activeFolderLabel}
+                    {keyword ? <span>· "{keyword}"</span> : null}
+                    {type ? <span>· {type.toUpperCase()}</span> : null}
+                    {favorite ? <span>· Yêu thích</span> : null}
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowUploadModal(true)}
+                    className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-xl shadow-brand-500/20 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
+                  >
+                    <CloudUpload size={17} />
+                    Tải lên
+                  </button>
+
+                  <div className="flex flex-wrap rounded-full border border-white/70 bg-white/60 p-1">
+                    {SORT_OPTIONS.map((option) => {
+                      const activeSort = sortBy === option.sortBy && sortOrder === option.sortOrder;
+
+                      return (
+                        <button
+                          key={`${option.sortBy}-${option.sortOrder}`}
+                          type="button"
+                          onClick={() => updateQuery(
+                            { sortBy: option.sortBy, sortOrder: option.sortOrder },
+                            { resetPage: true },
+                          )}
+                          className={cn(
+                            'rounded-full px-3 py-2 text-xs font-extrabold transition-all',
+                            activeSort
+                              ? 'bg-white text-brand-600 shadow-sm'
+                              : 'text-slate-500 hover:text-brand-600',
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex rounded-full border border-white/70 bg-white/60 p-1">
+                    <button
+                      type="button"
+                      className={cn(
+                        'rounded-full p-2 transition-all',
+                        viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                      )}
+                      onClick={() => setViewMode('grid')}
+                    >
+                      <LayoutGrid size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        'rounded-full p-2 transition-all',
+                        viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                      )}
+                      onClick={() => setViewMode('table')}
+                    >
+                      <List size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 rounded-[1.5rem] border border-white/65 bg-white/40 p-2">
+                <span className="px-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Loại</span>
+                {TYPE_FILTERS.map((option) => {
+                  const activeType = type === option.value;
+
+                  return (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => updateQuery({ type: option.value || undefined }, { resetPage: true })}
+                      className={cn(
+                        'rounded-full px-3 py-1.5 text-xs font-extrabold transition-all',
+                        activeType
+                          ? 'bg-white text-brand-600 shadow-sm'
+                          : 'text-slate-500 hover:bg-white/70 hover:text-brand-600',
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <DocumentLibraryPanel
+              viewMode={viewMode}
+              childFolders={[]}
+              documents={documents}
+              emptyTitle={favorite ? 'Danh sách yêu thích trống' : 'Không có tài liệu'}
+              emptyDescription="Bắt đầu bằng cách tải lên tài liệu đầu tiên hoặc đổi bộ lọc đang áp dụng."
+              emptyAction={(
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-5 py-3 text-sm font-extrabold text-white shadow-xl shadow-brand-500/20 transition-all hover:-translate-y-0.5 hover:bg-brand-700"
+                >
+                  <CloudUpload size={17} />
+                  Tải tài liệu
+                </button>
+              )}
+              error={documentsError}
+              loading={foldersLoading || documentsLoading}
+              onOpenFolder={handleFolderSelectionChange}
+              onOpenDocument={(id) => navigate(`/app/documents/${id}`)}
+              onDownloadDocument={handleDownloadDocument}
+              onToggleFavorite={handleToggleFavorite}
+              onMoveDocument={(doc) => {
+                setMoveTarget(doc);
+                setMoveDestinationId(doc.folderId || rootFolder?.id);
+              }}
+              onRenameDocument={(doc) => {
+                setRenameTarget(doc);
+                setRenameName(doc.title);
+              }}
+              onDeleteDocument={(doc) => setDeleteTarget(doc)}
+              pagination={{
+                currentPage: pagination.currentPage,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+                onPageChange: (nextPage) => updateQuery({ page: nextPage }),
+              }}
+              showFolderContext={favorite || Boolean(keyword) || Boolean(selectedFolderId)}
+            />
+
+          </div>
+        </section>
+      </main>
+
       <UploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
@@ -535,8 +588,8 @@ const WorkspacePage = () => {
         onConfirmDelete={handleDeleteDocumentConfirm}
         onConfirmMove={handleMoveDocumentConfirm}
         onConfirmRename={handleRenameDocumentConfirm}
-        onMoveDestinationChange={(e) => setMoveDestinationId(e.target.value)}
-        onRenameNameChange={(e) => setRenameName(e.target.value)}
+        onMoveDestinationChange={(event) => setMoveDestinationId(event.target.value)}
+        onRenameNameChange={(event) => setRenameName(event.target.value)}
         renameError={renameError}
         renameName={renameName}
         renameTarget={renameTarget}

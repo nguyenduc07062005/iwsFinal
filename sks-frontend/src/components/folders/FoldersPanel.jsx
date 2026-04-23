@@ -5,6 +5,7 @@ import {
   ChevronRight,
   FolderClosed,
   FolderPlus,
+  Home,
   PencilLine,
   Trash2,
 } from 'lucide-react';
@@ -17,7 +18,6 @@ import {
 import { useDocumentsContext } from '../DocumentsContext.jsx';
 import {
   AppButton,
-  AppEmptyState,
   AppInput,
   AppModal,
   AppSkeleton,
@@ -52,9 +52,10 @@ const buildFolderOptionLabel = (folder) => {
 
 const toneForIndex = (index) => {
   const tones = [
-    'bg-blue-50 text-blue-500 group-hover:bg-blue-500 group-hover:text-white',
-    'bg-emerald-50 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white',
-    'bg-fuchsia-50 text-fuchsia-500 group-hover:bg-fuchsia-500 group-hover:text-white',
+    'bg-brand-50 text-brand-600',
+    'bg-blue-50 text-blue-600',
+    'bg-emerald-50 text-emerald-600',
+    'bg-orange-50 text-orange-600',
   ];
 
   return tones[index % tones.length];
@@ -67,10 +68,10 @@ const FolderActionButton = ({ icon, label, onClick, tone = 'default' }) => (
     aria-label={label}
     title={label}
     className={cn(
-      'inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+      'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-all hover:bg-white hover:shadow-sm',
       tone === 'danger'
-        ? 'bg-rose-50 text-rose-600 hover:bg-rose-100'
-        : 'bg-white text-slate-400 hover:bg-brand-50 hover:text-brand-600',
+        ? 'text-rose-500 hover:text-rose-600'
+        : 'text-slate-400 hover:text-brand-600',
     )}
   >
     {icon}
@@ -144,7 +145,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   const visibleFolders = currentExplorerFolder?.children || [];
 
   const getFolderLabel = (folder) =>
-    folder?.id === rootFolder?.id ? 'Workspace' : folder?.name || 'Untitled folder';
+    folder?.id === rootFolder?.id ? 'Workspace' : folder?.name || 'Thư mục chưa đặt tên';
 
   const closeModals = () => {
     setShowCreateModal(false);
@@ -185,7 +186,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
   const handleCreateFolder = async () => {
     if (!createName.trim()) {
-      setModalError('Please enter a folder name.');
+      setModalError('Vui lòng nhập tên thư mục.');
       return;
     }
 
@@ -197,14 +198,14 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       goToFolder(targetParentId);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Failed to create folder.'));
+      setModalError(getApiErrorMessage(error, 'Không tạo được thư mục.'));
       setIsSubmitting(false);
     }
   };
 
   const handleRenameFolder = async () => {
     if (!activeFolder || !renameName.trim()) {
-      setModalError('Please enter a folder name.');
+      setModalError('Vui lòng nhập tên thư mục.');
       return;
     }
 
@@ -214,7 +215,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       await refreshFolders(activeFolder.id);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Failed to rename folder.'));
+      setModalError(getApiErrorMessage(error, 'Không đổi tên được thư mục.'));
       setIsSubmitting(false);
     }
   };
@@ -231,7 +232,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       await refreshFolders(activeFolder.id);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Failed to move folder.'));
+      setModalError(getApiErrorMessage(error, 'Không di chuyển được thư mục.'));
       setIsSubmitting(false);
     }
   };
@@ -253,7 +254,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Failed to delete folder.'));
+      setModalError(getApiErrorMessage(error, 'Không xóa được thư mục.'));
       setIsSubmitting(false);
     }
   };
@@ -261,7 +262,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   const modalFooter = (label, onConfirm, variant = 'primary') => (
     <>
       <AppButton variant="secondary" onClick={closeModals} disabled={isSubmitting}>
-        Cancel
+        Hủy
       </AppButton>
       <AppButton variant={variant} onClick={() => void onConfirm()} loading={isSubmitting}>
         {label}
@@ -271,78 +272,78 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
   return (
     <>
-      <div className="space-y-6">
-        <div className="glass rounded-3xl border border-white/60 p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brand-600">
-                Thư mục
-              </p>
-              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900">
-                {getFolderLabel(currentExplorerFolder || rootFolder)}
-              </h2>
-              <p className="mt-3 text-sm leading-7 text-slate-500">
-                Giữ cây thư mục gọn gàng để upload, di chuyển, xóa, và đánh dấu
-                yêu thích luôn rõ ràng khi demo.
-              </p>
-            </div>
-
-            <AppButton
-              onClick={openCreateModal}
-              leadingIcon={<FolderPlus className="h-4.5 w-4.5" />}
-            >
-              Thư mục mới
-            </AppButton>
+      <div className="h-full min-h-[520px]">
+        <header className="mb-4 flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brand-600">
+              Thư mục
+            </p>
+            <h2 className="mt-2 truncate text-2xl font-extrabold tracking-tight text-slate-900">
+              {getFolderLabel(currentExplorerFolder || rootFolder)}
+            </h2>
           </div>
 
-          {parentFolder ? (
-            <button
-              type="button"
-              onClick={() => goToFolder(parentFolder.id)}
-              className="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition-colors hover:text-brand-600"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Quay lại
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={openCreateModal}
+            aria-label="Tạo thư mục"
+            title="Tạo thư mục"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-[var(--shadow-brand)] transition-all hover:bg-brand-700"
+          >
+            <FolderPlus size={20} />
+          </button>
+        </header>
 
-          <div className="mt-5 flex flex-wrap items-center gap-2">
-            {folderPath.map((folder, index) => {
-              const isCurrent = index === folderPath.length - 1;
+        <div className="mb-4 flex flex-wrap items-center gap-1.5">
+          {folderPath.map((folder, index) => {
+            const isCurrent = index === folderPath.length - 1;
 
-              return (
-                <Fragment key={folder.id}>
-                  {index > 0 ? <ChevronRight className="h-4 w-4 text-slate-300" /> : null}
-                  <button
-                    type="button"
-                    onClick={() => goToFolder(folder.id)}
-                    disabled={isCurrent}
-                    className={cn(
-                      'rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] transition-all',
-                      isCurrent
-                        ? 'bg-brand-900 text-white shadow-md'
-                        : 'bg-white text-slate-500 hover:text-brand-600',
-                    )}
-                  >
-                    {getFolderLabel(folder)}
-                  </button>
-                </Fragment>
-              );
-            })}
-          </div>
+            return (
+              <Fragment key={folder.id}>
+                {index > 0 ? <ChevronRight className="h-4 w-4 text-slate-300" /> : null}
+                <button
+                  type="button"
+                  onClick={() => goToFolder(folder.id)}
+                  disabled={isCurrent}
+                  className={cn(
+                    'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] transition-all',
+                    isCurrent
+                      ? 'bg-brand-900 text-white shadow-sm'
+                      : 'bg-white/70 text-slate-500 hover:text-brand-600',
+                  )}
+                >
+                  {index === 0 ? <Home size={12} /> : null}
+                  <span className="truncate">{getFolderLabel(folder)}</span>
+                </button>
+              </Fragment>
+            );
+          })}
         </div>
 
-        <div className="space-y-3">
+        {parentFolder ? (
+          <button
+            type="button"
+            onClick={() => goToFolder(parentFolder.id)}
+            className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-xs font-extrabold text-slate-500 transition-colors hover:text-brand-600"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Quay lại
+          </button>
+        ) : null}
+
+        <div className="space-y-2.5">
           {foldersLoading ? (
             Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={index}
-                className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100/50 flex items-center gap-4"
+                className="rounded-3xl border border-white/70 bg-white/55 p-3"
               >
-                <AppSkeleton className="h-12 w-12 rounded-2xl" />
-                <div className="flex-1 space-y-2">
-                  <AppSkeleton className="h-4 w-32" />
-                  <AppSkeleton className="h-4 w-24" />
+                <div className="flex items-center gap-3">
+                  <AppSkeleton className="h-11 w-11 rounded-2xl" />
+                  <div className="flex-1 space-y-2">
+                    <AppSkeleton className="h-4 w-28" />
+                    <AppSkeleton className="h-3 w-20" />
+                  </div>
                 </div>
               </div>
             ))
@@ -356,49 +357,46 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                   <div
                     key={folder.id}
                     className={cn(
-                      'bg-white/80 backdrop-blur-sm p-4 rounded-3xl shadow-sm border border-slate-100/50 flex items-start gap-4 transition-all group',
-                      isActive && 'border-brand-200 shadow-md',
+                      'group flex items-center gap-3 rounded-3xl border border-white/70 bg-white/55 px-3 py-3 transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm',
+                      isActive && 'border-brand-200 bg-white shadow-sm',
                     )}
                   >
                     <button
                       type="button"
                       onClick={() => goToFolder(folder.id)}
-                      className="flex min-w-0 flex-1 items-start gap-4 text-left"
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     >
-                      <div
+                      <span
                         className={cn(
-                          'w-12 h-12 rounded-2xl flex items-center justify-center text-xl transition-colors',
-                          isActive
-                            ? 'bg-brand-900 text-white'
-                            : toneForIndex(index),
+                          'flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl',
+                          isActive ? 'bg-brand-900 text-white' : toneForIndex(index),
                         )}
                       >
-                        <FolderClosed size={24} />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-bold text-slate-800 text-sm truncate">
+                        <FolderClosed size={20} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-extrabold text-slate-900">
                           {getFolderLabel(folder)}
-                        </h4>
-                        <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                          {childCount > 0 ? `${childCount} subfolders` : 'Open folder'}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-bold text-slate-400">
                           {childCount > 0 ? `${childCount} thư mục con` : 'Mở thư mục'}
-                        </p>
-                      </div>
+                        </span>
+                      </span>
                     </button>
 
-                    <div className="flex gap-2">
+                    <div className="flex shrink-0 opacity-100 transition-opacity xl:opacity-0 xl:group-hover:opacity-100">
                       <FolderActionButton
-                        label="Rename folder"
+                        label="Đổi tên thư mục"
                         onClick={() => openRenameModal(folder)}
                         icon={<PencilLine className="h-4 w-4" />}
                       />
                       <FolderActionButton
-                        label="Move folder"
+                        label="Di chuyển thư mục"
                         onClick={() => openMoveModal(folder)}
                         icon={<ArrowRightLeft className="h-4 w-4" />}
                       />
                       <FolderActionButton
-                        label="Delete folder"
+                        label="Xóa thư mục"
                         onClick={() => openDeleteModal(folder)}
                         tone="danger"
                         icon={<Trash2 className="h-4 w-4" />}
@@ -408,26 +406,22 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                 );
               })
             ) : (
-              <AppEmptyState
-                icon={<FolderClosed className="h-7 w-7" />}
-                title="No subfolders yet"
-                description="Create the first folder inside this branch to start structuring the workspace."
-                action={(
-                  <AppButton
-                    onClick={openCreateModal}
-                    leadingIcon={<FolderPlus className="h-4.5 w-4.5" />}
-                  >
-                    Create folder
-                  </AppButton>
-                )}
-              />
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="flex w-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center transition-all hover:border-brand-200 hover:bg-white/70"
+              >
+                <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-500 shadow-sm">
+                  <FolderPlus size={24} />
+                </span>
+                <span className="text-sm font-extrabold text-slate-900">Chưa có thư mục con</span>
+                <span className="mt-1 text-xs font-bold text-slate-400">Tạo thư mục để phân loại tài liệu.</span>
+              </button>
             )
           ) : (
-            <AppEmptyState
-              icon={<FolderClosed className="h-7 w-7" />}
-              title="Workspace unavailable"
-              description="Folders will appear here after the initial tree is loaded."
-            />
+            <div className="rounded-3xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center">
+              <span className="text-sm font-extrabold text-slate-900">Workspace chưa sẵn sàng</span>
+            </div>
           )}
         </div>
       </div>
@@ -435,9 +429,9 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showCreateModal}
         onClose={closeModals}
-        eyebrow="Folder action"
+        eyebrow="Tác vụ thư mục"
         title="Tạo thư mục"
-        description="Thêm một thư mục mới vào đúng nhánh bạn đang làm việc."
+        description="Thêm thư mục mới vào nhánh đang làm việc."
         footer={modalFooter('Tạo thư mục', handleCreateFolder)}
       >
         <div className="space-y-4">
@@ -465,7 +459,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showRenameModal}
         onClose={closeModals}
-        eyebrow="Folder action"
+        eyebrow="Tác vụ thư mục"
         title="Đổi tên thư mục"
         description="Dùng tên rõ ràng để workspace dễ quét và dễ bảo vệ hơn."
         footer={modalFooter('Lưu tên mới', handleRenameFolder)}
@@ -489,7 +483,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showMoveModal}
         onClose={closeModals}
-        eyebrow="Folder action"
+        eyebrow="Tác vụ thư mục"
         title="Di chuyển thư mục"
         description="Chọn thư mục cha mới cho nhánh tài liệu này."
         footer={modalFooter('Di chuyển thư mục', handleMoveFolder)}
@@ -512,15 +506,13 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showDeleteModal}
         onClose={closeModals}
-        eyebrow="Folder action"
+        eyebrow="Tác vụ thư mục"
         title="Xóa thư mục"
-        description="Tài liệu và thư mục con sẽ được đưa về nhánh cha để không mất dữ liệu."
         footer={modalFooter('Xóa thư mục', handleDeleteFolder, 'danger')}
       >
         <div className="space-y-4">
-          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm leading-7 text-rose-700">
-            Xóa <strong>{activeFolder?.name}</strong>. Backend sẽ dời toàn bộ nội dung
-            con về thư mục cha để workspace vẫn nhất quán.
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            Xóa <strong>{activeFolder?.name}</strong>?
           </div>
 
           {modalError ? (

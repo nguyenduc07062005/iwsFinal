@@ -11,7 +11,7 @@ const FolderSelect = ({ label, onChange, options, value }) => (
     <select value={value} onChange={onChange} className={selectClassName}>
       {options.map((option) => (
         <option key={option.id} value={option.id}>
-          {option.depth === 0 ? 'Workspace' : `${'— '.repeat(option.depth)}${option.name}`}
+          {option.depth === 0 ? 'Workspace' : `${'-- '.repeat(option.depth)}${option.name}`}
         </option>
       ))}
     </select>
@@ -87,7 +87,7 @@ const WorkspaceDocumentModals = ({
         onClose={onCloseRename}
         eyebrow="Tác vụ tài liệu"
         title="Đổi tên tài liệu"
-        description="Dùng tên rõ ràng để tìm kiếm, yêu thích, và thư mục luôn đồng nhất."
+        description="Dùng tên rõ ràng để tìm kiếm, yêu thích và tổ chức thư mục nhất quán."
         footer={renameFooter}
       >
         <div className="space-y-4">
@@ -107,7 +107,7 @@ const WorkspaceDocumentModals = ({
         onClose={onCloseMove}
         eyebrow="Tác vụ tài liệu"
         title="Di chuyển tài liệu"
-        description="Chọn thư mục đích cho tài liệu này. Bản ghi backend sẽ được cập nhật thật."
+        description="Chọn thư mục đích cho tài liệu này."
         footer={moveFooter}
       >
         <div className="space-y-4">
@@ -129,13 +129,12 @@ const WorkspaceDocumentModals = ({
         onClose={onCloseDelete}
         eyebrow="Tác vụ tài liệu"
         title="Xóa tài liệu"
-        description="Tài liệu sẽ bị gỡ khỏi workspace. Nếu không còn ai sở hữu, tệp cũng bị xóa khỏi storage."
+        description="Xác nhận trước khi xóa tài liệu khỏi workspace."
         footer={deleteFooter}
       >
         <div className="space-y-4">
           <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50 px-5 py-4 text-sm leading-7 text-rose-700">
-            Xóa <strong>{deleteTarget?.title || 'tài liệu này'}</strong>. Hành động
-            này không thể hoàn tác từ giao diện.
+            Xóa <strong>{deleteTarget?.title || 'tài liệu này'}</strong>. Hành động này không thể hoàn tác từ giao diện.
           </div>
           <ErrorBox message={deleteError} />
         </div>

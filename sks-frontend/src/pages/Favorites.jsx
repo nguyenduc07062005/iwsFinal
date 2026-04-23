@@ -209,8 +209,7 @@ const Favorites = () => {
             Tài liệu quan trọng luôn trong tầm tay
           </h1>
           <p className="mt-3 text-sm leading-7 text-slate-500 md:text-base">
-            Trang này chỉ hiển thị những tài liệu đã được đánh dấu yêu thích, với
-            cùng luồng phân trang, sắp xếp, và lọc từ backend thật.
+            Trang này chỉ hiển thị những tài liệu đã được đánh dấu yêu thích để bạn mở lại nhanh hơn.
           </p>
         </div>
 
@@ -229,7 +228,6 @@ const Favorites = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Search favorites..."
               placeholder="Tìm trong tài liệu yêu thích..."
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}

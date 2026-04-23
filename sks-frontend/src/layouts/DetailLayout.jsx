@@ -14,7 +14,7 @@ const DetailLayout = () => {
 
       <ShellHeader />
 
-      <div className="mx-auto flex min-h-[calc(100vh-6.25rem)] w-full max-w-[1560px] flex-col px-4 pb-6 pt-6 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-[calc(100vh-6.25rem)] w-full max-w-[1560px] flex-col px-4 pb-6 pt-28 sm:px-6 lg:px-8">
         <div className="mb-4 flex items-center justify-between gap-4 rounded-[2rem] bg-white/75 px-5 py-4 shadow-sm backdrop-blur-xl border border-white/70">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brand-600">

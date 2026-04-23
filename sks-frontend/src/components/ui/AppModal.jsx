@@ -12,12 +12,10 @@ const sizeClasses = {
 
 export function AppModal({
   children,
-  description,
-  eyebrow,
   footer,
   onClose,
   open,
-  size = 'md',
+  size = 'sm',
   title,
 }) {
   if (typeof document === 'undefined') {
@@ -40,7 +38,7 @@ export function AppModal({
             exit={{ opacity: 0, y: 14, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              'glass floating-ring relative w-full overflow-hidden rounded-[2rem] border-white/80 px-6 py-6 shadow-[var(--shadow-glass)] sm:px-8',
+              'glass floating-ring relative w-full overflow-hidden rounded-[1.75rem] border-white/80 px-5 py-5 shadow-[var(--shadow-glass)] sm:px-6',
               sizeClasses[size],
             )}
             onClick={(event) => event.stopPropagation()}
@@ -54,25 +52,15 @@ export function AppModal({
               <X className="h-[18px] w-[18px]" />
             </button>
 
-            <div className="pr-10">
-              {eyebrow ? (
-                <p className="text-[11px] font-black uppercase tracking-[0.26em] text-brand-600">
-                  {eyebrow}
-                </p>
-              ) : null}
-              <h2 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            {title ? (
+              <h2 className="pr-12 text-2xl font-extrabold tracking-tight text-slate-900">
                 {title}
               </h2>
-              {description ? (
-                <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-slate-500">
-                  {description}
-                </p>
-              ) : null}
-            </div>
+            ) : null}
 
-            <div className="mt-6">{children}</div>
+            <div className={cn(title ? 'mt-5' : 'mt-0')}>{children}</div>
 
-            {footer ? <div className="mt-6 flex flex-wrap gap-3">{footer}</div> : null}
+            {footer ? <div className="mt-5 flex flex-wrap justify-end gap-3">{footer}</div> : null}
           </Motion.div>
         </Motion.div>
       ) : null}

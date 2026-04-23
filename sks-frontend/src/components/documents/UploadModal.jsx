@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FileUp, FolderClosed, Sparkles } from 'lucide-react';
+import { FileUp, FolderClosed, X } from 'lucide-react';
 import {
-  AppBadge,
   AppButton,
-  AppCard,
   AppInput,
   AppModal,
 } from '@/components/ui/index.js';
@@ -41,9 +39,7 @@ const UploadModal = ({
   const formId = 'studyvault-upload-form';
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
 
     setFile(null);
     setTitle('');
@@ -62,25 +58,21 @@ const UploadModal = ({
   }
 
   const validateSelectedFile = (selectedFile) => {
-    if (!selectedFile) {
-      return null;
-    }
+    if (!selectedFile) return null;
 
     if (!acceptedTypes.includes(selectedFile.type)) {
-      return 'Chỉ hỗ trợ tệp PDF, DOCX, hoặc TXT.';
+      return 'Chỉ hỗ trợ PDF, DOCX hoặc TXT.';
     }
 
     if (selectedFile.size > maxFileSize) {
-      return 'Kích thước tệp phải nhỏ hơn hoặc bằng 10MB.';
+      return 'Tệp tối đa 10MB.';
     }
 
     return null;
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) {
-      return '0 Bytes';
-    }
+    if (bytes === 0) return '0 Bytes';
 
     const base = 1024;
     const units = ['Bytes', 'KB', 'MB', 'GB'];
@@ -116,7 +108,7 @@ const UploadModal = ({
       return;
     }
 
-    setError(validationError || 'Vui lòng chọn một tệp hợp lệ.');
+    setError(validationError || 'Vui lòng chọn tệp hợp lệ.');
   };
 
   const handleFileSelect = (event) => {
@@ -129,7 +121,7 @@ const UploadModal = ({
     }
 
     setFile(null);
-    setError(validationError || 'Vui lòng chọn một tệp hợp lệ.');
+    setError(validationError || 'Vui lòng chọn tệp hợp lệ.');
   };
 
   const clearFile = () => {
@@ -146,7 +138,7 @@ const UploadModal = ({
     event.preventDefault();
 
     if (!file) {
-      setError('Vui lòng chọn tệp để tải lên.');
+      setError('Vui lòng chọn tệp.');
       return;
     }
 
@@ -157,7 +149,7 @@ const UploadModal = ({
       await onUploadSuccess(file, title || file.name, selectedFolderId || null);
       onClose();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Tải lên thất bại. Vui lòng thử lại.'));
+      setError(getApiErrorMessage(err, 'Tải lên thất bại.'));
     } finally {
       setIsUploading(false);
     }
@@ -179,7 +171,7 @@ const UploadModal = ({
         disabled={!file}
         leadingIcon={!isUploading ? <FileUp className="h-4.5 w-4.5" /> : null}
       >
-        Tải tài liệu lên
+        Tải lên
       </AppButton>
     </>
   );
@@ -188,144 +180,104 @@ const UploadModal = ({
     <AppModal
       open={isOpen}
       onClose={isUploading ? () => {} : onClose}
-      eyebrow="Tiếp nhận tài liệu"
-      title="Tải tài liệu mới"
-      description="Thêm PDF, DOCX, hoặc TXT trực tiếp vào workspace để CRUD luôn bám dữ liệu backend thật."
-      size="lg"
+      title="Tải tài liệu"
+      size="sm"
       footer={footer}
     >
-      <div className="grid gap-6 lg:grid-cols-[0.88fr_1.12fr]">
-        <AppCard tone="brand" padding="md" className="h-full">
-          <AppBadge variant="glass" size="sm">
-            Quy tắc tải lên
-          </AppBadge>
-          <h3 className="mt-4 text-2xl font-extrabold tracking-tight text-white">
-            Giữ tệp gọn gàng và sẵn sàng cho bước lập chỉ mục AI.
-          </h3>
-          <p className="mt-3 text-sm leading-7 text-brand-100">
-            Backend sẽ kiểm tra loại tệp, kích thước, quyền sở hữu thư mục, rồi
-            lưu tài liệu vào đúng tài khoản đang đăng nhập.
-          </p>
-
-          <div className="mt-6 space-y-3">
-            {[
-              { label: 'Định dạng', value: 'PDF / DOCX / TXT' },
-              { label: 'Giới hạn', value: '10 MB' },
-              { label: 'Luồng xử lý', value: 'Upload -> Index -> Refresh workspace' },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="rounded-[1.4rem] border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm"
-              >
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-100">
-                  {item.label}
-                </p>
-                <p className="mt-1 font-semibold text-white">{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </AppCard>
-
-        <form id={formId} className="space-y-5" onSubmit={handleSubmit}>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={cn(
-              'relative w-full overflow-hidden rounded-[1.75rem] border-2 border-dashed p-6 text-left transition-all duration-300',
-              isDragOver
-                ? 'border-brand-400 bg-brand-50'
-                : file
-                  ? 'border-brand-300 bg-white'
-                  : 'border-slate-200 bg-[color:rgba(255,248,243,0.7)] hover:border-brand-300 hover:bg-white',
-            )}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.txt"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-
-            {file ? (
-              <div className="flex items-start gap-4">
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-[1.3rem] bg-brand-900 text-white shadow-[var(--shadow-brand)]">
-                  <FileUp className="h-6 w-6" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-base font-extrabold tracking-tight text-slate-900">
-                    {file.name}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <AppBadge variant="outline" size="sm">
-                      {formatFileSize(file.size)}
-                    </AppBadge>
-                    <AppBadge variant="soft" size="sm">
-                      Sẵn sàng tải lên
-                    </AppBadge>
-                  </div>
-                </div>
-                <AppButton variant="ghost" size="sm" onClick={clearFile}>
-                  Xóa chọn
-                </AppButton>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="inline-flex h-14 w-14 items-center justify-center rounded-[1.3rem] bg-white text-brand-600 shadow-[var(--shadow-soft)]">
-                  <Sparkles className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="text-base font-extrabold tracking-tight text-slate-900">
-                    Kéo thả tệp vào đây hoặc chọn từ máy
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Hệ thống sẽ dùng thư mục hiện tại làm mặc định, hoặc bạn có thể
-                    đổi thư mục đích ở bên dưới trước khi gửi.
-                  </p>
-                </div>
-              </div>
-            )}
-          </button>
-
-          <AppInput
-            label="Tên tài liệu"
-            placeholder="Đề cương đồ án cuối kỳ"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
+      <form id={formId} className="space-y-4" onSubmit={handleSubmit}>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={cn(
+            'group relative flex w-full items-center gap-4 rounded-[1.6rem] border-2 border-dashed px-5 py-5 text-left transition-all duration-300',
+            isDragOver
+              ? 'border-brand-400 bg-brand-50'
+              : file
+                ? 'border-brand-200 bg-white/90'
+                : 'border-white/80 bg-white/55 hover:border-brand-200 hover:bg-white/80',
+          )}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt"
+            onChange={handleFileSelect}
+            className="hidden"
           />
 
-          <label className="flex w-full flex-col gap-2">
-            <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
-              Lưu vào thư mục
-            </span>
-            <div className="relative">
-              <FolderClosed className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
-              <select
-                value={selectedFolderId}
-                onChange={(event) => setSelectedFolderId(event.target.value)}
-                className={cn(selectClassName, 'pl-11')}
-              >
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.depth === 0
-                      ? 'Workspace'
-                      : `${'-- '.repeat(folder.depth)}${folder.name}`}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </label>
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 shadow-sm">
+            <FileUp className="h-6 w-6" />
+          </span>
 
-          {error ? (
-            <div className="rounded-[1.4rem] border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-              {error}
-            </div>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-extrabold text-slate-900">
+              {file ? file.name : 'Chọn hoặc kéo thả tệp'}
+            </span>
+            <span className="mt-1 block text-xs font-bold text-slate-400">
+              {file ? formatFileSize(file.size) : 'PDF, DOCX, TXT · tối đa 10MB'}
+            </span>
+          </span>
+
+          {file ? (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+                clearFile();
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  clearFile();
+                }
+              }}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-500"
+            >
+              <X className="h-4 w-4" />
+            </span>
           ) : null}
-        </form>
-      </div>
+        </button>
+
+        <AppInput
+          label="Tên tài liệu"
+          placeholder="Tên hiển thị"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+        />
+
+        <label className="flex w-full flex-col gap-2">
+          <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+            Thư mục
+          </span>
+          <div className="relative">
+            <FolderClosed className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-slate-400" />
+            <select
+              value={selectedFolderId}
+              onChange={(event) => setSelectedFolderId(event.target.value)}
+              className={cn(selectClassName, 'pl-11')}
+            >
+              {folders.map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.depth === 0
+                    ? 'Workspace'
+                    : `${'-- '.repeat(folder.depth)}${folder.name}`}
+                </option>
+              ))}
+            </select>
+          </div>
+        </label>
+
+        {error ? (
+          <div className="rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            {error}
+          </div>
+        ) : null}
+      </form>
     </AppModal>
   );
 };

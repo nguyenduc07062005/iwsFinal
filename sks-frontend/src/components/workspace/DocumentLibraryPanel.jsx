@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import {
   ArrowRightLeft,
-  ArrowUpDown,
   Download,
   Eye,
   FileSpreadsheet,
@@ -16,7 +15,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { AppEmptyState, AppPagination, AppSkeleton } from '@/components/ui/index.js';
+import { AppPagination, AppSkeleton } from '@/components/ui/index.js';
 import { cn } from '@/lib/utils.js';
 
 const MotionDiv = motion.div;
@@ -76,7 +75,7 @@ export const getFileBg = (type) => {
 export const formatDateLabel = (value) => {
   if (!value) return 'Chưa có ngày';
   try {
-    return new Date(value).toLocaleDateString();
+    return new Date(value).toLocaleDateString('vi-VN');
   } catch {
     return 'Chưa có ngày';
   }
@@ -107,6 +106,21 @@ export const getFilePresentation = (doc) => {
   };
 };
 
+const IconButton = ({ children, className, label, onClick }) => (
+  <button
+    type="button"
+    aria-label={label}
+    title={label}
+    onClick={onClick}
+    className={cn(
+      'inline-flex h-10 w-10 items-center justify-center rounded-2xl text-slate-400 transition-all hover:bg-white hover:text-brand-600 hover:shadow-sm',
+      className,
+    )}
+  >
+    {children}
+  </button>
+);
+
 const DropdownActions = ({
   doc,
   onDeleteDocument,
@@ -119,83 +133,75 @@ const DropdownActions = ({
 
   return (
     <div className="relative" onMouseLeave={() => setIsOpen(false)}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-200 hover:text-slate-900"
-      >
-        <MoreVertical size={16} />
-      </button>
+      <IconButton label="Thêm thao tác" onClick={() => setIsOpen(!isOpen)}>
+        <MoreVertical size={17} />
+      </IconButton>
 
       {isOpen ? (
-        <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-xl border border-slate-100 bg-white p-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-2xl border border-white/80 bg-white p-2 shadow-[0_18px_55px_-25px_rgba(45,44,47,0.35)]">
           <button
+            type="button"
             onClick={() => {
               setIsOpen(false);
               onOpenDocument(doc.id);
             }}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
           >
-            <span className="flex items-center gap-3">
-              <Eye size={16} />
-              Xem chi tiết
-            </span>
+            <Eye size={16} />
+            Xem chi tiết
           </button>
 
           <button
+            type="button"
             onClick={() => {
               setIsOpen(false);
               onDownloadDocument(doc.id, doc.title);
             }}
-            className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
           >
-            <span className="flex items-center gap-3">
-              <Download size={16} />
-              Tải xuống
-            </span>
+            <Download size={16} />
+            Tải xuống
           </button>
 
           {onRenameDocument ? (
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 onRenameDocument(doc);
               }}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
             >
-              <span className="flex items-center gap-3">
-                <PencilLine size={16} />
-                Đổi tên
-              </span>
+              <PencilLine size={16} />
+              Đổi tên
             </button>
           ) : null}
 
           {onMoveDocument ? (
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 onMoveDocument(doc);
               }}
-              className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-bold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-600"
             >
-              <span className="flex items-center gap-3">
-                <ArrowRightLeft size={16} />
-                Di chuyển
-              </span>
+              <ArrowRightLeft size={16} />
+              Di chuyển
             </button>
           ) : null}
 
           {onDeleteDocument ? (
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 onDeleteDocument(doc);
               }}
-              className="mt-1 w-full rounded-lg border-t border-slate-50 px-3 py-2 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
+              className="mt-1 flex w-full items-center gap-3 rounded-xl border-t border-slate-50 px-3 py-2 text-left text-sm font-bold text-rose-600 transition-colors hover:bg-rose-50"
             >
-              <span className="flex items-center gap-3">
-                <Trash2 size={16} />
-                Xóa tài liệu
-              </span>
+              <Trash2 size={16} />
+              Xóa tài liệu
             </button>
           ) : null}
         </div>
@@ -205,18 +211,197 @@ const DropdownActions = ({
 };
 
 export const LoadingState = ({ viewMode }) => (
-  <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'space-y-4'}>
+  <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-3'}>
     {Array.from({ length: 4 }).map((_, index) => (
-      <div key={index} className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-        <div className="flex items-start gap-4">
-          <AppSkeleton className="h-14 w-14 shrink-0 rounded-2xl" />
+      <div key={index} className="rounded-3xl border border-white/70 bg-white/65 p-4">
+        <div className="flex items-center gap-4">
+          <AppSkeleton className="h-12 w-12 shrink-0 rounded-2xl" />
           <div className="flex-1 space-y-3">
-            <AppSkeleton className="h-5 w-4/5" />
-            <AppSkeleton className="h-4 w-3/5" />
+            <AppSkeleton className="h-4 w-3/4" />
+            <AppSkeleton className="h-3 w-1/2" />
           </div>
         </div>
       </div>
     ))}
+  </div>
+);
+
+const FolderRow = ({ folder, onOpenFolder }) => (
+  <button
+    type="button"
+    onClick={() => onOpenFolder(folder.id)}
+    className="group flex w-full items-center gap-4 rounded-3xl border border-white/70 bg-white/60 px-4 py-3 text-left transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm"
+  >
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+      <FolderClosed size={20} />
+    </span>
+    <span className="min-w-0 flex-1">
+      <span className="block truncate text-sm font-extrabold text-slate-800">{folder.name}</span>
+      <span className="mt-0.5 block text-xs font-semibold text-slate-400">Thư mục con</span>
+    </span>
+  </button>
+);
+
+const DocumentRow = ({
+  doc,
+  index,
+  onDeleteDocument,
+  onDownloadDocument,
+  onMoveDocument,
+  onOpenDocument,
+  onRenameDocument,
+  onToggleFavorite,
+  showFolderContext,
+}) => {
+  const ext = getFileExtension(doc);
+  const file = getFilePresentation(doc);
+
+  return (
+    <MotionDiv
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.035, 0.18) }}
+      className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-3xl border border-white/75 bg-white/68 px-4 py-3 shadow-[0_12px_36px_-32px_rgba(45,44,47,0.55)] transition-all hover:border-brand-100 hover:bg-white hover:shadow-[0_20px_55px_-38px_rgba(45,44,47,0.48)] lg:grid-cols-[auto_minmax(0,1fr)_auto]"
+    >
+      <button
+        type="button"
+        onClick={() => onOpenDocument(doc.id)}
+        className={cn('flex h-12 w-12 items-center justify-center rounded-2xl', file.accent)}
+      >
+        {getFileIcon(ext)}
+      </button>
+
+      <button type="button" onClick={() => onOpenDocument(doc.id)} className="min-w-0 text-left">
+        <span className="block truncate text-sm font-extrabold text-slate-900 transition-colors group-hover:text-brand-600">
+          {doc.title}
+        </span>
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-slate-400">
+          <span>{file.label}</span>
+          <span>{doc.formattedFileSize || 'N/A'}</span>
+          <span>{formatDateLabel(doc.updatedAt || doc.createdAt)}</span>
+          {showFolderContext && doc.folderName ? (
+            <span className="inline-flex min-w-0 max-w-[180px] items-center gap-1 truncate rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">
+              <FolderClosed size={12} />
+              {doc.folderName}
+            </span>
+          ) : null}
+        </span>
+      </button>
+
+      <div className="col-span-2 flex items-center justify-end gap-1 border-t border-slate-100 pt-3 lg:col-span-1 lg:border-t-0 lg:pt-0">
+        <IconButton
+          label="Yêu thích"
+          onClick={() => onToggleFavorite(doc.id)}
+          className={doc.isFavorite ? 'text-amber-500 hover:text-amber-500' : ''}
+        >
+          <Heart size={17} fill={doc.isFavorite ? 'currentColor' : 'none'} />
+        </IconButton>
+
+        <IconButton label="Xem tài liệu" onClick={() => onOpenDocument(doc.id)}>
+          <Eye size={17} />
+        </IconButton>
+
+        <IconButton label="Tải xuống" onClick={() => onDownloadDocument(doc.id, doc.title)}>
+          <Download size={17} />
+        </IconButton>
+
+        <DropdownActions
+          doc={doc}
+          onOpenDocument={onOpenDocument}
+          onDownloadDocument={onDownloadDocument}
+          onRenameDocument={onRenameDocument}
+          onDeleteDocument={onDeleteDocument}
+          onMoveDocument={onMoveDocument}
+        />
+      </div>
+    </MotionDiv>
+  );
+};
+
+const DocumentCard = ({
+  doc,
+  index,
+  onDeleteDocument,
+  onDownloadDocument,
+  onMoveDocument,
+  onOpenDocument,
+  onRenameDocument,
+  onToggleFavorite,
+  showFolderContext,
+}) => {
+  const ext = getFileExtension(doc);
+  const file = getFilePresentation(doc);
+
+  return (
+    <MotionDiv
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index * 0.04, 0.2) }}
+      whileHover={{ y: -3 }}
+      className="group rounded-3xl border border-white/75 bg-white/68 p-4 shadow-[0_14px_42px_-34px_rgba(45,44,47,0.55)] transition-all hover:border-brand-100 hover:bg-white"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <button
+          type="button"
+          onClick={() => onOpenDocument(doc.id)}
+          className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', file.accent)}
+        >
+          {getFileIcon(ext)}
+        </button>
+
+        <IconButton
+          label="Yêu thích"
+          onClick={() => onToggleFavorite(doc.id)}
+          className={doc.isFavorite ? 'text-amber-500 hover:text-amber-500' : ''}
+        >
+          <Heart size={17} fill={doc.isFavorite ? 'currentColor' : 'none'} />
+        </IconButton>
+      </div>
+
+      <button type="button" onClick={() => onOpenDocument(doc.id)} className="mt-5 block w-full text-left">
+        <span className="line-clamp-2 text-sm font-extrabold text-slate-900 group-hover:text-brand-600">
+          {doc.title}
+        </span>
+        <span className="mt-2 block text-xs font-bold text-slate-400">
+          {file.label} · {doc.formattedFileSize || 'N/A'} · {formatDateLabel(doc.updatedAt || doc.createdAt)}
+        </span>
+      </button>
+
+      {showFolderContext && doc.folderName ? (
+        <span className="mt-4 inline-flex max-w-full items-center gap-1 truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">
+          <FolderClosed size={12} />
+          {doc.folderName}
+        </span>
+      ) : null}
+
+      <div className="mt-4 flex items-center justify-end gap-1 border-t border-slate-100 pt-3">
+        <IconButton label="Xem tài liệu" onClick={() => onOpenDocument(doc.id)}>
+          <Eye size={17} />
+        </IconButton>
+        <IconButton label="Tải xuống" onClick={() => onDownloadDocument(doc.id, doc.title)}>
+          <Download size={17} />
+        </IconButton>
+        <DropdownActions
+          doc={doc}
+          onOpenDocument={onOpenDocument}
+          onDownloadDocument={onDownloadDocument}
+          onRenameDocument={onRenameDocument}
+          onDeleteDocument={onDeleteDocument}
+          onMoveDocument={onMoveDocument}
+        />
+      </div>
+    </MotionDiv>
+  );
+};
+
+const EmptyPanel = ({ action, description, title }) => (
+  <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[2rem] border border-dashed border-white/80 bg-white/45 p-8 text-center">
+    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-brand-500 shadow-sm">
+      <FileText size={28} />
+    </div>
+    <h3 className="text-xl font-extrabold text-slate-900">{title}</h3>
+    <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500">{description}</p>
+    {action ? <div className="mt-5">{action}</div> : null}
   </div>
 );
 
@@ -243,7 +428,7 @@ const DocumentLibraryPanel = ({
 
   if (error) {
     return (
-      <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+      <div className="rounded-3xl border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
         {error}
       </div>
     );
@@ -255,8 +440,7 @@ const DocumentLibraryPanel = ({
 
   if (!hasVisibleContent) {
     return (
-      <AppEmptyState
-        icon={<FileText className="h-7 w-7" />}
+      <EmptyPanel
         title={emptyTitle}
         description={emptyDescription}
         action={emptyAction}
@@ -265,223 +449,55 @@ const DocumentLibraryPanel = ({
   }
 
   return (
-    <div className="space-y-6">
-      {viewMode === 'table' ? (
-        <div className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="group cursor-pointer px-6 py-4 text-xs font-extrabold uppercase tracking-wider text-slate-400 transition-colors hover:text-brand-600">
-                    <div className="flex items-center gap-2">
-                      Tên
-                      <ArrowUpDown size={14} className="opacity-0 transition-opacity group-hover:opacity-100" />
-                    </div>
-                  </th>
-                  <th className="hidden px-6 py-4 text-xs font-extrabold uppercase tracking-wider text-slate-400 md:table-cell">
-                    Danh mục
-                  </th>
-                  <th className="group hidden cursor-pointer px-6 py-4 text-xs font-extrabold uppercase tracking-wider text-slate-400 transition-colors hover:text-brand-600 lg:table-cell">
-                    <div className="flex items-center gap-2">
-                      Cập nhật
-                      <ArrowUpDown size={14} className="opacity-0 transition-opacity group-hover:opacity-100" />
-                    </div>
-                  </th>
-                  <th className="px-6 py-4 text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {childFolders.map((folder) => (
-                  <tr
-                    key={`folder-${folder.id}`}
-                    className="group cursor-pointer border-l-[3px] border-transparent transition-colors hover:border-brand-500 hover:bg-slate-50"
-                    onClick={() => onOpenFolder(folder.id)}
-                  >
-                    <td className="px-6 py-4 font-semibold text-slate-800">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                          <FolderClosed size={18} />
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold">{folder.name}</div>
-                          <div className="text-[10px] font-medium text-slate-400">Thư mục</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">-</td>
-                    <td className="hidden px-6 py-4 text-sm text-slate-500 lg:table-cell">-</td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-brand-50 hover:text-brand-600">
-                        <Eye size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-
-                {documents.map((doc) => {
-                  const ext = getFileExtension(doc);
-
-                  return (
-                    <tr
-                      key={doc.id}
-                      className="group border-l-[3px] border-transparent transition-colors hover:border-brand-500 hover:bg-slate-50"
-                    >
-                      <td className="px-6 py-4 font-semibold text-slate-800">
-                        <div className="flex items-center gap-4">
-                          <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', getFileBg(ext))}>
-                            {getFileIcon(ext)}
-                          </div>
-                          <div>
-                            <div
-                              className="cursor-pointer text-sm transition-colors hover:text-brand-600"
-                              onClick={() => onOpenDocument(doc.id)}
-                            >
-                              {doc.title}
-                            </div>
-                            <div className="mt-1 flex gap-1 md:hidden">
-                              <span className="text-[10px] font-medium text-slate-400">
-                                {doc.formattedFileSize || 'N/A'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="hidden px-6 py-4 text-sm text-slate-600 md:table-cell">
-                        {showFolderContext && doc.folderName ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-md bg-slate-100 px-2.5 py-1 font-medium whitespace-nowrap">
-                            <FolderClosed size={12} className="text-slate-400" />
-                            {doc.folderName}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-slate-400">--</span>
-                        )}
-                      </td>
-                      <td className="hidden px-6 py-4 text-sm font-medium text-slate-500 lg:table-cell">
-                        {formatDateLabel(doc.updatedAt || doc.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
-                          <button
-                            onClick={() => onToggleFavorite(doc.id)}
-                            className={cn(
-                              'rounded-lg p-2 transition-colors hover:bg-slate-200',
-                              doc.isFavorite ? 'text-amber-500' : 'text-slate-400',
-                            )}
-                          >
-                            <Heart size={16} fill={doc.isFavorite ? 'currentColor' : 'none'} />
-                          </button>
-
-                          <DropdownActions
-                            doc={doc}
-                            onOpenDocument={onOpenDocument}
-                            onDownloadDocument={onDownloadDocument}
-                            onRenameDocument={onRenameDocument}
-                            onDeleteDocument={onDeleteDocument}
-                            onMoveDocument={onMoveDocument}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    <div className="space-y-5">
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
           {childFolders.map((folder) => (
-            <MotionDiv
-              key={folder.id}
-              onClick={() => onOpenFolder(folder.id)}
-              whileHover={{ y: -5, boxShadow: "0 20px 40px -15px rgba(0,0,0,0.1)" }}
-              className="validate-folder relative flex cursor-pointer flex-col items-center rounded-3xl border border-slate-100 bg-white p-5 text-center shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] group transition-all"
-            >
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50 text-3xl text-brand-600">
-                <FolderClosed size={32} />
-              </div>
-              <h4 className="mb-1 line-clamp-2 text-sm font-bold text-slate-800">{folder.name}</h4>
-              <p className="text-xs font-medium text-slate-400">Thư mục</p>
-            </MotionDiv>
+            <FolderRow key={`folder-${folder.id}`} folder={folder} onOpenFolder={onOpenFolder} />
           ))}
 
-          {documents.map((doc, index) => {
-            const ext = getFileExtension(doc);
+          {documents.map((doc, index) => (
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              index={index}
+              onDeleteDocument={onDeleteDocument}
+              onDownloadDocument={onDownloadDocument}
+              onMoveDocument={onMoveDocument}
+              onOpenDocument={onOpenDocument}
+              onRenameDocument={onRenameDocument}
+              onToggleFavorite={onToggleFavorite}
+              showFolderContext={showFolderContext}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {childFolders.map((folder) => (
+            <FolderRow key={`folder-${folder.id}`} folder={folder} onOpenFolder={onOpenFolder} />
+          ))}
 
-            return (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ 
-                  y: -5,
-                  boxShadow: "0 20px 40px -15px rgba(0,0,0,0.1)",
-                  borderColor: "rgba(184,115,51,0.15)"
-                }}
-                className="group relative rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)]"
-              >
-                <button
-                  onClick={() => onToggleFavorite(doc.id)}
-                  className={cn(
-                    'absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 transition-all hover:bg-white hover:shadow-sm',
-                    doc.isFavorite ? 'text-amber-500' : 'text-slate-200 hover:text-amber-500',
-                  )}
-                >
-                  <Heart size={16} fill={doc.isFavorite ? 'currentColor' : 'none'} />
-                </button>
-
-                <div
-                  className={cn('mb-6 flex h-16 w-16 items-center justify-center rounded-2xl text-2xl shadow-inner', getFileBg(ext))}
-                  onClick={() => onOpenDocument(doc.id)}
-                >
-                  {getFileIcon(ext)}
-                </div>
-
-                <h4
-                  className="mb-1 line-clamp-2 cursor-pointer text-sm font-bold text-slate-800 hover:text-brand-600"
-                  onClick={() => onOpenDocument(doc.id)}
-                >
-                  {doc.title}
-                </h4>
-                <p className="mb-4 text-xs font-medium text-slate-400">
-                  {doc.formattedFileSize || 'N/A'} • {formatDateLabel(doc.updatedAt || doc.createdAt)}
-                </p>
-
-                <div className="mb-4 flex flex-wrap gap-1">
-                  {showFolderContext && doc.folderName ? (
-                    <span className="max-w-full truncate rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase text-slate-600">
-                      {doc.folderName}
-                    </span>
-                  ) : null}
-                </div>
-
-                <div className="flex w-full gap-2 border-t border-slate-50 pt-4">
-                  <button
-                    onClick={() => onOpenDocument(doc.id)}
-                    className="flex-1 rounded-xl bg-slate-50 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-brand-50 hover:text-brand-600"
-                  >
-                    Xem
-                  </button>
-                  <button
-                    onClick={() => onDownloadDocument(doc.id, doc.title)}
-                    className="flex-1 rounded-xl bg-slate-50 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100"
-                  >
-                    Tải về
-                  </button>
-                </div>
-              </motion.div>
-            );
-          })}
+          {documents.map((doc, index) => (
+            <DocumentRow
+              key={doc.id}
+              doc={doc}
+              index={index}
+              onDeleteDocument={onDeleteDocument}
+              onDownloadDocument={onDownloadDocument}
+              onMoveDocument={onMoveDocument}
+              onOpenDocument={onOpenDocument}
+              onRenameDocument={onRenameDocument}
+              onToggleFavorite={onToggleFavorite}
+              showFolderContext={showFolderContext}
+            />
+          ))}
         </div>
       )}
 
       {pagination && pagination.totalPages > 1 ? (
-        <div className="mt-8 flex flex-col items-center justify-between gap-4 sm:flex-row">
-          <p className="hidden text-sm font-medium text-slate-500 sm:block">
-            Trang {pagination.currentPage} / {pagination.totalPages} ({pagination.total} tài liệu)
+        <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-3xl border border-white/70 bg-white/45 px-4 py-3 sm:flex-row">
+          <p className="text-sm font-bold text-slate-500">
+            Trang {pagination.currentPage} / {pagination.totalPages} · {pagination.total} tài liệu
           </p>
           <AppPagination
             onPageChange={pagination.onPageChange}
