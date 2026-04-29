@@ -1,6 +1,7 @@
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 import { NestFactory } from '@nestjs/core';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { createRateLimitMiddleware } from './common/http/rate-limit.middleware';
 
@@ -79,8 +80,20 @@ const resolveCorsOrigin = (allowedOrigins: string[] | true) => {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const allowedOrigins = parseOrigins(process.env.CORS_ORIGIN);
+  const expressInstance = app.getHttpAdapter().getInstance();
+
+  if (typeof expressInstance.disable === 'function') {
+    expressInstance.disable('x-powered-by');
+  }
 
   app.setGlobalPrefix('api');
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: {
+        policy: 'cross-origin',
+      },
+    }),
+  );
   app.enableCors({
     origin: resolveCorsOrigin(allowedOrigins),
     credentials: true,

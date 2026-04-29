@@ -2,11 +2,13 @@ import {
   BadRequestException,
   type CanActivate,
   type INestApplication,
+  UnauthorizedException,
   ValidationPipe,
 } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 import { Test } from '@nestjs/testing';
 import { JwtAuthGuard } from '../../src/modules/authentication/jwt/jwt-auth.guard';
+import { RolesGuard } from '../../src/modules/authentication/roles/roles.guard';
 
 export const TEST_USER_ID = '11111111-1111-4111-8111-111111111111';
 export const TEST_FOLDER_ID = '22222222-2222-4222-8222-222222222222';
@@ -39,7 +41,22 @@ const flattenValidationErrors = (
 const createAuthenticatedGuard = (): CanActivate => ({
   canActivate(context) {
     const request = context.switchToHttp().getRequest();
-    request.user = { userId: TEST_USER_ID };
+    const authorizationHeader = request.headers?.authorization;
+
+    if (
+      typeof authorizationHeader !== 'string' ||
+      !authorizationHeader.startsWith('Bearer ')
+    ) {
+      throw new UnauthorizedException('Authentication token is required');
+    }
+
+    request.user = { userId: TEST_USER_ID, role: 'admin' };
+    return true;
+  },
+});
+
+const createRolesGuard = (): CanActivate => ({
+  canActivate() {
     return true;
   },
 });
@@ -80,6 +97,7 @@ export const createHttpTestApp = async ({
   });
 
   builder.overrideGuard(JwtAuthGuard).useValue(createAuthenticatedGuard());
+  builder.overrideGuard(RolesGuard).useValue(createRolesGuard());
 
   const moduleRef = await builder.compile();
 

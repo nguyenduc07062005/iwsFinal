@@ -39,7 +39,7 @@ const ForgotPassword = () => {
           'Nếu tài khoản tồn tại, liên kết khôi phục đã được gửi.',
       );
       setResetTokenPreview(response.resetToken || '');
-      toast.success('Đã tạo luồng khôi phục thành công.');
+      toast.success('Đã gửi yêu cầu khôi phục.');
     } catch (requestError) {
       setError(
         getApiErrorMessage(requestError, 'Không thể bắt đầu luồng khôi phục. Vui lòng thử lại.'),
@@ -96,7 +96,7 @@ const ForgotPassword = () => {
               {resetTokenPreview && (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-100/50 px-3 py-3 text-xs font-bold text-slate-700">
                   <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-emerald-700">
-                    Demo Reset Token
+                    Mã khôi phục
                   </p>
                   <p className="break-all">{resetTokenPreview}</p>
                 </div>

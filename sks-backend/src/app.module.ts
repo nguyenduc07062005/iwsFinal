@@ -8,6 +8,7 @@ import { AuthenticationModule } from './modules/authentication/authentication.mo
 import { DocumentModule } from './modules/document/document.module';
 import { FolderModule } from './modules/folder/folder.module';
 import { RagModule } from './modules/rag/rag.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RagModule } from './modules/rag/rag.module';
     FolderModule,
     LlmModule,
     RagModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

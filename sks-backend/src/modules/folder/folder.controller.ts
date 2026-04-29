@@ -22,6 +22,8 @@ import { MoveFolderDto } from './dtos/move-folder.dto';
 import { DeleteFolderDto } from './dtos/delete-folder.dto';
 import { AddDocumentToFolderDto } from './dtos/add-document-to-folder.dto';
 import { RemoveDocumentFromFolderDto } from './dtos/remove-document-from-folder.dto';
+import { MoveFolderByIdDto } from './dtos/move-folder-by-id.dto';
+import { UpdateFolderByIdDto } from './dtos/update-folder-by-id.dto';
 
 @Controller('folders')
 @UseGuards(JwtAuthGuard)
@@ -107,6 +109,53 @@ export class FolderController {
     };
   }
 
+  // RESTful alias kept alongside PATCH /folders/update for backward compatibility.
+  @HttpCode(HttpStatus.OK)
+  @Patch(':id')
+  async updateFolderById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateFolderByIdDto,
+    @Request() req: ExpressRequest & { user: { userId: string } },
+  ) {
+    const ownerId = this.getUserId(req);
+    const folder = await this.folderService.updateFolder(
+      {
+        folderId: id,
+        name: dto.name,
+        parentId: dto.parentId,
+      },
+      ownerId,
+    );
+
+    return {
+      message: 'Folder updated successfully',
+      folder,
+    };
+  }
+
+  // RESTful alias kept alongside PATCH /folders/move for backward compatibility.
+  @HttpCode(HttpStatus.OK)
+  @Patch(':id/move')
+  async moveFolderById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: MoveFolderByIdDto,
+    @Request() req: ExpressRequest & { user: { userId: string } },
+  ) {
+    const ownerId = this.getUserId(req);
+    const folder = await this.folderService.moveFolder(
+      {
+        folderId: id,
+        newParentId: dto.newParentId,
+      },
+      ownerId,
+    );
+
+    return {
+      message: 'Folder moved successfully',
+      folder,
+    };
+  }
+
   @HttpCode(HttpStatus.OK)
   @Delete('delete')
   async deleteFolder(
@@ -115,6 +164,17 @@ export class FolderController {
   ) {
     const ownerId = this.getUserId(req);
     return this.folderService.deleteFolder(ownerId, dto.folderId);
+  }
+
+  // RESTful alias kept alongside DELETE /folders/delete for backward compatibility.
+  @HttpCode(HttpStatus.OK)
+  @Delete(':id')
+  async deleteFolderById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: ExpressRequest & { user: { userId: string } },
+  ) {
+    const ownerId = this.getUserId(req);
+    return this.folderService.deleteFolder(ownerId, id);
   }
 
   @HttpCode(HttpStatus.OK)

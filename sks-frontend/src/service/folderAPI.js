@@ -22,31 +22,29 @@ const createFolder = async (name, parentId) => {
 };
 
 const updateFolder = async (folderId, name, parentId) => {
-  const payload = { folderId, name };
+  const payload = { name };
 
   if (parentId) {
     payload.parentId = parentId;
   }
 
-  const response = await apiClient.patch('/folders/update', payload);
+  const response = await apiClient.patch(`/folders/${folderId}`, payload);
   return response.data;
 };
 
 const moveFolder = async (folderId, newParentId) => {
-  const payload = { folderId };
+  const payload = {};
 
   if (newParentId) {
     payload.newParentId = newParentId;
   }
 
-  const response = await apiClient.patch('/folders/move', payload);
+  const response = await apiClient.patch(`/folders/${folderId}/move`, payload);
   return response.data;
 };
 
 const deleteFolder = async (folderId) => {
-  const response = await apiClient.delete('/folders/delete', {
-    data: { folderId },
-  });
+  const response = await apiClient.delete(`/folders/${folderId}`);
   return response.data;
 };
 

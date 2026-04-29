@@ -44,9 +44,7 @@ const getDocuments = async (options = {}) => {
 };
 
 const deleteDocument = async (documentId) => {
-  const response = await apiClient.delete('/documents/delete', {
-    data: { documentId },
-  });
+  const response = await apiClient.delete(`/documents/${documentId}`);
   return response.data;
 };
 
@@ -89,7 +87,7 @@ const getDocumentDetails = async (documentId) => {
 };
 
 const updateDocumentName = async (documentId, newDocumentName) => {
-  const response = await apiClient.patch(`/documents/${documentId}/update-name`, {
+  const response = await apiClient.patch(`/documents/${documentId}`, {
     newDocumentName,
   });
   return response.data;

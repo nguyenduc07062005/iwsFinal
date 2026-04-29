@@ -20,6 +20,19 @@ const getProfile = async () => {
   return response.data;
 };
 
+const updateProfile = async (data) => {
+  const response = await apiClient.patch('/auth/profile', data);
+  return response.data;
+};
+
+const changePassword = async (currentPassword, newPassword) => {
+  const response = await apiClient.patch('/auth/password', {
+    currentPassword,
+    newPassword,
+  });
+  return response.data;
+};
+
 const requestPasswordReset = async (email) => {
   const response = await apiClient.post('/auth/forgot-password', { email });
   return response.data;
@@ -34,10 +47,12 @@ const submitPasswordReset = async (token, password) => {
 };
 
 export {
+  changePassword,
   getApiErrorMessage,
   getProfile,
   postLogin,
   postRegister,
   requestPasswordReset,
   submitPasswordReset,
+  updateProfile,
 };

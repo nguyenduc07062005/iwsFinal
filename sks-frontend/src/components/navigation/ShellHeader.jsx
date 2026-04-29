@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Library, Star, UserRound, Plus, LogOut } from 'lucide-react';
+import { Library, Star, UserRound, Plus, LogOut, ShieldCheck } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '@/lib/utils.js';
 import { getProfile } from '../../service/authAPI.js';
@@ -48,6 +48,17 @@ const ShellHeader = () => {
     return `https://ui-avatars.com/api/?name=${seed}&background=6366f1&color=ffffff&bold=true`;
   }, [profile]);
 
+  const navLinks = useMemo(() => {
+    if (profile?.role !== 'admin') {
+      return NAV_LINKS;
+    }
+
+    return [
+      ...NAV_LINKS,
+      { name: 'Admin', path: '/admin', icon: ShieldCheck },
+    ];
+  }, [profile]);
+
   const handleUploadClick = () => navigate('/app?openUpload=true');
 
   const handleLogout = () => {
@@ -76,7 +87,7 @@ const ShellHeader = () => {
 
           {/* Icon-centric Navigation */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {NAV_LINKS.map((link) => {
+            {navLinks.map((link) => {
               const active = isActivePath(location.pathname, link.path, link.end);
               const Icon = link.icon;
               return (
@@ -152,7 +163,7 @@ const ShellHeader = () => {
       
       {/* Mobile Bottom Nav - keeping it for better mobile UX but keeping top bar as well */}
       <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/40 bg-white/80 px-2 shadow-2xl backdrop-blur-xl md:hidden">
-        {NAV_LINKS.map((link) => {
+        {navLinks.map((link) => {
           const active = isActivePath(location.pathname, link.path, link.end);
           const Icon = link.icon;
           return (

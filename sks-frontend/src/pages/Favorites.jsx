@@ -1,6 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Filter, Search, Star } from 'lucide-react';
+import {
+  ArrowDownAZ,
+  ArrowLeft,
+  Clock,
+  FileHeart,
+  HardDrive,
+  LayoutGrid,
+  List,
+  RefreshCw,
+  Search,
+  Sparkles,
+  Star,
+} from 'lucide-react';
 import { cn } from '@/lib/utils.js';
 import DocumentLibraryPanel from '../components/workspace/DocumentLibraryPanel.jsx';
 import {
@@ -10,12 +23,53 @@ import {
 } from '../service/documentAPI.js';
 import { getApiErrorMessage } from '../utils/apiError.js';
 
-const DEFAULT_LIMIT = 8;
+const DEFAULT_LIMIT = 10;
 const DEFAULT_SORT_BY = 'createdAt';
 const DEFAULT_SORT_ORDER = 'desc';
 const VALID_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'docDate', 'fileSize']);
 const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
 const VALID_TYPES = new Set(['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']);
+
+const TYPE_FILTERS = [
+  { label: 'Tất cả', value: '', description: 'Hiển thị mọi tài liệu yêu thích' },
+  { label: 'PDF', value: 'pdf', description: 'Chỉ hiển thị file PDF' },
+  { label: 'Word', value: 'docx', description: 'Chỉ hiển thị file DOCX' },
+  { label: 'Text', value: 'txt', description: 'Chỉ hiển thị file TXT' },
+];
+
+const SORT_OPTIONS = [
+  {
+    label: 'Mới lưu',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    description: 'Tài liệu được thêm gần đây nhất',
+    Icon: Clock,
+  },
+  {
+    label: 'Vừa cập nhật',
+    sortBy: 'updatedAt',
+    sortOrder: 'desc',
+    description: 'Tài liệu được cập nhật gần đây nhất',
+    Icon: RefreshCw,
+  },
+  {
+    label: 'Tên A-Z',
+    sortBy: 'title',
+    sortOrder: 'asc',
+    description: 'Sắp xếp theo tên tài liệu',
+    Icon: ArrowDownAZ,
+  },
+  {
+    label: 'Dung lượng lớn',
+    sortBy: 'fileSize',
+    sortOrder: 'desc',
+    description: 'File dung lượng lớn đứng trước',
+    Icon: HardDrive,
+  },
+];
+
+const MotionDiv = motion.div;
+const MotionButton = motion.button;
 
 const readPositiveInt = (value, fallback) => {
   const parsedValue = Number(value);
@@ -49,8 +103,13 @@ const Favorites = () => {
   const type = VALID_TYPES.has(searchParams.get('type')) ? searchParams.get('type') : '';
   const keyword = (searchParams.get('keyword') || '').trim();
 
+  const activeTypeOption = useMemo(
+    () => TYPE_FILTERS.find((option) => option.value === type) || TYPE_FILTERS[0],
+    [type],
+  );
+
   useEffect(() => {
-    if (!flash) return;
+    if (!flash) return undefined;
     const timer = window.setTimeout(() => setFlash(null), 4000);
     return () => window.clearTimeout(timer);
   }, [flash]);
@@ -81,10 +140,7 @@ const Favorites = () => {
       nextParams.set(key, String(value));
     });
 
-    if (resetPage) {
-      nextParams.delete('page');
-    }
-
+    if (resetPage) nextParams.delete('page');
     setSearchParams(nextParams);
   };
 
@@ -129,7 +185,7 @@ const Favorites = () => {
           total: 0,
           totalPages: 1,
         });
-        setError(getApiErrorMessage(requestError, 'Failed to load favorites.'));
+        setError(getApiErrorMessage(requestError, 'Không tải được danh sách yêu thích.'));
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);
@@ -154,7 +210,7 @@ const Favorites = () => {
     } catch (requestError) {
       setFlash({
         tone: 'error',
-        message: getApiErrorMessage(requestError, 'Unable to download the file.'),
+        message: getApiErrorMessage(requestError, 'Không tải được file.'),
       });
     }
   };
@@ -164,158 +220,230 @@ const Favorites = () => {
       await toggleFavorite(documentId);
       if (documents.length === 1 && page > 1) {
         updateQuery({ page: page - 1 });
-      } else {
-        updateQuery({}, {});
-        requestIdRef.current = 0;
-        const result = await getFavorites({
-          keyword: keyword || undefined,
-          limit,
-          page,
-          sortBy,
-          sortOrder,
-          type: type || undefined,
-        });
-        setDocuments(result.favorites || []);
-        setPagination(result.pagination || pagination);
+        return;
       }
+
+      requestIdRef.current = 0;
+      const result = await getFavorites({
+        keyword: keyword || undefined,
+        limit,
+        page,
+        sortBy,
+        sortOrder,
+        type: type || undefined,
+      });
+      setDocuments(result.favorites || []);
+      setPagination(result.pagination || pagination);
     } catch (requestError) {
       setFlash({
         tone: 'error',
-        message: getApiErrorMessage(requestError, 'Unable to update favorites.'),
+        message: getApiErrorMessage(requestError, 'Không cập nhật được yêu thích.'),
       });
     }
   };
 
   return (
-    <div className="relative min-h-full pb-16">
-      {flash ? (
-        <div
-          className={cn(
-            'fixed top-24 right-8 z-50 rounded-2xl px-6 py-4 shadow-lg text-sm font-bold',
-            flash.tone === 'error' ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-white',
-          )}
-        >
-          {flash.message}
-        </div>
-      ) : null}
+    <div className="relative min-h-screen overflow-x-hidden pb-20">
+      <div className="workspace-aurora pointer-events-none inset-0 z-0" />
 
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10 pt-8 sm:pt-14">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] text-amber-600 shadow-sm ring-1 ring-slate-200/60">
-            <Star size={14} fill="currentColor" />
-            Yêu thích
+      <AnimatePresence>
+        {flash ? (
+          <MotionDiv
+            initial={{ opacity: 0, y: 30, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.94 }}
+            className={cn(
+              'fixed bottom-10 left-1/2 z-[100] -translate-x-1/2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-[0.18em] shadow-2xl',
+              flash.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white',
+            )}
+          >
+            {flash.message}
+          </MotionDiv>
+        ) : null}
+      </AnimatePresence>
+
+      <main className="relative z-10 w-full px-4 pt-2 sm:px-6 lg:px-8">
+        <MotionDiv
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-auto w-full max-w-[1480px] rounded-[2rem] border border-white/70 bg-white/62 p-4 shadow-[0_30px_90px_-62px_rgba(45,44,47,0.55)] backdrop-blur-xl sm:p-5"
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#9b3f36] text-white shadow-lg shadow-[#9b3f36]/18">
+                  <Star size={19} fill="currentColor" />
+                </span>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-black tracking-tight text-slate-950">
+                      Yêu thích
+                    </h1>
+                    <span className="rounded-full bg-white/75 px-3 py-1 text-xs font-extrabold text-slate-500">
+                      {pagination.total} file
+                    </span>
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
+                    <FileHeart size={16} />
+                    Tài liệu đã đánh dấu sao
+                    {keyword ? <span>· "{keyword}"</span> : null}
+                    {type ? <span>· {activeTypeOption.label}</span> : null}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/app')}
+                className="inline-flex items-center gap-2 rounded-full bg-white/82 px-4 py-2.5 text-sm font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-[#9b3f36]"
+              >
+                <ArrowLeft size={16} />
+                Workspace
+              </button>
+
+              <div className="flex rounded-full border border-white/70 bg-white/62 p-1">
+                <button
+                  type="button"
+                  aria-label="Xem dạng lưới"
+                  title="Xem dạng lưới"
+                  className={cn(
+                    'rounded-full p-2 transition-all',
+                    viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                  )}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <LayoutGrid size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Xem dạng danh sách"
+                  title="Xem dạng danh sách"
+                  className={cn(
+                    'rounded-full p-2 transition-all',
+                    viewMode === 'table' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-600',
+                  )}
+                  onClick={() => setViewMode('table')}
+                >
+                  <List size={16} />
+                </button>
+              </div>
+            </div>
           </div>
-          <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
-            Tài liệu quan trọng luôn trong tầm tay
-          </h1>
-          <p className="mt-3 text-sm leading-7 text-slate-500 md:text-base">
-            Trang này chỉ hiển thị những tài liệu đã được đánh dấu yêu thích để bạn mở lại nhanh hơn.
-          </p>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => navigate('/app')}
-          className="bg-white text-slate-600 border border-slate-200 px-6 py-3 rounded-full font-bold shadow-sm hover:bg-slate-50 transition-all w-full md:w-auto"
-        >
-          Quay lại không gian
-        </button>
-      </div>
-
-      <div className="glass p-4 rounded-2xl shadow-sm mb-8 flex flex-col xl:flex-row gap-4 items-center justify-between border border-white/60">
-        <div className="flex flex-1 w-full gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <div className="relative mt-5 flex w-full items-center rounded-full border border-[#ead2c9] bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] backdrop-blur-xl transition-all duration-300 focus-within:border-[#e56f56] focus-within:shadow-[0_28px_80px_-40px_rgba(139,63,54,0.78),0_0_0_6px_rgba(229,111,86,0.12)]">
+            <div className="pl-5 pr-2 text-slate-500">
+              <Search size={19} />
+            </div>
             <input
               type="text"
               placeholder="Tìm trong tài liệu yêu thích..."
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => event.key === 'Enter' && handleApplySearch()}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-brand-500 outline-none transition-all placeholder:text-slate-400"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') handleApplySearch();
+              }}
+              className="min-w-0 flex-1 bg-transparent px-3 py-3 text-left text-sm font-bold text-slate-800 outline-none placeholder:text-slate-500"
+            />
+            <MotionButton
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleApplySearch}
+              className="rounded-full bg-gradient-to-r from-[#9b3f36] to-[#e56f56] px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-[#9b3f36]/28 transition-opacity hover:opacity-95"
+            >
+              Tìm kiếm
+            </MotionButton>
+          </div>
+
+          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/55 bg-white/28 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+              {TYPE_FILTERS.map((option) => {
+                const activeType = type === option.value;
+
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    title={option.description}
+                    onClick={() => updateQuery({ type: option.value || undefined }, { resetPage: true })}
+                    className={cn(
+                      'rounded-full px-3 py-1.5 text-xs font-extrabold transition-all',
+                      activeType
+                        ? 'bg-brand-900 text-white shadow-sm'
+                        : 'bg-white/62 text-slate-500 hover:bg-white hover:text-brand-600',
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 rounded-[1.4rem] border border-white/55 bg-white/28 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+              {SORT_OPTIONS.map((option) => {
+                const activeSort = sortBy === option.sortBy && sortOrder === option.sortOrder;
+                const SortIcon = option.Icon;
+
+                return (
+                  <button
+                    key={`${option.sortBy}-${option.sortOrder}`}
+                    type="button"
+                    title={option.description}
+                    aria-label={option.description}
+                    onClick={() => updateQuery(
+                      { sortBy: option.sortBy, sortOrder: option.sortOrder },
+                      { resetPage: true },
+                    )}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-extrabold transition-all',
+                      activeSort
+                        ? 'bg-brand-900 text-white shadow-sm'
+                        : 'bg-white/62 text-slate-500 hover:bg-white hover:text-brand-600',
+                    )}
+                  >
+                    <SortIcon size={14} />
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <DocumentLibraryPanel
+              viewMode={viewMode}
+              childFolders={[]}
+              documents={documents}
+              emptyTitle="Chưa có tài liệu yêu thích"
+              emptyDescription="Đánh dấu sao những file quan trọng để mở lại nhanh khi học hoặc ôn tập."
+              emptyAction={(
+                <button
+                  type="button"
+                  onClick={() => navigate('/app')}
+                  className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-[var(--shadow-brand)] transition-all hover:-translate-y-0.5 hover:bg-brand-600"
+                >
+                  <Sparkles size={17} />
+                  Về Workspace
+                </button>
+              )}
+              error={error}
+              loading={loading}
+              showFolderContext
+              onOpenFolder={() => {}}
+              onOpenDocument={handleOpenDocument}
+              onDownloadDocument={handleDownloadDocument}
+              onToggleFavorite={handleToggleFavorite}
+              pagination={{
+                currentPage: pagination.currentPage,
+                totalPages: pagination.totalPages,
+                total: pagination.total,
+                onPageChange: (nextPage) => updateQuery({ page: nextPage }),
+              }}
             />
           </div>
-          <button
-            type="button"
-            onClick={handleApplySearch}
-            className="w-11 h-11 flex items-center justify-center bg-white border border-slate-200 rounded-xl text-slate-500 hover:text-brand-600 hover:border-brand-200 transition-colors shrink-0"
-          >
-            <Filter size={18} />
-          </button>
-        </div>
-
-        <div className="flex w-full xl:w-auto gap-3 items-center overflow-x-auto no-scrollbar pb-1 xl:pb-0">
-          <select
-            value={type || ''}
-            onChange={(event) => updateQuery({ type: event.target.value }, { resetPage: true })}
-            className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none min-w-[150px] appearance-none cursor-pointer"
-          >
-            <option value="">Mọi loại tệp</option>
-            <option value="pdf">PDF</option>
-            <option value="docx">DOCX</option>
-            <option value="txt">TXT</option>
-          </select>
-
-          <select
-            value={sortBy || DEFAULT_SORT_BY}
-            onChange={(event) => updateQuery({ sortBy: event.target.value }, { resetPage: true })}
-            className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none min-w-[150px] appearance-none cursor-pointer"
-          >
-            <option value="createdAt">Mới tải lên</option>
-            <option value="updatedAt">Vừa cập nhật</option>
-            <option value="title">Tên A-Z</option>
-            <option value="fileSize">Dung lượng</option>
-          </select>
-
-          <div className="flex bg-slate-100 p-1 rounded-xl ml-auto xl:ml-4 shrink-0 shadow-inner">
-            <button
-              type="button"
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-sm font-bold transition-all',
-                viewMode === 'table'
-                  ? 'bg-white text-brand-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-              onClick={() => setViewMode('table')}
-            >
-              Danh sách
-            </button>
-            <button
-              type="button"
-              className={cn(
-                'px-4 py-1.5 rounded-lg text-sm font-bold transition-all',
-                viewMode === 'grid'
-                  ? 'bg-white text-brand-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-              onClick={() => setViewMode('grid')}
-            >
-              Lưới
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <DocumentLibraryPanel
-        viewMode={viewMode}
-        childFolders={[]}
-        documents={documents}
-        emptyTitle="Chưa có tài liệu yêu thích"
-        emptyDescription="Đánh dấu những tài liệu quan trọng từ workspace để giữ chúng luôn ở gần khi học hoặc demo."
-        error={error}
-        loading={loading}
-        showFolderContext
-        onOpenFolder={() => {}}
-        onOpenDocument={handleOpenDocument}
-        onDownloadDocument={handleDownloadDocument}
-        onToggleFavorite={handleToggleFavorite}
-        pagination={{
-          currentPage: pagination.currentPage,
-          totalPages: pagination.totalPages,
-          total: pagination.total,
-          onPageChange: (nextPage) => updateQuery({ page: nextPage }),
-        }}
-      />
+        </MotionDiv>
+      </main>
     </div>
   );
 };

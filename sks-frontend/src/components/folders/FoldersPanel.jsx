@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderClosed,
+  FolderOpen,
   FolderPlus,
   Home,
   PencilLine,
@@ -29,24 +30,17 @@ const findFolderPath = (folders, folderId, trail = []) => {
   for (const folder of folders) {
     const nextTrail = [...trail, folder];
 
-    if (folder.id === folderId) {
-      return nextTrail;
-    }
+    if (folder.id === folderId) return nextTrail;
 
     const nestedTrail = findFolderPath(folder.children || [], folderId, nextTrail);
-    if (nestedTrail.length > 0) {
-      return nestedTrail;
-    }
+    if (nestedTrail.length > 0) return nestedTrail;
   }
 
   return [];
 };
 
 const buildFolderOptionLabel = (folder) => {
-  if (folder.depth === 0) {
-    return 'Workspace';
-  }
-
+  if (folder.depth === 0) return 'Workspace';
   return `${'-- '.repeat(folder.depth)}${folder.name}`;
 };
 
@@ -55,7 +49,7 @@ const toneForIndex = (index) => {
     'bg-brand-50 text-brand-600',
     'bg-blue-50 text-blue-600',
     'bg-emerald-50 text-emerald-600',
-    'bg-orange-50 text-orange-600',
+    'bg-amber-50 text-amber-700',
   ];
 
   return tones[index % tones.length];
@@ -131,9 +125,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   };
 
   const folderPath = useMemo(() => {
-    if (!rootFolder) {
-      return [];
-    }
+    if (!rootFolder) return [];
 
     const activeFolderId = selectedFolderId || rootFolder.id;
     const nextPath = findFolderPath([rootFolder], activeFolderId);
@@ -143,6 +135,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   const currentExplorerFolder = folderPath[folderPath.length - 1] || rootFolder;
   const parentFolder = folderPath.length > 1 ? folderPath[folderPath.length - 2] : null;
   const visibleFolders = currentExplorerFolder?.children || [];
+  const totalFolderCount = Math.max(folderOptions.length - 1, 0);
 
   const getFolderLabel = (folder) =>
     folder?.id === rootFolder?.id ? 'Workspace' : folder?.name || 'Thư mục chưa đặt tên';
@@ -221,9 +214,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   };
 
   const handleMoveFolder = async () => {
-    if (!activeFolder) {
-      return;
-    }
+    if (!activeFolder) return;
 
     try {
       setIsSubmitting(true);
@@ -238,9 +229,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
   };
 
   const handleDeleteFolder = async () => {
-    if (!activeFolder) {
-      return;
-    }
+    if (!activeFolder) return;
 
     try {
       setIsSubmitting(true);
@@ -272,15 +261,25 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
   return (
     <>
-      <div className="h-full min-h-[520px]">
-        <header className="mb-4 flex items-start justify-between gap-4">
+      <div className="flex h-full min-h-[520px] flex-col">
+        <header className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-brand-600">
-              Thư mục
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-[var(--shadow-brand)]">
+                <FolderOpen size={18} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-brand-600">
+                  Thư mục
+                </p>
+                <h2 className="truncate text-xl font-extrabold text-slate-900">
+                  {getFolderLabel(currentExplorerFolder || rootFolder)}
+                </h2>
+              </div>
+            </div>
+            <p className="mt-3 text-xs font-bold text-slate-400">
+              {totalFolderCount} thư mục · {visibleFolders.length} nhánh con
             </p>
-            <h2 className="mt-2 truncate text-2xl font-extrabold tracking-tight text-slate-900">
-              {getFolderLabel(currentExplorerFolder || rootFolder)}
-            </h2>
           </div>
 
           <button
@@ -288,7 +287,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
             onClick={openCreateModal}
             aria-label="Tạo thư mục"
             title="Tạo thư mục"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-[var(--shadow-brand)] transition-all hover:bg-brand-700"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-white/80 transition-all hover:-translate-y-0.5 hover:bg-brand-900 hover:text-white"
           >
             <FolderPlus size={20} />
           </button>
@@ -305,11 +304,12 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                   type="button"
                   onClick={() => goToFolder(folder.id)}
                   disabled={isCurrent}
+                  title={getFolderLabel(folder)}
                   className={cn(
-                    'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] transition-all',
+                    'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] transition-all',
                     isCurrent
                       ? 'bg-brand-900 text-white shadow-sm'
-                      : 'bg-white/70 text-slate-500 hover:text-brand-600',
+                      : 'bg-white/70 text-slate-500 hover:bg-white hover:text-brand-600',
                   )}
                 >
                   {index === 0 ? <Home size={12} /> : null}
@@ -324,19 +324,19 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
           <button
             type="button"
             onClick={() => goToFolder(parentFolder.id)}
-            className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-xs font-extrabold text-slate-500 transition-colors hover:text-brand-600"
+            className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/75 px-3 py-2 text-xs font-extrabold text-slate-500 shadow-sm transition-colors hover:text-brand-600"
           >
             <ChevronLeft className="h-4 w-4" />
             Quay lại
           </button>
         ) : null}
 
-        <div className="space-y-2.5">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
           {foldersLoading ? (
-            Array.from({ length: 4 }).map((_, index) => (
+            Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="rounded-3xl border border-white/70 bg-white/55 p-3"
+                className="rounded-2xl border border-white/70 bg-white/55 p-3"
               >
                 <div className="flex items-center gap-3">
                   <AppSkeleton className="h-11 w-11 rounded-2xl" />
@@ -357,7 +357,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                   <div
                     key={folder.id}
                     className={cn(
-                      'group flex items-center gap-3 rounded-3xl border border-white/70 bg-white/55 px-3 py-3 transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm',
+                      'group flex items-center gap-3 rounded-2xl border border-white/70 bg-white/58 px-3 py-3 transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm',
                       isActive && 'border-brand-200 bg-white shadow-sm',
                     )}
                   >
@@ -409,7 +409,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="flex w-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center transition-all hover:border-brand-200 hover:bg-white/70"
+                className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center transition-all hover:border-brand-200 hover:bg-white/75"
               >
                 <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-500 shadow-sm">
                   <FolderPlus size={24} />
@@ -419,7 +419,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
               </button>
             )
           ) : (
-            <div className="rounded-3xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center">
+            <div className="rounded-2xl border border-dashed border-white/80 bg-white/45 px-5 py-8 text-center">
               <span className="text-sm font-extrabold text-slate-900">Workspace chưa sẵn sàng</span>
             </div>
           )}
@@ -429,9 +429,8 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showCreateModal}
         onClose={closeModals}
-        eyebrow="Tác vụ thư mục"
         title="Tạo thư mục"
-        description="Thêm thư mục mới vào nhánh đang làm việc."
+        description="Chọn tên và vị trí lưu."
         footer={modalFooter('Tạo thư mục', handleCreateFolder)}
       >
         <div className="space-y-4">
@@ -444,7 +443,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
             label="Tên thư mục"
             value={createName}
             onChange={(event) => setCreateName(event.target.value)}
-            placeholder="Phân tích thiết kế hệ thống"
+            placeholder="Nhập tên thư mục"
             autoFocus
           />
           <SelectField
@@ -459,9 +458,8 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showRenameModal}
         onClose={closeModals}
-        eyebrow="Tác vụ thư mục"
         title="Đổi tên thư mục"
-        description="Dùng tên rõ ràng để workspace dễ quét và dễ bảo vệ hơn."
+        description="Nhập tên mới cho thư mục."
         footer={modalFooter('Lưu tên mới', handleRenameFolder)}
       >
         <div className="space-y-4">
@@ -483,9 +481,8 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showMoveModal}
         onClose={closeModals}
-        eyebrow="Tác vụ thư mục"
         title="Di chuyển thư mục"
-        description="Chọn thư mục cha mới cho nhánh tài liệu này."
+        description="Chọn thư mục đích."
         footer={modalFooter('Di chuyển thư mục', handleMoveFolder)}
       >
         <div className="space-y-4">
@@ -506,7 +503,6 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       <AppModal
         open={showDeleteModal}
         onClose={closeModals}
-        eyebrow="Tác vụ thư mục"
         title="Xóa thư mục"
         footer={modalFooter('Xóa thư mục', handleDeleteFolder, 'danger')}
       >

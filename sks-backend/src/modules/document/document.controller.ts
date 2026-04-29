@@ -136,6 +136,18 @@ export class DocumentController {
     return result;
   }
 
+  // RESTful alias kept alongside DELETE /documents/delete for backward compatibility.
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @Delete(':documentId')
+  async deleteDocumentById(
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Request() req: ExpressRequest,
+  ) {
+    const ownerId = this.getUserId(req);
+    return this.documentService.deleteDocument(ownerId, documentId);
+  }
+
   // --- Toggle favorite ---
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -253,6 +265,23 @@ export class DocumentController {
   }
 
   // --- Update document name ---
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @Patch(':documentId')
+  async updateDocumentById(
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Body() updateDto: UpdateDocumentNameDto,
+    @Request() req: ExpressRequest,
+  ) {
+    const userId = this.getUserId(req);
+    return this.documentService.updateDocumentName(
+      userId,
+      documentId,
+      updateDto.newDocumentName,
+    );
+  }
+
+  // Legacy alias kept so older frontend/API calls continue to work.
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @Patch(':documentId/update-name')

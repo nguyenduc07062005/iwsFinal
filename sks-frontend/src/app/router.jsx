@@ -18,15 +18,16 @@ import { isAuthenticated } from '../utils/auth.js';
 const WorkspacePage = lazy(() => import('../pages/WorkspacePage.jsx'));
 const Favorites = lazy(() => import('../pages/Favorites.jsx'));
 const DocumentViewer = lazy(() => import('../pages/DocumentViewer.jsx'));
+const Admin = lazy(() => import('../pages/Admin.jsx'));
 
 const RouteFallback = () => (
   <div className="flex min-h-[50vh] items-center justify-center px-6 py-16">
     <div className="rounded-[2rem] border border-white/70 bg-white/80 px-8 py-7 text-center shadow-[0_28px_72px_-42px_rgba(61,43,43,0.55)] backdrop-blur-xl">
       <p className="text-[11px] font-black uppercase tracking-[0.28em] text-[#a15a40]">
-        Loading Route
+        Đang tải
       </p>
       <p className="mt-3 text-sm font-medium text-[#6c5f59]">
-        Preparing the next StudyVault view.
+        Chuẩn bị màn hình tiếp theo.
       </p>
     </div>
   </div>
@@ -82,6 +83,10 @@ const router = createBrowserRouter([
               {
                 path: 'profile',
                 element: <Profile />,
+              },
+              {
+                path: 'admin',
+                element: withSuspense(<Admin />),
               },
             ],
           },

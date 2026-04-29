@@ -9,10 +9,12 @@ import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { UserRepository } from 'src/database/repositories/user.repository';
 import { UserRole } from 'src/database/entities/user.entity';
+import { ChangePasswordDto } from './dtos/change-password.dto';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { LoginDto } from './dtos/login.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { UpdateProfileDto } from './dtos/update-profile.dto';
 
 const DEFAULT_RESET_PASSWORD_TTL_MINUTES = 15;
 const DEFAULT_RETURN_RESET_TOKEN = true;
@@ -69,6 +71,17 @@ export class AuthenticationService {
     };
   }
 
+  private isConfiguredAdminEmail(email: string): boolean {
+    const configuredEmails =
+      this.configService.get<string>('ADMIN_EMAILS') || '';
+
+    return configuredEmails
+      .split(',')
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+      .includes(email);
+  }
+
   async register(dto: CreateUserDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const existingUser = await this.userRepository.findOne({
@@ -85,7 +98,9 @@ export class AuthenticationService {
       email: normalizedEmail,
       password: hashedPassword,
       name: dto.name,
-      role: UserRole.USER,
+      role: this.isConfiguredAdminEmail(normalizedEmail)
+        ? UserRole.ADMIN
+        : UserRole.USER,
       isActive: true,
     });
 
@@ -205,6 +220,84 @@ export class AuthenticationService {
       name: user.name,
       role: user.role,
       isActive: user.isActive,
+    };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const nextName = dto.name?.trim();
+
+    if (nextName === undefined || nextName === user.name) {
+      return {
+        message: 'Profile is already up to date.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          isActive: user.isActive,
+        },
+      };
+    }
+
+    if (!nextName) {
+      throw new BadRequestException('Name cannot be empty');
+    }
+
+    const updatedUser = await this.userRepository.update(user.id, {
+      name: nextName,
+    });
+
+    return {
+      message: 'Profile updated successfully.',
+      user: {
+        id: updatedUser?.id,
+        email: updatedUser?.email,
+        name: updatedUser?.name,
+        role: updatedUser?.role,
+        isActive: updatedUser?.isActive,
+      },
+    };
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.userRepository.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const isSamePassword = await bcrypt.compare(dto.newPassword, user.password);
+    if (isSamePassword) {
+      throw new BadRequestException(
+        'New password must be different from the current password',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.userRepository.update(user.id, {
+      password: hashedPassword,
+      resetPasswordTokenHash: null,
+      resetPasswordTokenExpiresAt: null,
+    });
+
+    return {
+      message: 'Password changed successfully.',
     };
   }
 }

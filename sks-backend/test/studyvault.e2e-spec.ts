@@ -2,6 +2,8 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AuthenticationController } from '../src/modules/authentication/authentication.controller';
 import { AuthenticationService } from '../src/modules/authentication/authentication.service';
+import { AdminController } from '../src/modules/admin/admin.controller';
+import { AdminService } from '../src/modules/admin/admin.service';
 import { DocumentController } from '../src/modules/document/document.controller';
 import { DocumentService } from '../src/modules/document/document.service';
 import { FolderController } from '../src/modules/folder/folder.controller';
@@ -19,6 +21,8 @@ const authHeader = {
   Authorization: 'Bearer phase-8-test-token',
 };
 
+const TEST_SECONDARY_USER_ID = '55555555-5555-4555-8555-555555555555';
+
 describe('StudyVault auth API (e2e)', () => {
   let app: INestApplication;
 
@@ -28,6 +32,8 @@ describe('StudyVault auth API (e2e)', () => {
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
     getProfile: jest.fn(),
+    updateProfile: jest.fn(),
+    changePassword: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -157,6 +163,194 @@ describe('StudyVault auth API (e2e)', () => {
 
     expect(authService.getProfile).toHaveBeenCalledWith(TEST_USER_ID);
   });
+
+  it('updates profile name and changes password through protected routes', async () => {
+    authService.updateProfile.mockResolvedValue({
+      message: 'Profile updated successfully',
+      user: {
+        id: TEST_USER_ID,
+        email: 'student@example.com',
+        name: 'Nguyen Van B',
+        role: 'user',
+        isActive: true,
+      },
+    });
+    authService.changePassword.mockResolvedValue({
+      message: 'Password changed successfully.',
+    });
+
+    await request(app.getHttpServer())
+      .patch('/api/auth/profile')
+      .set(authHeader)
+      .send({
+        name: 'Nguyen Van B',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.user.name).toBe('Nguyen Van B');
+      });
+
+    expect(authService.updateProfile).toHaveBeenCalledWith(TEST_USER_ID, {
+      name: 'Nguyen Van B',
+    });
+
+    await request(app.getHttpServer())
+      .patch('/api/auth/password')
+      .set(authHeader)
+      .send({
+        currentPassword: 'secret123',
+        newPassword: 'newSecret123',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Password changed successfully.');
+      });
+
+    expect(authService.changePassword).toHaveBeenCalledWith(TEST_USER_ID, {
+      currentPassword: 'secret123',
+      newPassword: 'newSecret123',
+    });
+  });
+
+  it('rejects protected auth routes when the token is missing', async () => {
+    await request(app.getHttpServer()).get('/api/auth/profile').expect(401);
+  });
+});
+
+describe('StudyVault admin API (e2e)', () => {
+  let app: INestApplication;
+
+  const adminService = {
+    listUsers: jest.fn(),
+    updateUserStatus: jest.fn(),
+    getStats: jest.fn(),
+  };
+
+  beforeAll(async () => {
+    app = await createHttpTestApp({
+      controllers: [AdminController],
+      providers: [
+        {
+          provide: AdminService,
+          useValue: adminService,
+        },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('lists users, toggles account status, and returns system stats', async () => {
+    adminService.listUsers.mockResolvedValue({
+      message: 'Users retrieved successfully.',
+      data: [
+        {
+          id: TEST_SECONDARY_USER_ID,
+          email: 'student@example.com',
+          name: 'Nguyen Van A',
+          role: 'user',
+          isActive: true,
+        },
+      ],
+      pagination: {
+        currentPage: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1,
+      },
+    });
+    adminService.updateUserStatus.mockResolvedValue({
+      message: 'User account locked successfully.',
+      data: {
+        id: TEST_SECONDARY_USER_ID,
+        email: 'student@example.com',
+        isActive: false,
+      },
+    });
+    adminService.getStats.mockResolvedValue({
+      message: 'System stats retrieved successfully.',
+      data: {
+        users: {
+          total: 2,
+          active: 1,
+          locked: 1,
+        },
+        documents: {
+          total: 4,
+          byType: {
+            pdf: 2,
+            docx: 1,
+            txt: 1,
+            other: 0,
+          },
+        },
+        folders: {
+          total: 3,
+        },
+        storage: {
+          totalBytes: 2048,
+        },
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/admin/users')
+      .set(authHeader)
+      .query({
+        keyword: 'student',
+        status: 'active',
+        page: '1',
+        limit: '10',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].email).toBe('student@example.com');
+      });
+
+    expect(adminService.listUsers).toHaveBeenCalledWith({
+      keyword: 'student',
+      status: 'active',
+      page: 1,
+      limit: 10,
+    });
+
+    await request(app.getHttpServer())
+      .patch(`/api/admin/users/${TEST_SECONDARY_USER_ID}/status`)
+      .set(authHeader)
+      .send({
+        isActive: false,
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data.isActive).toBe(false);
+      });
+
+    expect(adminService.updateUserStatus).toHaveBeenCalledWith(
+      TEST_SECONDARY_USER_ID,
+      TEST_USER_ID,
+      { isActive: false },
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/admin/stats')
+      .set(authHeader)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data.users.total).toBe(2);
+        expect(body.data.documents.byType.pdf).toBe(2);
+      });
+  });
+
+  it('rejects admin routes when the token is missing', async () => {
+    await request(app.getHttpServer()).get('/api/admin/users').expect(401);
+  });
 });
 
 describe('StudyVault folder API (e2e)', () => {
@@ -257,10 +451,32 @@ describe('StudyVault folder API (e2e)', () => {
       });
 
     await request(app.getHttpServer())
+      .patch(`/api/folders/${TEST_FOLDER_ID}`)
+      .set(authHeader)
+      .send({
+        name: 'Semester 8 Updated',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.folder.name).toBe('Semester 8 Updated');
+      });
+
+    await request(app.getHttpServer())
       .patch('/api/folders/move')
       .set(authHeader)
       .send({
         folderId: TEST_FOLDER_ID,
+        newParentId: TEST_PARENT_FOLDER_ID,
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.folder.parentId).toBe(TEST_PARENT_FOLDER_ID);
+      });
+
+    await request(app.getHttpServer())
+      .patch(`/api/folders/${TEST_FOLDER_ID}/move`)
+      .set(authHeader)
+      .send({
         newParentId: TEST_PARENT_FOLDER_ID,
       })
       .expect(200)
@@ -314,6 +530,14 @@ describe('StudyVault folder API (e2e)', () => {
       .send({
         folderId: TEST_FOLDER_ID,
       })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Folder deleted successfully');
+      });
+
+    await request(app.getHttpServer())
+      .delete(`/api/folders/${TEST_FOLDER_ID}`)
+      .set(authHeader)
       .expect(200)
       .expect(({ body }) => {
         expect(body.message).toBe('Folder deleted successfully');
@@ -429,6 +653,17 @@ describe('StudyVault document API (e2e)', () => {
       });
 
     await request(app.getHttpServer())
+      .patch(`/api/documents/${TEST_DOCUMENT_ID}`)
+      .set(authHeader)
+      .send({
+        newDocumentName: 'Week 5 Final Notes',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toContain('updated');
+      });
+
+    await request(app.getHttpServer())
       .post(`/api/documents/${TEST_DOCUMENT_ID}/toggle-favorite`)
       .set(authHeader)
       .expect(200)
@@ -442,6 +677,14 @@ describe('StudyVault document API (e2e)', () => {
       .send({
         documentId: TEST_DOCUMENT_ID,
       })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Document deleted successfully');
+      });
+
+    await request(app.getHttpServer())
+      .delete(`/api/documents/${TEST_DOCUMENT_ID}`)
+      .set(authHeader)
       .expect(200)
       .expect(({ body }) => {
         expect(body.message).toBe('Document deleted successfully');
@@ -498,16 +741,27 @@ describe('StudyVault document API (e2e)', () => {
   });
 
   it('returns readable validation errors for invalid list query params', async () => {
-    const response = await request(app.getHttpServer())
-      .get('/api/documents')
-      .set(authHeader)
-      .query({
-        sortBy: 'rank',
-      })
-      .expect(400);
+    const invalidCases = [
+      { query: { page: '0' }, messageFragment: 'page' },
+      { query: { limit: '100' }, messageFragment: 'limit' },
+      { query: { sortBy: 'rank' }, messageFragment: 'sortBy' },
+      { query: { type: 'exe' }, messageFragment: 'type' },
+    ];
 
-    expect(response.body.error).toBe('Bad Request');
-    expect(response.body.message).toContain('sortBy');
+    for (const invalidCase of invalidCases) {
+      const response = await request(app.getHttpServer())
+        .get('/api/documents')
+        .set(authHeader)
+        .query(invalidCase.query)
+        .expect(400);
+
+      expect(response.body.error).toBe('Bad Request');
+      expect(response.body.message).toContain(invalidCase.messageFragment);
+    }
+  });
+
+  it('rejects protected document routes when the token is missing', async () => {
+    await request(app.getHttpServer()).get('/api/documents').expect(401);
   });
 
   it('covers favorites and search query contracts', async () => {

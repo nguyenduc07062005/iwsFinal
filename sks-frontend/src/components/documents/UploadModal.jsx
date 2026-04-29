@@ -180,7 +180,7 @@ const UploadModal = ({
     <AppModal
       open={isOpen}
       onClose={isUploading ? () => {} : onClose}
-      title="Tải tài liệu"
+      title="Thêm tài liệu"
       size="sm"
       footer={footer}
     >

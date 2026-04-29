@@ -436,6 +436,7 @@ export class DocumentService {
         'userDocument.isFavorite',
         'userDocument.documentName',
         'document.id',
+        'document.title',
         'document.metadata',
         'document.docDate',
         'document.extraAttributes',
@@ -486,11 +487,15 @@ export class DocumentService {
       createdAt: 'document.createdAt',
       docDate: 'document.docDate',
       fileSize: 'document.fileSize',
-      title: "LOWER(COALESCE(userDocument.document_name, document.title, ''))",
+      title: 'userDocument.documentName',
       updatedAt: 'document.updatedAt',
     };
 
     queryBuilder.orderBy(sortMap[sortBy], sortOrder, 'NULLS LAST');
+
+    if (sortBy === 'title') {
+      queryBuilder.addOrderBy('document.title', sortOrder, 'NULLS LAST');
+    }
 
     if (sortBy !== 'createdAt') {
       queryBuilder.addOrderBy('document.createdAt', 'DESC');

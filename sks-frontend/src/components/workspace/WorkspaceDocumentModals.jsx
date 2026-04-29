@@ -85,9 +85,8 @@ const WorkspaceDocumentModals = ({
       <AppModal
         open={Boolean(renameTarget)}
         onClose={onCloseRename}
-        eyebrow="Tác vụ tài liệu"
         title="Đổi tên tài liệu"
-        description="Dùng tên rõ ràng để tìm kiếm, yêu thích và tổ chức thư mục nhất quán."
+        description="Nhập tên mới cho tài liệu."
         footer={renameFooter}
       >
         <div className="space-y-4">
@@ -105,15 +104,11 @@ const WorkspaceDocumentModals = ({
       <AppModal
         open={Boolean(moveTarget)}
         onClose={onCloseMove}
-        eyebrow="Tác vụ tài liệu"
         title="Di chuyển tài liệu"
-        description="Chọn thư mục đích cho tài liệu này."
+        description="Chọn thư mục đích."
         footer={moveFooter}
       >
         <div className="space-y-4">
-          <div className="rounded-[1.5rem] border border-brand-100 bg-brand-50/60 px-5 py-4 text-sm text-slate-600">
-            Đang di chuyển <strong className="text-slate-900">{moveTarget?.title}</strong>.
-          </div>
           <ErrorBox message={moveError} />
           <FolderSelect
             label="Thư mục đích"
@@ -127,14 +122,13 @@ const WorkspaceDocumentModals = ({
       <AppModal
         open={Boolean(deleteTarget)}
         onClose={onCloseDelete}
-        eyebrow="Tác vụ tài liệu"
         title="Xóa tài liệu"
-        description="Xác nhận trước khi xóa tài liệu khỏi workspace."
+        description="Tài liệu sẽ bị xóa khỏi workspace của bạn."
         footer={deleteFooter}
       >
         <div className="space-y-4">
           <div className="rounded-[1.5rem] border border-rose-100 bg-rose-50 px-5 py-4 text-sm leading-7 text-rose-700">
-            Xóa <strong>{deleteTarget?.title || 'tài liệu này'}</strong>. Hành động này không thể hoàn tác từ giao diện.
+            Xóa <strong>{deleteTarget?.title || 'tài liệu này'}</strong>?
           </div>
           <ErrorBox message={deleteError} />
         </div>
