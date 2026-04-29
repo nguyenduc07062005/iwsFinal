@@ -6,7 +6,7 @@ Tài liệu này dùng để chứng minh phần security khi defense môn Inter
 
 Trạng thái: Đã có.
 
-Backend dùng `helmet` trong `sks-backend/src/main.ts` để thêm các HTTP security headers mặc định.
+Backend dùng `helmet` trong `studyVault-backend/src/main.ts` để thêm các HTTP security headers mặc định.
 
 Các điểm chính:
 
@@ -23,7 +23,7 @@ Defense note:
 
 Trạng thái: Đã có.
 
-CORS được cấu hình trong `sks-backend/src/main.ts`.
+CORS được cấu hình trong `studyVault-backend/src/main.ts`.
 
 Allowed origins mặc định:
 
@@ -50,11 +50,13 @@ Trạng thái: Đã có.
 
 Module chính:
 
-- `sks-backend/src/modules/authentication`
+- `studyVault-backend/src/modules/authentication`
 
 Các endpoint:
 
 - `POST /api/auth/register`
+- `POST /api/auth/complete-registration`
+- `POST /api/auth/resend-verification`
 - `POST /api/auth/login`
 - `POST /api/auth/forgot-password`
 - `POST /api/auth/reset-password`
@@ -65,6 +67,8 @@ Các endpoint:
 Cơ chế:
 
 - Password được hash bằng `bcrypt`.
+- User mới chỉ nhập tên/email ở bước đầu, sau đó phải mở link email thật để đặt mật khẩu trước khi đăng nhập.
+- Email verification token được tạo ngẫu nhiên, chỉ lưu hash trong database, và có hạn dùng qua `EMAIL_VERIFICATION_TTL_MINUTES`.
 - API trả JWT access token sau khi login.
 - Protected routes dùng `JwtAuthGuard`.
 - Frontend tự redirect về login khi token hết hạn hoặc API trả `401`.
@@ -72,6 +76,7 @@ Cơ chế:
 Defense note:
 
 - Mật khẩu không lưu plain text.
+- Email giả hoặc email không thuộc quyền sở hữu người đăng ký không thể hoàn tất bước đặt mật khẩu/kích hoạt tài khoản.
 - Các thao tác tài liệu/thư mục/profile yêu cầu JWT.
 - Token payload có `sub` là user id và `role`.
 
@@ -89,12 +94,14 @@ Cơ chế:
 - Reset token được tạo ngẫu nhiên bằng `crypto.randomBytes`.
 - Backend chỉ lưu hash của reset token.
 - Token có hạn dùng qua `RESET_PASSWORD_TTL_MINUTES`.
+- Forgot password chỉ gửi reset link cho tài khoản đang active và đã xác thực email.
 - Reset password xong sẽ xóa token hash và thời hạn khỏi user record.
 
 Defense note:
 
-- Local demo có thể bật `AUTH_RETURN_RESET_TOKEN=true` để test nhanh.
-- Nếu triển khai nghiêm túc, đặt `AUTH_RETURN_RESET_TOKEN=false` và gửi link qua email service.
+- Reset link được gửi qua Gmail SMTP bằng `nodemailer`.
+- `AUTH_RETURN_RESET_TOKEN=false` là mặc định để frontend không nhìn thấy token khôi phục.
+- Chỉ bật `AUTH_RETURN_RESET_TOKEN=true` khi cần test nội bộ và phải tắt lại trước khi demo/chấm điểm.
 
 ## 5. Input Validation And Sanitization
 
@@ -131,13 +138,15 @@ Trạng thái: Đã có.
 
 Middleware:
 
-- `sks-backend/src/common/http/rate-limit.middleware.ts`
+- `studyVault-backend/src/common/http/rate-limit.middleware.ts`
 
 Routes đang giới hạn:
 
 - `POST /api/auth/login`: 8 request / 1 phút
 - `POST /api/auth/register`: 6 request / 10 phút
 - `POST /api/auth/forgot-password`: 4 request / 15 phút
+- `POST /api/auth/complete-registration`: 12 request / 15 phút
+- `POST /api/auth/resend-verification`: 4 request / 15 phút
 - `POST /api/auth/reset-password`: 6 request / 15 phút
 - `POST /api/documents/upload`: 12 request / 10 phút
 - `GET /api/documents`: 180 request / 1 phút
@@ -145,7 +154,7 @@ Routes đang giới hạn:
 
 Defense note:
 
-- Login/register/reset/upload/AI là các điểm dễ bị spam nên cần rate limit.
+- Login/register/complete-registration/reset/upload/AI là các điểm dễ bị spam nên cần rate limit.
 - Response khi vượt giới hạn trả `429 Too Many Requests`.
 
 ## 7. File Upload Security
@@ -154,7 +163,7 @@ Trạng thái: Đã có.
 
 Controller:
 
-- `sks-backend/src/modules/document/document.controller.ts`
+- `studyVault-backend/src/modules/document/document.controller.ts`
 
 Whitelist file types:
 
@@ -244,13 +253,13 @@ Trạng thái: Đã có E2E backend.
 Lệnh:
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-backend
+cd D:\S2026\iws\projectfinal\studyVault-backend
 npm run test:e2e -- --runInBand
 ```
 
 Đang cover:
 
-- Register/login/forgot/reset/profile.
+- Register/login/complete registration/resend verification/forgot/reset/profile.
 - Update profile.
 - Change password.
 - Folder CRUD.
@@ -264,10 +273,11 @@ npm run test:e2e -- --runInBand
 
 Các điểm chưa nên giấu khi defense nếu bị hỏi sâu:
 
-- `npm audit --omit=dev` còn cảnh báo moderate liên quan `uuid` qua dependency transitive của `TypeORM`, `LangChain/Gaxios/LangSmith`.
-- Không chạy `npm audit fix --force` vì có thể downgrade/break dependency như TypeORM hoặc LangChain.
+- Backend `npm audit --omit=dev` còn 6 cảnh báo moderate liên quan `uuid` qua dependency transitive của `TypeORM`, `LangChain/Gaxios/LangSmith`.
+- Frontend `npm audit --omit=dev` còn 11 cảnh báo qua dependency transitive như `mermaid`/`langium`/`chevrotain`, `axios`, `dompurify`, `follow-redirects`.
+- Không chạy `npm audit fix --force` tự động vì có thể downgrade/break dependency như TypeORM, LangChain hoặc Mermaid.
 - Rate limit hiện là in-memory, phù hợp local/demo; nếu deploy nhiều instance nên dùng Redis.
-- Forgot password ở local demo có thể trả reset token trực tiếp nếu `AUTH_RETURN_RESET_TOKEN=true`; production nên tắt và gửi email.
+- Email verification và forgot password phụ thuộc Gmail SMTP App Password; nếu chưa cấu hình `SMTP_USER`/`SMTP_PASS`, email xác thực/reset cho tài khoản thật sẽ không gửi được.
 - Chưa có refresh token rotation; access token dùng TTL qua `JWT_EXPIRES_IN`.
 
 ## 14. Defense Talking Points
@@ -275,11 +285,11 @@ Các điểm chưa nên giấu khi defense nếu bị hỏi sâu:
 Khi thầy hỏi bảo mật, nên trả lời theo thứ tự:
 
 1. Backend và frontend tách riêng, API protected bằng JWT.
-2. Password hash bằng bcrypt, reset token có TTL và chỉ lưu hash.
+2. Password hash bằng bcrypt, email/reset token có TTL và chỉ lưu hash.
 3. ValidationPipe chặn input sai và field thừa.
 4. CORS whitelist chỉ cho frontend hợp lệ.
 5. Helmet thêm security headers.
-6. Rate limit bảo vệ login/register/reset/upload/AI.
+6. Rate limit bảo vệ login/register/complete-registration/reset/upload/AI.
 7. File upload whitelist PDF/DOCX/TXT và giới hạn 10MB.
 8. TypeORM query binding và allowlist sort field giúp giảm SQL injection.
 9. React escaping và không render raw HTML giúp giảm XSS.

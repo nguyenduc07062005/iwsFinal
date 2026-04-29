@@ -123,11 +123,11 @@ Lý do:
 StudyVault sử dụng kiến trúc full-stack tách frontend và backend:
 
 ```text
-Frontend React (sks-frontend)
+Frontend React (studyVault-frontend)
         |
         | HTTP / JSON
         v
-Backend NestJS (sks-backend)
+Backend NestJS (studyVault-backend)
         |
         | TypeORM
         v
@@ -184,7 +184,7 @@ Backend được viết bằng:
 
 ```text
 projectfinal/
-├── sks-backend/
+├── studyVault-backend/
 │   ├── src/
 │   │   ├── common/
 │   │   ├── database/
@@ -196,7 +196,7 @@ projectfinal/
 │   │   └── main.ts
 │   ├── test/
 │   └── README.md
-├── sks-frontend/
+├── studyVault-frontend/
 │   ├── src/
 │   │   ├── app/
 │   │   ├── components/
@@ -464,7 +464,7 @@ Lý do:
 ## 15.1. Chạy backend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-backend
+cd D:\S2026\iws\projectfinal\studyVault-backend
 npm install
 copy .env.example .env
 npm run migration:run
@@ -478,7 +478,7 @@ Backend chạy mặc định tại:
 ## 15.2. Chạy frontend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-frontend
+cd D:\S2026\iws\projectfinal\studyVault-frontend
 npm install
 copy .env.example .env
 npm run dev

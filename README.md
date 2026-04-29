@@ -1,11 +1,11 @@
 # StudyVault
 
-StudyVault là project cuối kỳ môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng cho phép đăng ký và đăng nhập tài khoản, tổ chức tài liệu theo thư mục, tải tệp lên, tìm kiếm tài liệu theo nhiều tiêu chí, đánh dấu yêu thích, xem chi tiết tài liệu, sinh tóm tắt AI, và hỏi đáp theo ngữ cảnh tài liệu.
+StudyVault là project cuối kỳ môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng cho phép đăng ký, xác thực email, đăng nhập tài khoản, tổ chức tài liệu theo thư mục, tải tệp lên, tìm kiếm tài liệu theo nhiều tiêu chí, đánh dấu yêu thích, xem chi tiết tài liệu, sinh tóm tắt AI, và hỏi đáp theo ngữ cảnh tài liệu.
 
 Repo này đã được dọn lại để chỉ giữ những phần phục vụ sản phẩm thật:
 
-- `sks-backend`: NestJS REST API
-- `sks-frontend`: React + Vite frontend
+- `studyVault-backend`: NestJS REST API
+- `studyVault-frontend`: React + Vite frontend
 - `PROJECT_PROPOSAL.md`: tài liệu giới thiệu và hướng dẫn đọc hiểu dự án
 - `QUY_TAC_FRONTEND.md`: quy tắc giao diện và coding cho frontend
 
@@ -13,7 +13,7 @@ Repo này đã được dọn lại để chỉ giữ những phần phục vụ
 
 StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp theo rubric:
 
-- đăng ký, đăng nhập, quên mật khẩu, đặt lại mật khẩu
+- đăng ký bằng tên/email, xác thực email rồi mới đặt mật khẩu, đăng nhập, quên mật khẩu, đặt lại mật khẩu
 - route bảo vệ theo phiên đăng nhập
 - CRUD thư mục
 - CRUD tài liệu
@@ -30,8 +30,8 @@ StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp th
 
 ```text
 .
-├── sks-backend/          # API, database, auth, document/folder logic, AI services
-├── sks-frontend/         # client React gọi API backend
+├── studyVault-backend/          # API, database, auth, document/folder logic, AI services
+├── studyVault-frontend/         # client React gọi API backend
 ├── PROJECT_PROPOSAL.md   # tài liệu mô tả project chi tiết cho team
 ├── QUY_TAC_FRONTEND.md   # quy tắc UI/frontend
 └── README.md
@@ -65,7 +65,7 @@ StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp th
 
 ## Luồng Người Dùng Chính
 
-1. Người dùng đăng ký hoặc đăng nhập.
+1. Người dùng nhập tên/email, mở link email để đặt mật khẩu, rồi đăng nhập.
 2. Hệ thống đưa vào màn `Không gian` tại `/app`.
 3. Người dùng tạo thư mục hoặc chọn thư mục có sẵn.
 4. Người dùng tải tài liệu lên backend.
@@ -78,7 +78,7 @@ StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp th
 ### 1. Backend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-backend
+cd D:\S2026\iws\projectfinal\studyVault-backend
 npm install
 copy .env.example .env
 npm run migration:run
@@ -92,7 +92,7 @@ Backend mặc định chạy tại:
 ### 2. Frontend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-frontend
+cd D:\S2026\iws\projectfinal\studyVault-frontend
 npm install
 copy .env.example .env
 npm run dev
@@ -106,10 +106,11 @@ Frontend mặc định chạy tại:
 
 ### Backend
 
-Xem mẫu tại [sks-backend/.env.example](/D:/S2026/iws/projectfinal/sks-backend/.env.example)
+Xem mẫu tại [studyVault-backend/.env.example](/D:/S2026/iws/projectfinal/studyVault-backend/.env.example)
 
 - `PORT`
 - `CORS_ORIGIN`
+- `FRONTEND_URL`
 - `DATABASE_HOST`
 - `DATABASE_PORT`
 - `DATABASE_USERNAME`
@@ -117,13 +118,22 @@ Xem mẫu tại [sks-backend/.env.example](/D:/S2026/iws/projectfinal/sks-backen
 - `DATABASE_NAME`
 - `JWT_SECRET`
 - `JWT_EXPIRES_IN`
+- `EMAIL_VERIFICATION_TTL_MINUTES`
 - `RESET_PASSWORD_TTL_MINUTES`
 - `AUTH_RETURN_RESET_TOKEN`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASS`
+- `MAIL_FROM`
 - `GEMINI_API_KEY`
+
+Email verification và forgot password đều gửi email thật qua Gmail SMTP. Để demo flow này, bật 2-Step Verification cho Gmail, tạo App Password, rồi đặt `SMTP_USER` và `SMTP_PASS` trong `studyVault-backend/.env`. Không bật `AUTH_RETURN_RESET_TOKEN=true` khi demo chấm điểm vì chế độ đó chỉ dành cho test local.
 
 ### Frontend
 
-Xem mẫu tại [sks-frontend/.env.example](/D:/S2026/iws/projectfinal/sks-frontend/.env.example)
+Xem mẫu tại [studyVault-frontend/.env.example](/D:/S2026/iws/projectfinal/studyVault-frontend/.env.example)
 
 - `VITE_API_BASE_URL`
 
@@ -132,7 +142,7 @@ Xem mẫu tại [sks-frontend/.env.example](/D:/S2026/iws/projectfinal/sks-front
 ### Backend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-backend
+cd D:\S2026\iws\projectfinal\studyVault-backend
 npm run build
 npm run test:e2e -- --runInBand
 ```
@@ -140,7 +150,7 @@ npm run test:e2e -- --runInBand
 ### Frontend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\sks-frontend
+cd D:\S2026\iws\projectfinal\studyVault-frontend
 npm run lint
 npm run build
 ```
