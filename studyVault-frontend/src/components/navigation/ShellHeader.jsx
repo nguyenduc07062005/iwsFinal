@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronDown,
@@ -27,6 +27,7 @@ const isActivePath = (pathname, path, end) =>
 const ShellHeader = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const accountMenuRef = useRef(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [profile, setProfile] = useState(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -52,6 +53,29 @@ const ShellHeader = () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (accountMenuRef.current?.contains(event.target)) return;
+      setIsAccountMenuOpen(false);
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
 
   const avatarUrl = useMemo(() => {
     const seed = encodeURIComponent(
@@ -169,7 +193,7 @@ const ShellHeader = () => {
             </>
           )}
 
-          <div className="relative">
+          <div ref={accountMenuRef} className="relative">
             <button
               type="button"
               onClick={() => setIsAccountMenuOpen((open) => !open)}
