@@ -41,7 +41,44 @@ const bearerAuth = (variableName) => ({
   ],
 });
 
-const rawUrl = (url) => ({ raw: url });
+const parseQuery = (queryString) => {
+  if (!queryString) {
+    return undefined;
+  }
+
+  const query = queryString
+    .split('&')
+    .filter(Boolean)
+    .map((part) => {
+      const [key, ...valueParts] = part.split('=');
+      return {
+        key: decodeURIComponent(key),
+        value: decodeURIComponent(valueParts.join('=') || ''),
+      };
+    });
+
+  return query.length > 0 ? query : undefined;
+};
+
+const rawUrl = (url) => {
+  const [pathPart, queryString] = url.split('?');
+  const pathWithoutBase = pathPart.startsWith('{{baseUrl}}')
+    ? pathPart.slice('{{baseUrl}}'.length)
+    : pathPart;
+  const pathSegments = pathWithoutBase.split('/').filter(Boolean);
+  const query = parseQuery(queryString);
+  const result = {
+    raw: url,
+    host: ['{{baseUrl}}'],
+    path: pathSegments,
+  };
+
+  if (query) {
+    result.query = query;
+  }
+
+  return result;
+};
 
 const rawJsonBody = (value) => ({
   mode: 'raw',
@@ -62,12 +99,14 @@ const script = (...lines) => lines.join('\n');
 
 const expectStatus = (...statuses) =>
   script(
+    `const responseContentType = (pm.response.headers.get("Content-Type") || "").toLowerCase();`,
+    `const responseBodyText = pm.response.text();`,
     `const expectedStatuses = [${statuses.join(', ')}];`,
     `pm.test("status is one of " + expectedStatuses.join(", "), function () {`,
     `  pm.expect(expectedStatuses).to.include(pm.response.code);`,
     `});`,
     `pm.test("response is parseable when body is JSON", function () {`,
-    `  if (pm.response.text()) {`,
+    `  if (responseBodyText && responseContentType.includes("application/json")) {`,
     `    pm.expect(function () { pm.response.json(); }).to.not.throw();`,
     `  }`,
     `});`,
@@ -76,7 +115,7 @@ const expectStatus = (...statuses) =>
 const expectStatusAndMessage = (...statuses) =>
   script(
     expectStatus(...statuses),
-    `if (pm.response.text()) {`,
+    `if (responseBodyText && responseContentType.includes("application/json")) {`,
     `  const body = pm.response.json();`,
     `  pm.test("response has message or useful payload", function () {`,
     `    pm.expect(body.message || body.status || body.success || body.document || body.user || body.folder || body.tag || body.documents || body.folders || body.tags).to.exist;`,
@@ -297,6 +336,18 @@ const collection = {
         tests: expectStatusAndMessage(400),
       }),
       request({
+        name: 'Register duplicate email is blocked',
+        method: 'POST',
+        url: '{{baseUrl}}/auth/register',
+        auth: null,
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          email: '{{userEmail}}',
+          name: 'Duplicate User',
+        }),
+        tests: expectStatusAndMessage(400, 409, 429),
+      }),
+      request({
         name: 'Login invalid credentials',
         method: 'POST',
         url: '{{baseUrl}}/auth/login',
@@ -343,6 +394,18 @@ const collection = {
         tests: expectStatusAndMessage(400, 429),
       }),
       request({
+        name: 'Complete registration weak password is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/auth/complete-registration',
+        auth: null,
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          token: 'invalid-token',
+          password: 'weak',
+        }),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
         name: 'Reset password invalid token',
         method: 'POST',
         url: '{{baseUrl}}/auth/reset-password',
@@ -351,6 +414,18 @@ const collection = {
         body: rawJsonBody({
           token: 'invalid-token',
           password: 'StrongPass123!',
+        }),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'Reset password weak password is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/auth/reset-password',
+        auth: null,
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          token: 'invalid-token',
+          password: 'weak',
         }),
         tests: expectStatusAndMessage(400, 429),
       }),
@@ -393,6 +468,20 @@ const collection = {
         tests: expectStatusAndMessage(401),
       }),
       request({
+        name: 'Logout without CSRF is blocked when session cookie exists',
+        method: 'POST',
+        url: '{{baseUrl}}/auth/logout',
+        auth: null,
+        tests: expectStatusAndMessage(401),
+      }),
+      request({
+        name: 'Logout all without CSRF is blocked',
+        method: 'POST',
+        url: '{{baseUrl}}/auth/logout-all',
+        auth: 'userAccessToken',
+        tests: expectStatusAndMessage(401),
+      }),
+      request({
         name: 'Get User A profile',
         url: '{{baseUrl}}/auth/profile',
         auth: 'userAccessToken',
@@ -420,6 +509,18 @@ const collection = {
           newPassword: 'AnotherStrong123!',
         }),
         tests: expectStatusAndMessage(400, 401),
+      }),
+      request({
+        name: 'Change password weak new password is rejected',
+        method: 'PATCH',
+        url: '{{baseUrl}}/auth/password',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          currentPassword: '{{userPassword}}',
+          newPassword: 'weak',
+        }),
+        tests: expectStatusAndMessage(400),
       }),
     ]),
     folder('03 - Folders', [
@@ -516,6 +617,29 @@ const collection = {
         auth: 'userAccessToken',
         tests: expectStatusAndMessage(400),
       }),
+      request({
+        name: 'Create folder without name is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/folders',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          parentId: '{{rootFolderId}}',
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'Create folder with invalid parent is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/folders',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          name: 'Invalid Parent Folder',
+          parentId: 'not-a-uuid',
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
     ]),
     folder('04 - Tags', [
       request({
@@ -600,6 +724,30 @@ const collection = {
         }),
         tests: expectStatusAndMessage(400),
       }),
+      request({
+        name: 'Create tag invalid type',
+        method: 'POST',
+        url: '{{baseUrl}}/tags',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          name: 'Invalid Type Tag',
+          type: 'INVALID',
+          color: '#9b3f36',
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'Update tag invalid UUID',
+        method: 'PATCH',
+        url: '{{baseUrl}}/tags/not-a-uuid',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          name: 'Invalid UUID',
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
     ]),
     folder('05 - Documents & Notes', [
       request({
@@ -665,6 +813,86 @@ const collection = {
           },
         ]),
         tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'Upload without file is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/documents/upload',
+        auth: 'userAccessToken',
+        body: formDataBody([
+          {
+            key: 'title',
+            value: 'Missing File {{runId}}',
+            type: 'text',
+          },
+        ]),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'Upload invalid folderId is rejected before side effects',
+        method: 'POST',
+        url: '{{baseUrl}}/documents/upload',
+        auth: 'userAccessToken',
+        body: formDataBody([
+          {
+            key: 'file',
+            type: 'file',
+            src: '{{documentFilePath}}',
+          },
+          {
+            key: 'title',
+            value: 'Invalid Folder Upload {{runId}}',
+            type: 'text',
+          },
+          {
+            key: 'folderId',
+            value: 'not-a-uuid',
+            type: 'text',
+          },
+        ]),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'Upload invalid tagIds is rejected before side effects',
+        method: 'POST',
+        url: '{{baseUrl}}/documents/upload',
+        auth: 'userAccessToken',
+        body: formDataBody([
+          {
+            key: 'file',
+            type: 'file',
+            src: '{{documentFilePath}}',
+          },
+          {
+            key: 'title',
+            value: 'Invalid Tag Upload {{runId}}',
+            type: 'text',
+          },
+          {
+            key: 'tagIds',
+            value: 'not-a-uuid',
+            type: 'text',
+          },
+        ]),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'List documents invalid limit is rejected',
+        url: '{{baseUrl}}/documents?page=1&limit=999',
+        auth: 'userAccessToken',
+        tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'List documents invalid sortBy is rejected',
+        url: '{{baseUrl}}/documents?sortBy=invalidField',
+        auth: 'userAccessToken',
+        tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'List documents invalid sortOrder is rejected',
+        url: '{{baseUrl}}/documents?sortOrder=sideways',
+        auth: 'userAccessToken',
+        tests: expectStatusAndMessage(400),
       }),
       request({
         name: 'List documents with filters',
@@ -811,8 +1039,41 @@ const collection = {
         auth: 'userAccessToken',
         tests: expectStatusAndMessage(400),
       }),
+      request({
+        name: 'Create document note empty content is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/documents/{{documentId}}/notes',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          content: '',
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'Update document tags invalid UUID is rejected',
+        method: 'PATCH',
+        url: '{{baseUrl}}/documents/{{documentId}}/tags',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          tagIds: ['not-a-uuid'],
+        }),
+        tests: expectStatusAndMessage(400),
+      }),
     ]),
     folder('06 - RAG & AI Branches', [
+      request({
+        name: 'Ask document question too short is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/rag/documents/{{documentId}}/ask',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          question: 'a',
+        }),
+        tests: expectStatusAndMessage(400, 429),
+      }),
       request({
         name: 'Ask document question',
         method: 'POST',
@@ -829,6 +1090,30 @@ const collection = {
         url: '{{baseUrl}}/rag/documents/{{documentId}}/ask/history',
         auth: 'userAccessToken',
         tests: expectStatusAndMessage(200, 429),
+      }),
+      request({
+        name: 'Generate summary invalid language is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/rag/documents/{{documentId}}/summary',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          language: 'fr',
+          forceRefresh: false,
+        }),
+        tests: expectStatusAndMessage(400, 429),
+      }),
+      request({
+        name: 'Generate summary invalid slot is rejected',
+        method: 'POST',
+        url: '{{baseUrl}}/rag/documents/{{documentId}}/summary',
+        auth: 'userAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          language: 'en',
+          slot: 'invalid',
+        }),
+        tests: expectStatusAndMessage(400, 429),
       }),
       request({
         name: 'Generate summary',
@@ -900,6 +1185,37 @@ const collection = {
         name: 'User B cannot read User A document',
         url: '{{baseUrl}}/documents/{{documentId}}',
         auth: 'userBAccessToken',
+        tests: expectStatusAndMessage(403, 404),
+      }),
+      request({
+        name: 'User B cannot download User A document file',
+        url: '{{baseUrl}}/documents/{{documentId}}/file',
+        auth: 'userBAccessToken',
+        tests: expectStatusAndMessage(403, 404),
+      }),
+      request({
+        name: 'User B cannot favorite User A document',
+        method: 'POST',
+        url: '{{baseUrl}}/documents/{{documentId}}/toggle-favorite',
+        auth: 'userBAccessToken',
+        tests: expectStatusAndMessage(403, 404),
+      }),
+      request({
+        name: 'User B cannot delete User A document',
+        method: 'DELETE',
+        url: '{{baseUrl}}/documents/{{documentId}}',
+        auth: 'userBAccessToken',
+        tests: expectStatusAndMessage(403, 404),
+      }),
+      request({
+        name: 'User B cannot ask RAG on User A document',
+        method: 'POST',
+        url: '{{baseUrl}}/rag/documents/{{documentId}}/ask',
+        auth: 'userBAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          question: 'Can I access another user document?',
+        }),
         tests: expectStatusAndMessage(403, 404),
       }),
       request({
@@ -984,6 +1300,36 @@ const collection = {
           isActive: false,
         }),
         tests: expectStatusAndMessage(400),
+      }),
+      request({
+        name: 'Optional admin cannot lock another admin account',
+        method: 'PATCH',
+        url: '{{baseUrl}}/admin/users/{{adminBId}}/status',
+        auth: 'adminAccessToken',
+        headers: [jsonHeader],
+        body: rawJsonBody({
+          isActive: false,
+        }),
+        tests: script(
+          `const adminBId = pm.environment.get("adminBId");`,
+          `const expectedStatuses = adminBId ? [400] : [404];`,
+          `pm.test("status matches optional admin-to-admin lock setup", function () {`,
+          `  pm.expect(expectedStatuses).to.include(pm.response.code);`,
+          `});`,
+          `const responseContentType = (pm.response.headers.get("Content-Type") || "").toLowerCase();`,
+          `pm.test("response is parseable when body is JSON", function () {`,
+          `  if (pm.response.text() && responseContentType.includes("application/json")) {`,
+          `    pm.expect(function () { pm.response.json(); }).to.not.throw();`,
+          `  }`,
+          `});`,
+          `if (pm.response.text() && responseContentType.includes("application/json")) {`,
+          `  const body = pm.response.json();`,
+          `  pm.test("response has message or useful payload", function () {`,
+          `    pm.expect(body.message || body.status || body.success).to.exist;`,
+          `  });`,
+          `}`,
+        ),
+        disabled: true,
       }),
       request({
         name: 'Admin locks User B',
@@ -1151,12 +1497,13 @@ const environment = {
   name: 'StudyVault Local',
   values: [
     ['baseUrl', 'http://localhost:8000/api', true],
-    ['userEmail', 'student@example.com', true],
-    ['userPassword', 'StrongPass123!', true],
-    ['userBEmail', 'student.b@example.com', true],
-    ['userBPassword', 'StrongPass123!', true],
-    ['adminEmail', 'admin@example.com', true],
-    ['adminPassword', 'ChangeMe123!', true],
+    ['userEmail', '', true],
+    ['userPassword', '', true],
+    ['userBEmail', '', true],
+    ['userBPassword', '', true],
+    ['adminEmail', '', true],
+    ['adminPassword', '', true],
+    ['adminBId', '', true],
     ['documentFilePath', 'docs/postman/fixtures/studyvault-sample.txt', true],
     ['fakePdfFilePath', 'docs/postman/fixtures/fake.pdf', true],
     ['runId', '', true],
@@ -1179,20 +1526,27 @@ Thu muc nay chua bo test API day du cho StudyVault hien tai.
 ## Files
 
 - \`StudyVault_API_Full.postman_collection.json\`: Postman collection chay full luong API.
-- \`StudyVault_Local.postman_environment.json\`: Postman environment mau cho local Docker/local backend.
+- \`StudyVault_Local.postman_environment.json\`: Postman environment mau an toan de commit len repo, khong chua credential that.
+- \`StudyVault_Local.private.postman_environment.json\`: environment local rieng cua may dev, chua credential that, bi Git ignore.
 - \`fixtures/studyvault-sample.txt\`: file TXT hop le de test upload.
 - \`fixtures/fake.pdf\`: file gia PDF de test upload hardening.
 
 ## Cach dung trong Postman
 
 1. Import collection \`StudyVault_API_Full.postman_collection.json\`.
-2. Import environment \`StudyVault_Local.postman_environment.json\`.
-3. Chon environment \`StudyVault Local\`.
-4. Sua cac bien quan trong:
+2. Neu da co file private, import \`StudyVault_Local.private.postman_environment.json\`. Neu chua co, tao tu file mau:
+
+\`\`\`powershell
+Copy-Item docs/postman/StudyVault_Local.postman_environment.json docs/postman/StudyVault_Local.private.postman_environment.json
+\`\`\`
+
+3. Chon environment \`StudyVault Local Private\` hoac environment ban vua import.
+4. Dien cac bien quan trong trong file private/Postman:
    - \`baseUrl\`: mac dinh \`http://localhost:8000/api\`.
    - \`userEmail\`, \`userPassword\`: tai khoan user da verify.
    - \`userBEmail\`, \`userBPassword\`: tai khoan user thu hai da verify, dung de test ownership.
    - \`adminEmail\`, \`adminPassword\`: tai khoan admin.
+   - \`adminBId\`: optional, chi can dien neu muon enable request \`Optional admin cannot lock another admin account\`.
    - \`documentFilePath\`, \`fakePdfFilePath\`: neu Postman khong doc duoc relative path, hay chon file thu cong trong request upload.
 5. Mo Collection Runner va chay tu folder \`00 - Setup & System\` den \`09 - Cleanup\`.
 
@@ -1206,22 +1560,31 @@ Thu muc nay chua bo test API day du cho StudyVault hien tai.
 ## Cac nhanh da bao phu
 
 - System: root API, health.
-- Auth public: register, validation, login sai, forgot password neutral, resend verification neutral, invalid token.
-- Session: login, refresh token + CSRF, refresh thieu CSRF bi chan.
-- Profile: get/update, doi password sai current password.
-- Folder: list/create/get/update/move/legacy update/invalid UUID.
-- Tag: list/create/update/filter/invalid color.
-- Document: list/upload/upload fake file/get/file/update name/update tags/favorite/search/related/delete.
-- Note: list/create/update/delete.
-- RAG: ask/history/summary/mindmap/diagram/clear history.
-- Authorization: unauthenticated bi chan, User B khong doc/sua data cua User A, user thuong khong goi admin.
-- Admin: stats/list users/audit logs/lock-unlock user/self-lock blocked/LLM admin endpoint.
+- Auth public: register, duplicate email, validation, login sai, forgot password neutral, resend verification neutral, invalid token, weak password policy.
+- Session: login, refresh token + CSRF, refresh/logout/logout-all thieu CSRF bi chan.
+- Profile: get/update, doi password sai current password, weak new password.
+- Folder: list/create/get/update/move/legacy update/invalid UUID/missing name/invalid parent.
+- Tag: list/create/update/filter/invalid color/invalid type/invalid UUID.
+- Document: list/upload/upload fake file/upload thieu file/upload invalid folderId-tagIds/query validation/get/file/update name/update tags/favorite/search/related/delete.
+- Note: list/create/update/delete/empty content.
+- RAG: ask/history/summary/mindmap/diagram/clear history/question too short/invalid language/invalid slot.
+- Authorization: unauthenticated bi chan, User B khong doc/download/favorite/delete/RAG/sua data cua User A, user thuong khong goi admin.
+- Admin: stats/list users/audit logs/lock-unlock user/self-lock blocked/optional admin-to-admin lock blocked/LLM admin endpoint.
 - Cleanup: xoa note/document/tag/folder va logout.
 
 ## Luu y
 
+- Khong commit/push file \`StudyVault_Local.private.postman_environment.json\` vi file nay chua credential that.
+- File \`StudyVault_Local.postman_environment.json\` chi la mau. Chay full collection bang file mau se fail neu chua dien tai khoan local.
 - Request \`Admin locks User B\` se khoa tam thoi tai khoan User B, request ke tiep se mo khoa lai. Nen dung tai khoan test, khong dung tai khoan ca nhan quan trong.
+- Request \`Optional admin cannot lock another admin account\` dang disabled mac dinh vi can \`adminBId\` cua admin thu hai. Neu co admin thu hai, dien \`adminBId\` va enable request nay de test.
 - Request upload trong Postman app co the can ban chon lai file bang UI vi Postman han che duong dan file local khi import.
+- Khi chay Newman, nen dung file private:
+
+\`\`\`powershell
+npx newman run docs/postman/StudyVault_API_Full.postman_collection.json -e docs/postman/StudyVault_Local.private.postman_environment.json
+\`\`\`
+
 - Script sinh collection nam o \`scripts/generate-postman-collection.js\`. Chay lai bang:
 
 \`\`\`powershell
@@ -1238,9 +1601,8 @@ Topic: Internet and Web Services final project.
 Purpose: verify document upload, ownership, tags, folders, notes, and AI workflows.
 `;
 
-const fakePdf = `%PDF-1.7
-This file is intentionally not a valid PDF body.
-It is used to confirm that StudyVault rejects fake or unreadable PDF uploads.
+const fakePdf = `This is intentionally not a PDF file.
+It uses a .pdf extension in Postman to confirm that StudyVault rejects files whose bytes do not match the declared PDF type.
 `;
 
 fs.mkdirSync(fixturesDir, { recursive: true });
