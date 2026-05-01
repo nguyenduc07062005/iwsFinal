@@ -174,7 +174,7 @@ const DropdownActions = ({
       setTagError('');
       await onUpdateDocumentTags(doc, nextTagIds);
     } catch {
-      setTagError('Could not update tags.');
+      setTagError('Tags could not be updated. Please try again.');
     } finally {
       setTagSaving(false);
     }
@@ -213,7 +213,7 @@ const DropdownActions = ({
       setNewTagName('');
       setNewTagColor('#9b3f36');
     } catch {
-      setTagError('Could not create tag.');
+      setTagError('The tag could not be created. Please check the name and try again.');
     } finally {
       setTagSaving(false);
     }

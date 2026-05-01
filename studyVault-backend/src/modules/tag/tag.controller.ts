@@ -13,6 +13,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 import { CreateTagDto } from './dtos/create-tag.dto';
@@ -20,6 +21,8 @@ import { ListTagsDto } from './dtos/list-tags.dto';
 import { UpdateTagDto } from './dtos/update-tag.dto';
 import { TagService } from './tag.service';
 
+@ApiTags('tags')
+@ApiBearerAuth('bearer')
 @Controller('tags')
 @UseGuards(JwtAuthGuard)
 export class TagController {

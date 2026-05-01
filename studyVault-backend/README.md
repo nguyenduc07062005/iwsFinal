@@ -1,79 +1,124 @@
 # StudyVault Backend
 
-NestJS REST API for the StudyVault final project. This service owns:
-
-- authentication: register, login, forgot password, reset password, profile
-- document CRUD and upload
-- folder CRUD and document organization
-- server-side search, filter, sort, and pagination
-- AI summary and document Q&A endpoints
+NestJS REST API cho StudyVault. Backend chịu trách nhiệm authentication, session, authorization, document/folder/tag/note APIs, upload validation, RAG/AI endpoints, admin dashboard APIs và audit log.
 
 ## Tech Stack
 
 - NestJS 11
-- PostgreSQL + TypeORM
+- TypeORM
+- PostgreSQL + pgvector
 - JWT authentication
+- HttpOnly refresh cookie + CSRF token
 - class-validator / class-transformer
+- Nodemailer
+- Google Gemini
 
-## Quick Start
+## Cách Chạy Backend
 
-```bash
+Backend có thể chạy theo hai kiểu:
+
+1. Chạy trong Docker Compose cùng frontend/database.
+2. Chạy local trực tiếp bằng `npm run start:dev`.
+
+Nếu chạy full Docker, dùng hướng dẫn ở root [README.md](../README.md).
+
+## Chạy Local Với PostgreSQL Local
+
+Cần cài PostgreSQL và pgvector trên máy.
+
+```powershell
+copy .env.example .env
 npm install
-cp .env.example .env
 npm run migration:run
 npm run start:dev
 ```
 
-The API runs on `http://localhost:8000` by default and uses the global prefix `/api`.
+Env mặc định cho hướng này:
 
-## Environment Variables
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=studyvault_iws
+```
 
-Copy [`.env.example`](/D:/S2026/iws/projectfinal/studyVault-backend/.env.example) and update the values for your machine.
+## Chạy Local Với Database Docker
 
-Important variables:
+Nếu không muốn cài PostgreSQL/pgvector trực tiếp, chỉ chạy database từ root project:
 
-- `PORT`: API port, default `8000`
-- `CORS_ORIGIN`: comma-separated allowed frontend origins
-- `DATABASE_*`: PostgreSQL connection. The default local database name is `studyvault_iws`.
-- `JWT_SECRET`: JWT signing secret
-- `JWT_EXPIRES_IN`: token lifetime, default `1d`
-- `RESET_PASSWORD_TTL_MINUTES`: reset token lifetime
-- `AUTH_RETURN_RESET_TOKEN`: set `true` in local demo mode if you want the forgot-password API to return the reset token
-- `GEMINI_*`: model configuration for AI summary / Q&A
+```powershell
+docker compose up -d database
+```
+
+Sau đó trong thư mục backend:
+
+```powershell
+copy .env.local-docker-db.example .env
+npm install
+npm run migration:run
+npm run start:dev
+```
+
+Env mẫu này dùng:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=15432
+DATABASE_NAME=studyvault_iws
+```
+
+## URL Mặc Định
+
+- API: `http://localhost:8000/api`
+- Health: `http://localhost:8000/api/health`
+- API docs: `http://localhost:8000/api/docs` nếu `SWAGGER_ENABLED=true`
+
+## Env Quan Trọng
+
+| Biến | Ý nghĩa |
+| --- | --- |
+| `PORT` | Port backend |
+| `CORS_ORIGIN` | Frontend origins được phép gọi API |
+| `FRONTEND_URL` | URL frontend để tạo verification/reset links |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME` | Kết nối PostgreSQL |
+| `JWT_SECRET` | Secret ký access token |
+| `JWT_EXPIRES_IN` | Thời gian sống access token, mặc định `15m` |
+| `REFRESH_TOKEN_TTL_DAYS` | Thời gian sống refresh session |
+| `AUTH_RETURN_RESET_TOKEN` | Chỉ nên bật trong local/test |
+| `ADMIN_EMAILS` | Email được bootstrap thành admin |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Password ban đầu cho admin bootstrap |
+| `SWAGGER_ENABLED` | Bật/tắt API docs |
+| `SMTP_*`, `MAIL_FROM` | Cấu hình email verification/reset |
+| `GEMINI_*` | Cấu hình AI/RAG |
 
 ## Useful Scripts
 
-```bash
+```powershell
 npm run start:dev
 npm run build
+npm run lint
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
 npm run migration:run
-npm run test:e2e
+npm run migration:show
 ```
-
-`npm run lint` still reports legacy lint debt in older AI/RAG files outside the Phase 8 scope. Build and targeted lint checks for the critical backend paths pass.
 
 ## Main API Areas
 
 - `/api/auth`
 - `/api/documents`
 - `/api/folders`
+- `/api/tags`
 - `/api/rag`
+- `/api/admin`
+- `/api/llm`
+- `/api/health`
 
-The production frontend is expected to call the backend directly through `VITE_API_BASE_URL`.
+## Security Notes
 
-## Phase 8 Test Coverage
-
-The E2E suite in [test/studyvault.e2e-spec.ts](/D:/S2026/iws/projectfinal/studyVault-backend/test/studyvault.e2e-spec.ts) covers the scoring-critical HTTP flows:
-
-- auth: register, login, forgot password, reset password, profile
-- folders: create, update, move, delete, list
-- documents: upload, rename, favorite, delete
-- server-side query contract: pagination, sorting, filtering, search validation
-
-These tests run against Nest HTTP routes with mocked services so the suite stays stable and does not depend on a local PostgreSQL or external AI service.
-
-## Demo Notes
-
-- For local defense/demo, keep `AUTH_RETURN_RESET_TOKEN=true`.
-- For a stricter deployment, switch it to `false`.
-- The frontend production flow no longer depends on mindmap.
+- Public registration chỉ tạo role `user`.
+- Admin được bootstrap bằng env, không cấp qua public registration.
+- Access token ngắn hạn và frontend chỉ lưu trong memory.
+- Refresh token nằm trong HttpOnly cookie.
+- Refresh/logout yêu cầu CSRF token qua `X-CSRF-Token`.
+- User-owned resources luôn được query theo `ownerId` hoặc `userId`.
+- Upload document validate file trước khi lưu và không phụ thuộc AI quota.

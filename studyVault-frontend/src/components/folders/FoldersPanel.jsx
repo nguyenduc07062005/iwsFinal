@@ -191,7 +191,12 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       goToFolder(targetParentId);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Could not create folder.'));
+      setModalError(
+        getApiErrorMessage(
+          error,
+          'The folder could not be created. Please check the name and try again.',
+        ),
+      );
       setIsSubmitting(false);
     }
   };
@@ -208,7 +213,12 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       await refreshFolders(activeFolder.id);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Could not rename folder.'));
+      setModalError(
+        getApiErrorMessage(
+          error,
+          'The folder could not be renamed. Please check the name and try again.',
+        ),
+      );
       setIsSubmitting(false);
     }
   };
@@ -223,7 +233,12 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
       await refreshFolders(activeFolder.id);
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Could not move folder.'));
+      setModalError(
+        getApiErrorMessage(
+          error,
+          'The folder could not be moved. Please choose another destination and try again.',
+        ),
+      );
       setIsSubmitting(false);
     }
   };
@@ -243,7 +258,12 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
       closeModals();
     } catch (error) {
-      setModalError(getApiErrorMessage(error, 'Could not delete folder.'));
+      setModalError(
+        getApiErrorMessage(
+          error,
+          'The folder could not be deleted. Please move or remove its contents first.',
+        ),
+      );
       setIsSubmitting(false);
     }
   };

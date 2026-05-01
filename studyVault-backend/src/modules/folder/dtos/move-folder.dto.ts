@@ -1,10 +1,10 @@
 import { IsOptional, IsUUID } from 'class-validator';
 
 export class MoveFolderDto {
-  @IsUUID()
+  @IsUUID('4', { message: 'Folder id must be valid.' })
   folderId: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4', { message: 'Parent folder id must be valid.' })
   newParentId?: string;
 }

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access -- Supertest app handles and response bodies are dynamic in this e2e spec. */
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { AuthenticationController } from '../src/modules/authentication/authentication.controller';
@@ -8,6 +10,13 @@ import { DocumentController } from '../src/modules/document/document.controller'
 import { DocumentService } from '../src/modules/document/document.service';
 import { FolderController } from '../src/modules/folder/folder.controller';
 import { FolderService } from '../src/modules/folder/folder.service';
+import { TagController } from '../src/modules/tag/tag.controller';
+import { TagService } from '../src/modules/tag/tag.service';
+import { LlmController } from '../src/common/llm/llm.controller';
+import { GeminiService } from '../src/common/llm/gemini.service';
+import { RagController } from '../src/modules/rag/rag.controller';
+import { RagMindMapService } from '../src/modules/rag/services/rag-mind-map.service';
+import { RagSummaryService } from '../src/modules/rag/services/rag-summary.service';
 import { RagService } from '../src/modules/rag/rag.service';
 import {
   createHttpTestApp,
@@ -20,8 +29,68 @@ import {
 const authHeader = {
   Authorization: 'Bearer phase-8-test-token',
 };
+const userAuthHeader = {
+  Authorization: 'Bearer user-test-token',
+};
+const lockedAuthHeader = {
+  Authorization: 'Bearer locked-test-token',
+};
 
 const TEST_SECONDARY_USER_ID = '55555555-5555-4555-8555-555555555555';
+const TEST_NOTE_ID = '66666666-6666-4666-8666-666666666666';
+const TEST_TAG_ID = '77777777-7777-4777-8777-777777777777';
+
+describe('StudyVault LLM debug API (e2e)', () => {
+  let app: INestApplication;
+
+  const geminiService = {
+    generateText: jest.fn(),
+    createEmbedding: jest.fn(),
+  };
+
+  beforeAll(async () => {
+    app = await createHttpTestApp({
+      controllers: [LlmController],
+      providers: [
+        {
+          provide: GeminiService,
+          useValue: geminiService,
+        },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('rejects unauthenticated LLM test requests', async () => {
+    geminiService.generateText.mockResolvedValue('AI response');
+
+    await request(app.getHttpServer())
+      .get('/api/llm/test')
+      .query({ prompt: 'hello' })
+      .expect(401);
+
+    expect(geminiService.generateText).not.toHaveBeenCalled();
+  });
+
+  it('rejects non-admin LLM test requests', async () => {
+    geminiService.generateText.mockResolvedValue('AI response');
+
+    await request(app.getHttpServer())
+      .get('/api/llm/test')
+      .set(userAuthHeader)
+      .query({ prompt: 'hello' })
+      .expect(403);
+
+    expect(geminiService.generateText).not.toHaveBeenCalled();
+  });
+});
 
 describe('StudyVault auth API (e2e)', () => {
   let app: INestApplication;
@@ -29,6 +98,9 @@ describe('StudyVault auth API (e2e)', () => {
   const authService = {
     register: jest.fn(),
     login: jest.fn(),
+    refreshSession: jest.fn(),
+    logoutSession: jest.fn(),
+    logoutAllSessions: jest.fn(),
     forgotPassword: jest.fn(),
     completeRegistration: jest.fn(),
     resendEmailVerification: jest.fn(),
@@ -60,7 +132,8 @@ describe('StudyVault auth API (e2e)', () => {
 
   it('registers a user and returns the backend payload', async () => {
     authService.register.mockResolvedValue({
-      message: 'Registration started. Please check your email to set your password.',
+      message:
+        'Registration started. Please check your email to set your password.',
       user: {
         id: TEST_USER_ID,
         email: 'student@example.com',
@@ -106,6 +179,21 @@ describe('StudyVault auth API (e2e)', () => {
   it('supports login, forgot password, reset password, and profile lookup', async () => {
     authService.login.mockResolvedValue({
       accessToken: 'jwt-token',
+      refreshToken: 'refresh-token',
+      refreshTokenExpiresAt: new Date('2026-05-07T00:00:00.000Z'),
+      csrfToken: 'csrf-token',
+    });
+    authService.refreshSession.mockResolvedValue({
+      accessToken: 'new-jwt-token',
+      refreshToken: 'new-refresh-token',
+      refreshTokenExpiresAt: new Date('2026-05-07T00:00:00.000Z'),
+      csrfToken: 'new-csrf-token',
+    });
+    authService.logoutSession.mockResolvedValue({
+      message: 'Signed out successfully.',
+    });
+    authService.logoutAllSessions.mockResolvedValue({
+      message: 'All sessions signed out successfully.',
     });
     authService.forgotPassword.mockResolvedValue({
       message: 'Please check your email to reset your password.',
@@ -127,7 +215,7 @@ describe('StudyVault auth API (e2e)', () => {
       role: 'student',
     });
 
-    await request(app.getHttpServer())
+    const loginResponse = await request(app.getHttpServer())
       .post('/api/auth/login')
       .send({
         email: 'student@example.com',
@@ -136,7 +224,48 @@ describe('StudyVault auth API (e2e)', () => {
       .expect(200)
       .expect(({ body }) => {
         expect(body.accessToken).toBe('jwt-token');
+        expect(body.csrfToken).toBe('csrf-token');
+        expect(body.refreshToken).toBeUndefined();
+        expect(body.refreshTokenExpiresAt).toBeUndefined();
       });
+    const loginSetCookies = loginResponse.headers['set-cookie'] as unknown as
+      | string[]
+      | undefined;
+    expect(loginSetCookies?.[0]).toContain(
+      'studyvault_refresh_token=refresh-token',
+    );
+    expect((loginSetCookies ?? []).join(';')).toContain(
+      'studyvault_csrf_token=csrf-token',
+    );
+
+    const refreshResponse = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', ['studyvault_refresh_token=refresh-token'])
+      .set('X-CSRF-Token', 'csrf-token')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.accessToken).toBe('new-jwt-token');
+        expect(body.csrfToken).toBe('new-csrf-token');
+        expect(body.refreshToken).toBeUndefined();
+        expect(body.refreshTokenExpiresAt).toBeUndefined();
+      });
+    const refreshSetCookies = refreshResponse.headers[
+      'set-cookie'
+    ] as unknown as string[] | undefined;
+    expect(refreshSetCookies?.[0]).toContain(
+      'studyvault_refresh_token=new-refresh-token',
+    );
+    expect((refreshSetCookies ?? []).join(';')).toContain(
+      'studyvault_csrf_token=new-csrf-token',
+    );
+    const refreshSessionCall = authService.refreshSession.mock.calls[0] as [
+      string,
+      string,
+      { ipAddress?: string },
+    ];
+    expect(refreshSessionCall[0]).toBe('refresh-token');
+    expect(refreshSessionCall[1]).toBe('csrf-token');
+    expect(refreshSessionCall[2].ipAddress).toEqual(expect.any(String));
 
     await request(app.getHttpServer())
       .post('/api/auth/forgot-password')
@@ -155,7 +284,7 @@ describe('StudyVault auth API (e2e)', () => {
       .post('/api/auth/complete-registration')
       .send({
         token: 'email-verification-token',
-        password: 'secret123',
+        password: 'StrongPass#123',
       })
       .expect(200)
       .expect(({ body }) => {
@@ -176,7 +305,7 @@ describe('StudyVault auth API (e2e)', () => {
       .post('/api/auth/reset-password')
       .send({
         token: 'demo-reset-token',
-        password: 'secret123',
+        password: 'StrongPass#123',
       })
       .expect(200)
       .expect(({ body }) => {
@@ -192,6 +321,63 @@ describe('StudyVault auth API (e2e)', () => {
       });
 
     expect(authService.getProfile).toHaveBeenCalledWith(TEST_USER_ID);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .set('Cookie', ['studyvault_refresh_token=new-refresh-token'])
+      .set('X-CSRF-Token', 'new-csrf-token')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Signed out successfully.');
+      });
+    expect(authService.logoutSession).toHaveBeenCalledWith(
+      'new-refresh-token',
+      'new-csrf-token',
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout-all')
+      .set(authHeader)
+      .set('Cookie', ['studyvault_refresh_token=new-refresh-token'])
+      .set('X-CSRF-Token', 'new-csrf-token')
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('All sessions signed out successfully.');
+      });
+    expect(authService.logoutAllSessions).toHaveBeenCalledWith(
+      TEST_USER_ID,
+      'new-refresh-token',
+      'new-csrf-token',
+    );
+  });
+
+  it('rejects refresh and logout requests with refresh cookies but no CSRF header before mutating sessions', async () => {
+    const csrfError = new UnauthorizedException(
+      'CSRF token is invalid or missing',
+    );
+    authService.refreshSession.mockRejectedValue(csrfError);
+    authService.logoutSession.mockRejectedValue(csrfError);
+    authService.logoutAllSessions.mockRejectedValue(csrfError);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .set('Cookie', ['studyvault_refresh_token=refresh-token'])
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .set('Cookie', ['studyvault_refresh_token=refresh-token'])
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout-all')
+      .set(authHeader)
+      .set('Cookie', ['studyvault_refresh_token=refresh-token'])
+      .expect(401);
+
+    expect(authService.refreshSession).not.toHaveBeenCalled();
+    expect(authService.logoutSession).not.toHaveBeenCalled();
+    expect(authService.logoutAllSessions).not.toHaveBeenCalled();
   });
 
   it('updates profile name and changes password through protected routes', async () => {
@@ -229,7 +415,7 @@ describe('StudyVault auth API (e2e)', () => {
       .set(authHeader)
       .send({
         currentPassword: 'secret123',
-        newPassword: 'newSecret123',
+        newPassword: 'NewSecret#123',
       })
       .expect(200)
       .expect(({ body }) => {
@@ -238,12 +424,26 @@ describe('StudyVault auth API (e2e)', () => {
 
     expect(authService.changePassword).toHaveBeenCalledWith(TEST_USER_ID, {
       currentPassword: 'secret123',
-      newPassword: 'newSecret123',
+      newPassword: 'NewSecret#123',
     });
   });
 
   it('rejects protected auth routes when the token is missing', async () => {
     await request(app.getHttpServer()).get('/api/auth/profile').expect(401);
+  });
+
+  it('rejects protected auth routes when the account token is locked', async () => {
+    authService.getProfile.mockResolvedValue({
+      id: TEST_USER_ID,
+      email: 'student@example.com',
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/auth/profile')
+      .set(lockedAuthHeader)
+      .expect(401);
+
+    expect(authService.getProfile).not.toHaveBeenCalled();
   });
 });
 
@@ -252,6 +452,7 @@ describe('StudyVault admin API (e2e)', () => {
 
   const adminService = {
     listUsers: jest.fn(),
+    listAuditLogs: jest.fn(),
     updateUserStatus: jest.fn(),
     getStats: jest.fn(),
   };
@@ -328,6 +529,34 @@ describe('StudyVault admin API (e2e)', () => {
         },
       },
     });
+    adminService.listAuditLogs.mockResolvedValue({
+      message: 'Admin audit logs retrieved successfully.',
+      data: [
+        {
+          id: 'audit-1',
+          action: 'USER_LOCKED',
+          targetType: 'user',
+          targetUserId: TEST_SECONDARY_USER_ID,
+          adminId: TEST_USER_ID,
+          metadata: {
+            targetEmail: 'student@example.com',
+            previousIsActive: true,
+            nextIsActive: false,
+          },
+          createdAt: '2026-04-30T00:00:00.000Z',
+        },
+      ],
+      pagination: {
+        currentPage: 1,
+        limit: 5,
+        total: 1,
+        totalPages: 1,
+      },
+      filters: {
+        action: 'USER_LOCKED',
+        targetUserId: TEST_SECONDARY_USER_ID,
+      },
+    });
 
     await request(app.getHttpServer())
       .get('/api/admin/users')
@@ -376,10 +605,51 @@ describe('StudyVault admin API (e2e)', () => {
         expect(body.data.users.total).toBe(2);
         expect(body.data.documents.byType.pdf).toBe(2);
       });
+
+    await request(app.getHttpServer())
+      .get('/api/admin/audit-logs')
+      .set(authHeader)
+      .query({
+        action: 'USER_LOCKED',
+        targetUserId: TEST_SECONDARY_USER_ID,
+        page: '1',
+        limit: '5',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data).toHaveLength(1);
+        expect(body.data[0].action).toBe('USER_LOCKED');
+      });
+
+    expect(adminService.listAuditLogs).toHaveBeenCalledWith({
+      action: 'USER_LOCKED',
+      targetUserId: TEST_SECONDARY_USER_ID,
+      page: 1,
+      limit: 5,
+    });
   });
 
   it('rejects admin routes when the token is missing', async () => {
     await request(app.getHttpServer()).get('/api/admin/users').expect(401);
+  });
+
+  it('rejects admin routes for non-admin users', async () => {
+    adminService.listUsers.mockResolvedValue({
+      data: [],
+      pagination: {
+        currentPage: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 1,
+      },
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/admin/users')
+      .set(userAuthHeader)
+      .expect(403);
+
+    expect(adminService.listUsers).not.toHaveBeenCalled();
   });
 });
 
@@ -573,12 +843,98 @@ describe('StudyVault folder API (e2e)', () => {
         expect(body.message).toBe('Folder deleted successfully');
       });
   });
+
+  it('passes the authenticated owner to folder ownership-sensitive routes', async () => {
+    folderService.getFolderById.mockResolvedValue({
+      id: TEST_FOLDER_ID,
+      name: 'Semester 8',
+      parentId: null,
+    });
+    folderService.createFolder.mockResolvedValue({
+      id: TEST_FOLDER_ID,
+      name: 'Security',
+      parentId: null,
+    });
+    folderService.addDocumentToFolder.mockResolvedValue({
+      message: 'Document added to folder successfully',
+    });
+    folderService.removeDocumentFromFolder.mockResolvedValue({
+      message: 'Document removed from folder successfully',
+    });
+    folderService.getDocumentsByFolder.mockResolvedValue({
+      total: 0,
+      currentPage: 1,
+      totalPages: 0,
+      documents: [],
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/folders/${TEST_FOLDER_ID}`)
+      .set(userAuthHeader)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/folders')
+      .set(userAuthHeader)
+      .send({ name: 'Security', parentId: TEST_PARENT_FOLDER_ID })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/folders/documents/add')
+      .set(userAuthHeader)
+      .send({
+        folderId: TEST_FOLDER_ID,
+        documentId: TEST_DOCUMENT_ID,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .delete('/api/folders/documents/remove')
+      .set(userAuthHeader)
+      .send({
+        folderId: TEST_FOLDER_ID,
+        documentId: TEST_DOCUMENT_ID,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/api/folders/${TEST_FOLDER_ID}/documents`)
+      .set(userAuthHeader)
+      .query({ page: '2', limit: '3' })
+      .expect(200);
+
+    expect(folderService.getFolderById).toHaveBeenCalledWith(
+      TEST_FOLDER_ID,
+      TEST_USER_ID,
+    );
+    expect(folderService.createFolder).toHaveBeenCalledWith(
+      { name: 'Security', parentId: TEST_PARENT_FOLDER_ID },
+      TEST_USER_ID,
+    );
+    expect(folderService.addDocumentToFolder).toHaveBeenCalledWith(
+      TEST_FOLDER_ID,
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(folderService.removeDocumentFromFolder).toHaveBeenCalledWith(
+      TEST_FOLDER_ID,
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(folderService.getDocumentsByFolder).toHaveBeenCalledWith(
+      TEST_FOLDER_ID,
+      TEST_USER_ID,
+      2,
+      3,
+    );
+  });
 });
 
 describe('StudyVault document API (e2e)', () => {
   let app: INestApplication;
 
   const documentService = {
+    validateUploadFile: jest.fn(),
     uploadDocument: jest.fn(),
     getDocumentSummaryForOwner: jest.fn(),
     getDocuments: jest.fn(),
@@ -588,6 +944,12 @@ describe('StudyVault document API (e2e)', () => {
     getDocumentDetails: jest.fn(),
     getDocumentFilePath: jest.fn(),
     updateDocumentName: jest.fn(),
+    syncDocumentTags: jest.fn(),
+    getDocumentTags: jest.fn(),
+    listStudyNotes: jest.fn(),
+    createStudyNote: jest.fn(),
+    updateStudyNote: jest.fn(),
+    deleteStudyNote: jest.fn(),
   };
 
   const ragService = {
@@ -618,6 +980,7 @@ describe('StudyVault document API (e2e)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    documentService.validateUploadFile.mockImplementation(() => undefined);
   });
 
   it('supports document upload and core document mutations', async () => {
@@ -719,6 +1082,80 @@ describe('StudyVault document API (e2e)', () => {
       .expect(({ body }) => {
         expect(body.message).toBe('Document deleted successfully');
       });
+  });
+
+  it('keeps upload successful when background indexing fails', async () => {
+    documentService.uploadDocument.mockResolvedValue({
+      id: TEST_DOCUMENT_ID,
+      title: 'Week 5 Notes',
+      folderId: TEST_FOLDER_ID,
+    });
+    ragService.ensureDocumentIndexed.mockRejectedValue(
+      new Error('Gemini quota exhausted'),
+    );
+    documentService.getDocumentSummaryForOwner.mockResolvedValue({
+      id: TEST_DOCUMENT_ID,
+      title: 'Week 5 Notes',
+      folderId: TEST_FOLDER_ID,
+      isFavorite: false,
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/documents/upload')
+      .set(authHeader)
+      .field('title', 'Week 5 Notes')
+      .field('folderId', TEST_FOLDER_ID)
+      .attach('file', Buffer.from('StudyVault upload test'), {
+        filename: 'week5.txt',
+        contentType: 'text/plain',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Document uploaded successfully');
+        expect(body.indexing.status).toBe('queued');
+        expect(body.document.id).toBe(TEST_DOCUMENT_ID);
+      });
+
+    expect(ragService.ensureDocumentIndexed).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+    );
+  });
+
+  it('keeps upload successful when background indexing throws synchronously', async () => {
+    documentService.uploadDocument.mockResolvedValue({
+      id: TEST_DOCUMENT_ID,
+      title: 'Week 5 Notes',
+      folderId: TEST_FOLDER_ID,
+    });
+    ragService.ensureDocumentIndexed.mockImplementation(() => {
+      throw new Error('Gemini client failed before creating a request');
+    });
+    documentService.getDocumentSummaryForOwner.mockResolvedValue({
+      id: TEST_DOCUMENT_ID,
+      title: 'Week 5 Notes',
+      folderId: TEST_FOLDER_ID,
+      isFavorite: false,
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/documents/upload')
+      .set(authHeader)
+      .field('title', 'Week 5 Notes')
+      .field('folderId', TEST_FOLDER_ID)
+      .attach('file', Buffer.from('StudyVault upload test'), {
+        filename: 'week5.txt',
+        contentType: 'text/plain',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Document uploaded successfully');
+        expect(body.indexing.status).toBe('queued');
+        expect(body.document.id).toBe(TEST_DOCUMENT_ID);
+      });
+
+    expect(ragService.ensureDocumentIndexed).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+    );
   });
 
   it('forwards parsed server-side query options to document listing', async () => {
@@ -868,6 +1305,127 @@ describe('StudyVault document API (e2e)', () => {
     );
   });
 
+  it('passes the authenticated owner to document read and related routes', async () => {
+    documentService.getDocumentDetails.mockResolvedValue({
+      id: TEST_DOCUMENT_ID,
+      title: 'Week 5 Notes',
+      folderId: TEST_FOLDER_ID,
+    });
+    ragService.getRelatedDocuments.mockResolvedValue({
+      total: 0,
+      documents: [],
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/documents/${TEST_DOCUMENT_ID}`)
+      .set(userAuthHeader)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.document.id).toBe(TEST_DOCUMENT_ID);
+      });
+
+    await request(app.getHttpServer())
+      .get(`/api/documents/${TEST_DOCUMENT_ID}/related`)
+      .set(userAuthHeader)
+      .query({ limit: '3' })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.total).toBe(0);
+      });
+
+    expect(documentService.getDocumentDetails).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(ragService.getRelatedDocuments).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      3,
+    );
+  });
+
+  it('passes the authenticated owner to document tag and note routes', async () => {
+    documentService.syncDocumentTags.mockResolvedValue([
+      { id: TEST_TAG_ID, name: 'Security' },
+    ]);
+    documentService.getDocumentTags.mockResolvedValue([
+      { id: TEST_TAG_ID, name: 'Security' },
+    ]);
+    documentService.listStudyNotes.mockResolvedValue([
+      { id: TEST_NOTE_ID, content: 'Review authorization matrix.' },
+    ]);
+    documentService.createStudyNote.mockResolvedValue({
+      id: TEST_NOTE_ID,
+      content: 'Review authorization matrix.',
+    });
+    documentService.updateStudyNote.mockResolvedValue({
+      id: TEST_NOTE_ID,
+      content: 'Review CSRF protection.',
+    });
+    documentService.deleteStudyNote.mockResolvedValue({ id: TEST_NOTE_ID });
+
+    await request(app.getHttpServer())
+      .patch(`/api/documents/${TEST_DOCUMENT_ID}/tags`)
+      .set(userAuthHeader)
+      .send({ tagIds: [TEST_TAG_ID] })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/api/documents/${TEST_DOCUMENT_ID}/tags`)
+      .set(userAuthHeader)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get(`/api/documents/${TEST_DOCUMENT_ID}/notes`)
+      .set(userAuthHeader)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/api/documents/${TEST_DOCUMENT_ID}/notes`)
+      .set(userAuthHeader)
+      .send({ content: 'Review authorization matrix.' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/documents/notes/${TEST_NOTE_ID}`)
+      .set(userAuthHeader)
+      .send({ content: 'Review CSRF protection.' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .delete(`/api/documents/notes/${TEST_NOTE_ID}`)
+      .set(userAuthHeader)
+      .expect(200);
+
+    expect(documentService.syncDocumentTags).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      [TEST_TAG_ID],
+    );
+    expect(documentService.getDocumentTags).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(documentService.listStudyNotes).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(documentService.createStudyNote).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      { content: 'Review authorization matrix.' },
+    );
+    expect(documentService.updateStudyNote).toHaveBeenCalledWith(
+      TEST_NOTE_ID,
+      TEST_USER_ID,
+      { content: 'Review CSRF protection.' },
+    );
+    expect(documentService.deleteStudyNote).toHaveBeenCalledWith(
+      TEST_NOTE_ID,
+      TEST_USER_ID,
+    );
+  });
+
   it('rejects unsupported upload file types before they reach the service', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/documents/upload')
@@ -881,5 +1439,327 @@ describe('StudyVault document API (e2e)', () => {
 
     expect(response.body.message).toContain('Only PDF, DOCX, or TXT files');
     expect(documentService.uploadDocument).not.toHaveBeenCalled();
+  });
+
+  it('rejects forged PDF uploads before they reach the service', async () => {
+    documentService.validateUploadFile.mockImplementationOnce(() => {
+      throw new BadRequestException(
+        'The uploaded file content does not match its file type.',
+      );
+    });
+
+    const response = await request(app.getHttpServer())
+      .post('/api/documents/upload')
+      .set(authHeader)
+      .field('title', 'Forged PDF')
+      .attach('file', Buffer.from('This is not a real PDF file.'), {
+        filename: 'forged.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(400);
+
+    expect(response.body.message).toContain(
+      'The uploaded file content does not match its file type.',
+    );
+    expect(documentService.uploadDocument).not.toHaveBeenCalled();
+  });
+});
+
+describe('StudyVault tag API (e2e)', () => {
+  let app: INestApplication;
+
+  const tagService = {
+    listTags: jest.fn(),
+    createTag: jest.fn(),
+    updateTag: jest.fn(),
+    deleteTag: jest.fn(),
+  };
+
+  beforeAll(async () => {
+    app = await createHttpTestApp({
+      controllers: [TagController],
+      providers: [
+        {
+          provide: TagService,
+          useValue: tagService,
+        },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('passes the authenticated owner to tag routes', async () => {
+    tagService.listTags.mockResolvedValue([
+      { id: TEST_TAG_ID, name: 'Security', type: 'TAG', color: '#9b3f36' },
+    ]);
+    tagService.createTag.mockResolvedValue({
+      id: TEST_TAG_ID,
+      name: 'Security',
+      type: 'TAG',
+      color: '#9b3f36',
+    });
+    tagService.updateTag.mockResolvedValue({
+      id: TEST_TAG_ID,
+      name: 'Authorization',
+      type: 'TAG',
+      color: '#9b3f36',
+    });
+    tagService.deleteTag.mockResolvedValue({ id: TEST_TAG_ID });
+
+    await request(app.getHttpServer())
+      .get('/api/tags')
+      .set(userAuthHeader)
+      .query({ type: 'TAG' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/tags')
+      .set(userAuthHeader)
+      .send({ name: 'Security', type: 'TAG', color: '#9b3f36' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/tags/${TEST_TAG_ID}`)
+      .set(userAuthHeader)
+      .send({ name: 'Authorization' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .delete(`/api/tags/${TEST_TAG_ID}`)
+      .set(userAuthHeader)
+      .expect(200);
+
+    expect(tagService.listTags).toHaveBeenCalledWith(TEST_USER_ID, {
+      type: 'TAG',
+    });
+    expect(tagService.createTag).toHaveBeenCalledWith(TEST_USER_ID, {
+      name: 'Security',
+      type: 'TAG',
+      color: '#9b3f36',
+    });
+    expect(tagService.updateTag).toHaveBeenCalledWith(
+      TEST_USER_ID,
+      TEST_TAG_ID,
+      {
+        name: 'Authorization',
+      },
+    );
+    expect(tagService.deleteTag).toHaveBeenCalledWith(
+      TEST_USER_ID,
+      TEST_TAG_ID,
+    );
+  });
+});
+
+describe('StudyVault RAG API (e2e)', () => {
+  let app: INestApplication;
+
+  const ragService = {
+    askDocument: jest.fn(),
+    getDocumentAskHistory: jest.fn(),
+    clearDocumentAskHistory: jest.fn(),
+    getDocumentDiagram: jest.fn(),
+  };
+
+  const ragSummaryService = {
+    generateSummary: jest.fn(),
+  };
+
+  const ragMindMapService = {
+    getDocumentMindMap: jest.fn(),
+  };
+
+  beforeAll(async () => {
+    app = await createHttpTestApp({
+      controllers: [RagController],
+      providers: [
+        {
+          provide: RagService,
+          useValue: ragService,
+        },
+        {
+          provide: RagSummaryService,
+          useValue: ragSummaryService,
+        },
+        {
+          provide: RagMindMapService,
+          useValue: ragMindMapService,
+        },
+      ],
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('rejects unauthenticated document questions before they reach RAG', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/ask`)
+      .send({ question: 'What are the main points?' })
+      .expect(401);
+
+    expect(ragService.askDocument).not.toHaveBeenCalled();
+  });
+
+  it('rejects locked accounts before they reach RAG', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/ask`)
+      .set(lockedAuthHeader)
+      .send({ question: 'What are the main points?' })
+      .expect(401);
+
+    expect(ragService.askDocument).not.toHaveBeenCalled();
+  });
+
+  it('passes the authenticated owner to document RAG operations', async () => {
+    ragService.askDocument.mockResolvedValue({
+      answer: 'The document explains the main course topics.',
+      sources: [],
+    });
+    ragService.getDocumentAskHistory.mockResolvedValue([
+      {
+        id: 'history-1',
+        question: 'What are the main points?',
+        answer: 'The main points are listed in section one.',
+        sources: [],
+        createdAt: '2026-04-30T00:00:00.000Z',
+      },
+    ]);
+    ragService.clearDocumentAskHistory.mockResolvedValue(1);
+    ragSummaryService.generateSummary.mockResolvedValue({
+      title: 'Week 5 Notes',
+      overview: 'Summary overview',
+      key_points: [],
+      conclusion: 'Summary conclusion',
+      language: 'vi',
+      generatedAt: '2026-04-30T00:00:00.000Z',
+      sources: [],
+      cached: false,
+      slot: 'custom',
+      activeSlot: 'custom',
+      versions: [],
+    });
+    ragMindMapService.getDocumentMindMap.mockResolvedValue({
+      mindMap: {
+        id: 'root',
+        label: 'Week 5 Notes',
+        summary: 'Mind map root',
+        kind: 'root',
+        children: [],
+      },
+      summary: 'Mind map summary',
+      language: 'vi',
+      generatedAt: '2026-04-30T00:00:00.000Z',
+      cached: false,
+    });
+    ragService.getDocumentDiagram.mockResolvedValue({
+      mermaid: 'graph TD; A-->B',
+      summaryText: 'Diagram summary',
+      generatedAt: '2026-04-30T00:00:00.000Z',
+      summaryLanguage: 'vi',
+    });
+
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/ask`)
+      .set(userAuthHeader)
+      .send({ question: 'What are the main points?' })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.answer).toContain('course topics');
+      });
+
+    await request(app.getHttpServer())
+      .get(`/api/rag/documents/${TEST_DOCUMENT_ID}/ask/history`)
+      .set(userAuthHeader)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.items).toHaveLength(1);
+      });
+
+    await request(app.getHttpServer())
+      .delete(`/api/rag/documents/${TEST_DOCUMENT_ID}/ask/history`)
+      .set(userAuthHeader)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.cleared).toBe(1);
+      });
+
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/summary`)
+      .set(userAuthHeader)
+      .send({
+        language: 'vi',
+        forceRefresh: true,
+        instruction: 'Focus on exam points',
+        slot: 'custom',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.title).toBe('Week 5 Notes');
+      });
+
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/mindmap`)
+      .set(userAuthHeader)
+      .send({
+        language: 'vi',
+        forceRefresh: true,
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.mindMap.id).toBe('root');
+      });
+
+    await request(app.getHttpServer())
+      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/diagram`)
+      .set(userAuthHeader)
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.mermaid).toContain('graph TD');
+      });
+
+    expect(ragService.askDocument).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      'What are the main points?',
+    );
+    expect(ragService.getDocumentAskHistory).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(ragService.clearDocumentAskHistory).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
+    expect(ragSummaryService.generateSummary).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      'vi',
+      true,
+      'Focus on exam points',
+      'custom',
+    );
+    expect(ragMindMapService.getDocumentMindMap).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+      'vi',
+      true,
+    );
+    expect(ragService.getDocumentDiagram).toHaveBeenCalledWith(
+      TEST_DOCUMENT_ID,
+      TEST_USER_ID,
+    );
   });
 });

@@ -1,71 +1,177 @@
-import axios from 'axios';
+import axios from "axios";
 import {
+  getCsrfToken,
   getToken,
   expireSession,
   isAuthRoutePath,
   isTokenExpired,
-} from '../utils/auth.js';
+  setCsrfToken,
+  setToken,
+} from "../utils/auth.js";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
-apiClient.interceptors.request.use((config) => {
-  const token = getToken();
+const refreshClient = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
 
-  if (!token) {
+const AUTH_FLOW_PATHS = [
+  "/auth/login",
+  "/auth/register",
+  "/auth/forgot-password",
+  "/auth/reset-password",
+  "/auth/complete-registration",
+  "/auth/resend-verification",
+  "/auth/logout",
+  "/auth/refresh",
+];
+const CSRF_PROTECTED_AUTH_PATHS = [
+  "/auth/refresh",
+  "/auth/logout",
+  "/auth/logout-all",
+];
+
+let refreshPromise = null;
+
+const isAuthFlowRequest = (url = "") =>
+  AUTH_FLOW_PATHS.some((path) => String(url).startsWith(path));
+const isCsrfProtectedRequest = (url = "") =>
+  CSRF_PROTECTED_AUTH_PATHS.some((path) => String(url).startsWith(path));
+
+const attachCsrfHeader = (config) => {
+  if (!isCsrfProtectedRequest(config.url)) {
     return config;
   }
 
-  if (isTokenExpired()) {
-    if (typeof window !== 'undefined') {
-      const currentPath = `${window.location.pathname}${window.location.search}`;
-      const isAuthRoute = isAuthRoutePath(window.location.pathname);
+  const csrfToken = getCsrfToken();
+  if (!csrfToken) {
+    return config;
+  }
 
-      expireSession({
-        redirectPath: isAuthRoute ? '' : currentPath,
+  config.headers = config.headers || {};
+  config.headers["X-CSRF-Token"] = csrfToken;
+  return config;
+};
+
+const redirectToLoginAfterSessionExpiry = () => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  const isAuthRoute = isAuthRoutePath(window.location.pathname);
+
+  expireSession({
+    redirectPath: isAuthRoute ? "" : currentPath,
+  });
+
+  if (!isAuthRoute) {
+    window.location.assign("/login");
+  }
+};
+
+const refreshAccessToken = async () => {
+  if (!refreshPromise) {
+    refreshPromise = refreshClient
+      .post("/auth/refresh", undefined, {
+        headers: {
+          "X-CSRF-Token": getCsrfToken() || "",
+        },
+      })
+      .then((response) => {
+        const accessToken = response.data?.accessToken;
+        const csrfToken = response.data?.csrfToken;
+
+        if (!accessToken) {
+          throw new Error("Refresh response did not include an access token.");
+        }
+
+        setToken(accessToken);
+        if (csrfToken) {
+          setCsrfToken(csrfToken);
+        }
+        return accessToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
       });
+  }
 
-      if (!isAuthRoute) {
-        window.location.assign('/login');
-      }
+  return refreshPromise;
+};
+
+apiClient.interceptors.request.use(async (config) => {
+  if (isAuthFlowRequest(config.url)) {
+    return attachCsrfHeader(config);
+  }
+
+  const token = getToken();
+  let activeToken = token;
+
+  if (!activeToken || isTokenExpired()) {
+    if (!getCsrfToken()) {
+      return config;
     }
 
-    return Promise.reject(
-      new axios.CanceledError('Session expired. Please sign in again.'),
-    );
+    try {
+      activeToken = await refreshAccessToken();
+    } catch {
+      redirectToLoginAfterSessionExpiry();
+
+      return Promise.reject(
+        new axios.CanceledError("Session expired. Please sign in again."),
+      );
+    }
   }
 
   if (!config.headers) {
     config.headers = {};
   }
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (activeToken) {
+    config.headers.Authorization = `Bearer ${activeToken}`;
   }
 
-  return config;
+  return attachCsrfHeader(config);
 });
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !isAuthFlowRequest(originalRequest.url)
+    ) {
       const hadToken = Boolean(getToken());
 
-      if (hadToken && typeof window !== 'undefined') {
-        const currentPath = `${window.location.pathname}${window.location.search}`;
-        const isAuthRoute = isAuthRoutePath(window.location.pathname);
+      if (hadToken) {
+        originalRequest._retry = true;
 
-        expireSession({
-          redirectPath: isAuthRoute ? '' : currentPath,
-        });
+        try {
+          const accessToken = await refreshAccessToken();
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
-        if (!isAuthRoute) {
-          window.location.assign('/login');
+          return apiClient(originalRequest);
+        } catch {
+          redirectToLoginAfterSessionExpiry();
         }
       }
     }

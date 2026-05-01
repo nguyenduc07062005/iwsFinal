@@ -6,6 +6,7 @@ import type { StringValue } from 'ms';
 import { MailModule } from 'src/common/mail/mail.module';
 import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
+import { AdminBootstrapService } from './admin-bootstrap.service';
 import { JwtStrategy } from './jwt/jwt.strategy';
 
 @Module({
@@ -17,7 +18,7 @@ import { JwtStrategy } from './jwt/jwt.strategy';
       inject: [ConfigService],
       useFactory: (configService: ConfigService): JwtModuleOptions => {
         const expiresIn = (configService.get<string>('JWT_EXPIRES_IN') ||
-          '1d') as StringValue;
+          '15m') as StringValue;
 
         return {
           secret:
@@ -29,7 +30,7 @@ import { JwtStrategy } from './jwt/jwt.strategy';
       },
     }),
   ],
-  providers: [AuthenticationService, JwtStrategy],
+  providers: [AuthenticationService, AdminBootstrapService, JwtStrategy],
   controllers: [AuthenticationController],
   exports: [AuthenticationService],
 })

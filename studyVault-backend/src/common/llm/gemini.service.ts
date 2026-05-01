@@ -81,7 +81,9 @@ export class GeminiService {
       }
     }
 
-    throw lastError ?? new Error('Failed to generate text');
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(this.toErrorMessage(lastError) || 'Failed to generate text');
   }
 
   async createEmbedding(text: string): Promise<number[]> {
@@ -201,7 +203,7 @@ export class GeminiService {
     const errorMessage = this.toErrorMessage(error);
     const explicitDelaySeconds =
       errorMessage.match(/retry in\s+(\d+(?:\.\d+)?)s/i)?.[1] ??
-      errorMessage.match(/retryDelay\":\"(\d+)s/i)?.[1];
+      errorMessage.match(/retryDelay":"(\d+)s/i)?.[1];
     const retryDelayMs = explicitDelaySeconds
       ? Math.ceil(Number.parseFloat(explicitDelaySeconds) * 1000)
       : Number.NaN;

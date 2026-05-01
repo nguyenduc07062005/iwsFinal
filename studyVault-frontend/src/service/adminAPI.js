@@ -1,12 +1,19 @@
-import apiClient from '../services/apiClient.js';
+import apiClient from "../services/apiClient.js";
 
 const getAdminStats = async () => {
-  const response = await apiClient.get('/admin/stats');
+  const response = await apiClient.get("/admin/stats");
   return response.data;
 };
 
 const getAdminUsers = async (params = {}) => {
-  const response = await apiClient.get('/admin/users', {
+  const response = await apiClient.get("/admin/users", {
+    params,
+  });
+  return response.data;
+};
+
+const getAdminAuditLogs = async (params = {}) => {
+  const response = await apiClient.get("/admin/audit-logs", {
     params,
   });
   return response.data;
@@ -20,6 +27,7 @@ const updateAdminUserStatus = async (userId, isActive) => {
 };
 
 export {
+  getAdminAuditLogs,
   getAdminStats,
   getAdminUsers,
   updateAdminUserStatus,

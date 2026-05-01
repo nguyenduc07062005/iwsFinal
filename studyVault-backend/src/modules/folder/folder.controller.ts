@@ -13,6 +13,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 import { FolderService } from './folder.service';
@@ -25,6 +26,8 @@ import { RemoveDocumentFromFolderDto } from './dtos/remove-document-from-folder.
 import { MoveFolderByIdDto } from './dtos/move-folder-by-id.dto';
 import { UpdateFolderByIdDto } from './dtos/update-folder-by-id.dto';
 
+@ApiTags('folders')
+@ApiBearerAuth('bearer')
 @Controller('folders')
 @UseGuards(JwtAuthGuard)
 export class FolderController {

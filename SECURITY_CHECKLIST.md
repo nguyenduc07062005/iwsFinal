@@ -1,5 +1,10 @@
 # StudyVault Security / OWASP Checklist
 
+Current security architecture, demo script, and automated evidence are now
+documented in `docs/security-architecture-and-demo.md`. Use that document as
+the primary final-report security reference, and use this checklist as the
+OWASP-style supporting checklist.
+
 Tài liệu này dùng để chứng minh phần security khi defense môn Internet and Web Services. Mục tiêu là trình bày rõ hệ thống đã có cơ chế bảo vệ nền tảng, không phải khẳng định đây là cấu hình production hoàn hảo.
 
 ## 1. Security Headers
@@ -273,12 +278,12 @@ npm run test:e2e -- --runInBand
 
 Các điểm chưa nên giấu khi defense nếu bị hỏi sâu:
 
-- Backend `npm audit --omit=dev` còn 6 cảnh báo moderate liên quan `uuid` qua dependency transitive của `TypeORM`, `LangChain/Gaxios/LangSmith`.
-- Frontend `npm audit --omit=dev` còn 11 cảnh báo qua dependency transitive như `mermaid`/`langium`/`chevrotain`, `axios`, `dompurify`, `follow-redirects`.
-- Không chạy `npm audit fix --force` tự động vì có thể downgrade/break dependency như TypeORM, LangChain hoặc Mermaid.
+- Backend `npm audit --omit=dev` currently has 2 moderate warnings from TypeORM -> uuid. Do not use `npm audit fix --force` because it downgrades TypeORM and can break migrations/repositories.
+- Frontend `npm audit --omit=dev` currently has 0 vulnerabilities after dependency updates and removal of the unused Mermaid renderer.
+- Remaining dependency warning is tracked as a TypeORM transitive dependency issue; upgrade TypeORM when a non-breaking patched release is available.
 - Rate limit hiện là in-memory, phù hợp local/demo; nếu deploy nhiều instance nên dùng Redis.
 - Email verification và forgot password phụ thuộc Gmail SMTP App Password; nếu chưa cấu hình `SMTP_USER`/`SMTP_PASS`, email xác thực/reset cho tài khoản thật sẽ không gửi được.
-- Chưa có refresh token rotation; access token dùng TTL qua `JWT_EXPIRES_IN`.
+- Refresh token rotation đã có: refresh session được lưu server-side, rotate khi refresh, revoke khi logout/logout-all/reset/change password/admin lock, và có reuse detection.
 
 ## 14. Defense Talking Points
 

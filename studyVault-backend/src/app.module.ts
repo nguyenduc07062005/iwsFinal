@@ -10,11 +10,13 @@ import { FolderModule } from './modules/folder/folder.module';
 import { RagModule } from './modules/rag/rag.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { TagModule } from './modules/tag/tag.module';
+import { validateEnvironment } from './config/env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: validateEnvironment,
     }),
     DatabaseModule,
     AuthenticationModule,

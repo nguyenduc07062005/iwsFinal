@@ -1,0 +1,114 @@
+services:
+  database:
+    image: pgvector/pgvector:pg16
+    container_name: studyvault-database
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-studyvault_iws}
+      POSTGRES_USER: ${DATABASE_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+    ports:
+      - "${DATABASE_HOST_PORT:-15432}:5432"
+    volumes:
+      - studyvault_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DATABASE_USERNAME:-postgres} -d ${DATABASE_NAME:-studyvault_iws}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./studyVault-backend
+      dockerfile: Dockerfile
+    container_name: studyvault-backend
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PORT: 8000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DATABASE_HOST: database
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-postgres}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-postgres}
+      DATABASE_NAME: ${DATABASE_NAME:-studyvault_iws}
+      DATABASE_SYNC: "false"
+      DATABASE_LOGGING: ${DATABASE_LOGGING:-false}
+      JWT_SECRET: ${JWT_SECRET:-studyvault_docker_dev_secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      EMAIL_VERIFICATION_TTL_MINUTES: ${EMAIL_VERIFICATION_TTL_MINUTES:-1440}
+      RESET_PASSWORD_TTL_MINUTES: ${RESET_PASSWORD_TTL_MINUTES:-30}
+      AUTH_RETURN_RESET_TOKEN: ${AUTH_RETURN_RESET_TOKEN:-true}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-admin@example.com}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-"StudyVault <no-reply@studyvault.local>"}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_TEXT_MODEL: ${GEMINI_TEXT_MODEL:-gemini-2.5-flash}
+      GEMINI_TEXT_MODEL_FALLBACK: ${GEMINI_TEXT_MODEL_FALLBACK:-gemini-2.0-flash}
+      GEMINI_TEXT_MODEL_FALLBACKS: ${GEMINI_TEXT_MODEL_FALLBACKS:-gemini-2.0-flash,gemini-2.5-flash-lite,gemini-2.0-flash-lite}
+      GEMINI_EMBEDDING_MODEL: ${GEMINI_EMBEDDING_MODEL:-gemini-embedding-001}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./studyVault-backend:/app
+      - studyvault_backend_node_modules:/app/node_modules
+      - studyvault_uploads:/app/uploads
+    command: sh -c "npm run migration:run && npm run start:dev"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:8000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./studyVault-frontend
+      dockerfile: Dockerfile
+    container_name: studyvault-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./studyVault-frontend:/app
+      - studyvault_frontend_node_modules:/app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  studyvault_postgres_data:
+  studyvault_backend_node_modules:
+  studyvault_frontend_node_modules:
+  studyvault_uploads:

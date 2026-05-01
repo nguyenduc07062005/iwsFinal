@@ -10,19 +10,25 @@ import type { SummaryLanguage, SummaryVersionSlot } from '../types/rag.types';
 
 export class GenerateSummaryDto {
   @IsOptional()
-  @IsIn([...SUMMARY_LANGUAGES])
+  @IsIn([...SUMMARY_LANGUAGES], {
+    message: `Summary language must be one of: ${SUMMARY_LANGUAGES.join(', ')}.`,
+  })
   language?: SummaryLanguage;
 
   @IsOptional()
-  @IsBoolean()
+  @IsBoolean({ message: 'forceRefresh must be either true or false.' })
   forceRefresh?: boolean;
 
   @IsOptional()
-  @IsIn([...SUMMARY_VERSION_SLOTS])
+  @IsIn([...SUMMARY_VERSION_SLOTS], {
+    message: `Summary slot must be one of: ${SUMMARY_VERSION_SLOTS.join(', ')}.`,
+  })
   slot?: SummaryVersionSlot;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(1500)
+  @IsString({ message: 'Summary instruction must be text.' })
+  @MaxLength(1500, {
+    message: 'Summary instruction cannot be longer than 1500 characters.',
+  })
   instruction?: string;
 }

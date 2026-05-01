@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Logger,
   Param,
   ParseUUIDPipe,
   UseGuards,
@@ -17,6 +18,7 @@ import {
   Res,
   Query,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentService } from './document.service';
@@ -30,8 +32,12 @@ import { UpdateDocumentTagsDto } from './dtos/update-document-tags.dto';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 import { RagService } from '../rag/rag.service';
 
+@ApiTags('documents')
+@ApiBearerAuth('bearer')
 @Controller('documents')
 export class DocumentController {
+  private readonly logger = new Logger(DocumentController.name);
+
   private static readonly supportedMimeTypes = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -45,6 +51,17 @@ export class DocumentController {
 
   private getUserId(req: ExpressRequest): string {
     return (req as ExpressRequest & { user: { userId: string } }).user.userId;
+  }
+
+  private queueDocumentIndexing(documentId: string): void {
+    void Promise.resolve()
+      .then(() => this.ragService.ensureDocumentIndexed(documentId))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `Document ${documentId} was uploaded but background indexing failed: ${message}`,
+        );
+      });
   }
 
   // --- Upload document ---
@@ -82,6 +99,8 @@ export class DocumentController {
       );
     }
 
+    this.documentService.validateUploadFile(file);
+
     if (!createDocumentDto.title) {
       createDocumentDto.title = file.originalname;
     }
@@ -91,7 +110,7 @@ export class DocumentController {
       createDocumentDto,
       ownerId,
     );
-    await this.ragService.ensureDocumentIndexed(uploaded.id);
+    this.queueDocumentIndexing(uploaded.id);
     const document = await this.documentService.getDocumentSummaryForOwner(
       uploaded.id,
       ownerId,
@@ -101,6 +120,9 @@ export class DocumentController {
       message: 'Document uploaded successfully',
       document,
       uploaded,
+      indexing: {
+        status: 'queued',
+      },
     };
   }
 

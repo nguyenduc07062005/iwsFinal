@@ -2,8 +2,12 @@ import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 import { NestFactory } from '@nestjs/core';
 import helmet from 'helmet';
+import { SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { createRateLimitMiddleware } from './common/http/rate-limit.middleware';
+import { GlobalExceptionFilter } from './common/http/global-exception.filter';
+import { createSwaggerConfig } from './config/swagger.config';
+import { CORS_ALLOWED_HEADERS, isSwaggerEnabled } from './config/http.config';
 
 const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:3000',
@@ -13,6 +17,20 @@ const DEFAULT_ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
 ];
+
+type ExpressSettingsApplication = {
+  disable: (setting: string) => void;
+};
+
+const isExpressSettingsApplication = (
+  value: unknown,
+): value is ExpressSettingsApplication => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  return typeof (value as { disable?: unknown }).disable === 'function';
+};
 
 const parseOrigins = (value?: string): string[] | true => {
   if (!value) {
@@ -80,25 +98,50 @@ const resolveCorsOrigin = (allowedOrigins: string[] | true) => {
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const allowedOrigins = parseOrigins(process.env.CORS_ORIGIN);
-  const expressInstance = app.getHttpAdapter().getInstance();
+  const expressInstance: unknown = app.getHttpAdapter().getInstance();
 
-  if (typeof expressInstance.disable === 'function') {
+  if (isExpressSettingsApplication(expressInstance)) {
     expressInstance.disable('x-powered-by');
   }
 
   app.setGlobalPrefix('api');
   app.use(
     helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          fontSrc: ["'self'", 'https:', 'data:'],
+          formAction: ["'self'"],
+          frameAncestors: ["'self'"],
+          imgSrc: ["'self'", 'data:'],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+          upgradeInsecureRequests: [],
+        },
+      },
       crossOriginResourcePolicy: {
         policy: 'cross-origin',
       },
     }),
   );
+  if (isSwaggerEnabled()) {
+    const swaggerDocument = SwaggerModule.createDocument(
+      app,
+      createSwaggerConfig(),
+    );
+    SwaggerModule.setup('api/docs', app, swaggerDocument, {
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+    });
+  }
   app.enableCors({
     origin: resolveCorsOrigin(allowedOrigins),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [...CORS_ALLOWED_HEADERS],
     exposedHeaders: ['Content-Disposition'],
     maxAge: 600,
   });
@@ -123,10 +166,12 @@ async function bootstrap() {
       },
     }),
   );
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   app.use(
     '/api/auth/login',
     createRateLimitMiddleware({
+      identityFields: ['email'],
       keyPrefix: 'auth-login',
       maxRequests: 8,
       windowMs: 60_000,
@@ -137,6 +182,7 @@ async function bootstrap() {
   app.use(
     '/api/auth/register',
     createRateLimitMiddleware({
+      identityFields: ['email'],
       keyPrefix: 'auth-register',
       maxRequests: 6,
       windowMs: 10 * 60_000,
@@ -148,6 +194,7 @@ async function bootstrap() {
   app.use(
     '/api/auth/forgot-password',
     createRateLimitMiddleware({
+      identityFields: ['email'],
       keyPrefix: 'auth-forgot-password',
       maxRequests: 4,
       windowMs: 15 * 60_000,
@@ -159,6 +206,7 @@ async function bootstrap() {
   app.use(
     '/api/auth/complete-registration',
     createRateLimitMiddleware({
+      identityFields: ['token'],
       keyPrefix: 'auth-complete-registration',
       maxRequests: 12,
       windowMs: 15 * 60_000,
@@ -170,6 +218,7 @@ async function bootstrap() {
   app.use(
     '/api/auth/resend-verification',
     createRateLimitMiddleware({
+      identityFields: ['email'],
       keyPrefix: 'auth-resend-verification',
       maxRequests: 4,
       windowMs: 15 * 60_000,
@@ -181,6 +230,7 @@ async function bootstrap() {
   app.use(
     '/api/auth/reset-password',
     createRateLimitMiddleware({
+      identityFields: ['token'],
       keyPrefix: 'auth-reset-password',
       maxRequests: 6,
       windowMs: 15 * 60_000,

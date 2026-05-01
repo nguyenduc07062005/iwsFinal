@@ -38,7 +38,7 @@ export class RagIndexingService {
     );
 
     if (chunks.length === 0) {
-      await this.updateDocumentStatus(documentId, 'processed');
+      await this.updateDocumentStatus(documentId, 'ready');
       return {
         documentId,
         indexedChunks: 0,
@@ -79,7 +79,7 @@ export class RagIndexingService {
         `Failed to index document ${documentId}`,
         error instanceof Error ? error.stack : undefined,
       );
-      await this.updateDocumentStatus(documentId, 'processed');
+      await this.updateDocumentStatus(documentId, 'ai_failed');
       throw error;
     }
   }

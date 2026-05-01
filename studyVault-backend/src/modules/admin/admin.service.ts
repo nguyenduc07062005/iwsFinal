@@ -3,10 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  AdminAuditAction,
+  AdminAuditLog,
+  AdminAuditTargetType,
+} from 'src/database/entities/admin-audit-log.entity';
 import { DocumentRepository } from 'src/database/repositories/document.repository';
 import { FolderRepository } from 'src/database/repositories/folder.repository';
+import { UserRole } from 'src/database/entities/user.entity';
+import { AdminAuditLogRepository } from 'src/database/repositories/admin-audit-log.repository';
+import { UserSessionRepository } from 'src/database/repositories/user-session.repository';
 import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
 import { UserRepository } from 'src/database/repositories/user.repository';
+import { ListAdminAuditLogsDto } from './dtos/list-admin-audit-logs.dto';
 import { ListAdminUsersDto } from './dtos/list-admin-users.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 
@@ -42,6 +51,17 @@ const sanitizeUser = (user: {
   updatedAt: user.updatedAt,
 });
 
+const sanitizeAuditLog = (auditLog: AdminAuditLog) => ({
+  id: auditLog.id,
+  action: auditLog.action,
+  targetType: auditLog.targetType,
+  adminId: auditLog.adminId,
+  targetUserId: auditLog.targetUserId,
+  metadata: auditLog.metadata ?? {},
+  createdAt: auditLog.createdAt,
+  updatedAt: auditLog.updatedAt,
+});
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -49,6 +69,8 @@ export class AdminService {
     private readonly documentRepository: DocumentRepository,
     private readonly folderRepository: FolderRepository,
     private readonly userDocumentRepository: UserDocumentRepository,
+    private readonly adminAuditLogRepository: AdminAuditLogRepository,
+    private readonly userSessionRepository: UserSessionRepository,
   ) {}
 
   async listUsers(query: ListAdminUsersDto) {
@@ -66,7 +88,7 @@ export class AdminService {
 
     if (keyword) {
       queryBuilder.andWhere(
-        '(LOWER(user.email) LIKE LOWER(:keyword) OR LOWER(COALESCE(user.name, \'\')) LIKE LOWER(:keyword))',
+        "(LOWER(user.email) LIKE LOWER(:keyword) OR LOWER(COALESCE(user.name, '')) LIKE LOWER(:keyword))",
         { keyword: `%${keyword}%` },
       );
     }
@@ -115,15 +137,90 @@ export class AdminService {
       throw new NotFoundException('User not found');
     }
 
+    if (targetUser.role === UserRole.ADMIN) {
+      throw new BadRequestException('Admin account status cannot be changed');
+    }
+
     const updatedUser = await this.userRepository.update(targetUser.id, {
       isActive: dto.isActive,
     });
+    const action = dto.isActive
+      ? AdminAuditAction.USER_UNLOCKED
+      : AdminAuditAction.USER_LOCKED;
+
+    await this.adminAuditLogRepository.create({
+      action,
+      adminId: adminUserId,
+      metadata: {
+        previousIsActive: targetUser.isActive,
+        nextIsActive: dto.isActive,
+        targetEmail: targetUser.email,
+        targetName: targetUser.name,
+        targetRole: targetUser.role,
+      },
+      targetType: AdminAuditTargetType.USER,
+      targetUserId: targetUser.id,
+    });
+
+    if (!dto.isActive) {
+      await this.userSessionRepository.revokeAllForUser(targetUser.id);
+    }
 
     return {
       message: dto.isActive
         ? 'User account unlocked successfully.'
         : 'User account locked successfully.',
       data: sanitizeUser(updatedUser || targetUser),
+    };
+  }
+
+  async listAuditLogs(query: ListAdminAuditLogsDto) {
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    const queryBuilder = this.adminAuditLogRepository
+      .getRepository()
+      .createQueryBuilder('auditLog')
+      .orderBy('auditLog.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    if (query.action) {
+      queryBuilder.andWhere('auditLog.action = :action', {
+        action: query.action,
+      });
+    }
+
+    if (query.adminId) {
+      queryBuilder.andWhere('auditLog.adminId = :adminId', {
+        adminId: query.adminId,
+      });
+    }
+
+    if (query.targetUserId) {
+      queryBuilder.andWhere('auditLog.targetUserId = :targetUserId', {
+        targetUserId: query.targetUserId,
+      });
+    }
+
+    const [auditLogs, total] = await queryBuilder.getManyAndCount();
+    const totalPages = Math.max(Math.ceil(total / limit), 1);
+
+    return {
+      message: 'Admin audit logs retrieved successfully.',
+      data: auditLogs.map(sanitizeAuditLog),
+      pagination: {
+        currentPage: page,
+        limit,
+        total,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+      filters: {
+        action: query.action,
+        adminId: query.adminId,
+        targetUserId: query.targetUserId,
+      },
     };
   }
 

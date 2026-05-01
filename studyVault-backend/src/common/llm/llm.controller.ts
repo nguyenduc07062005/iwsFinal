@@ -1,7 +1,16 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UserRole } from 'src/database/entities/user.entity';
+import { JwtAuthGuard } from 'src/modules/authentication/jwt/jwt-auth.guard';
+import { Roles } from 'src/modules/authentication/roles/roles.decorator';
+import { RolesGuard } from 'src/modules/authentication/roles/roles.guard';
 import { GeminiService } from './gemini.service';
 
+@ApiTags('llm')
+@ApiBearerAuth('bearer')
 @Controller('llm')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 export class LlmController {
   constructor(private readonly geminiService: GeminiService) {}
 

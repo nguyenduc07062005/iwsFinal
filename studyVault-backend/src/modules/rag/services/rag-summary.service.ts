@@ -218,7 +218,6 @@ export class RagSummaryService {
     const normalizedSummary = this.normalizeSummary(
       summary,
       document.title ?? 'Untitled document',
-      language,
     );
     const targetSlot = requestedSlot ?? 'default';
     const summaryArtifact: SummaryArtifact = {
@@ -323,7 +322,6 @@ export class RagSummaryService {
   private normalizeSummary(
     summary: StructuredDocumentSummary | null | undefined,
     documentTitle: string,
-    language: SummaryLanguage,
   ): StructuredDocumentSummary {
     const safeSummary = this.coerceStructuredSummary(summary);
     const fallbackCopy = {

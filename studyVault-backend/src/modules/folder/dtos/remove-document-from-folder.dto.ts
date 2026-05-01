@@ -1,9 +1,9 @@
 import { IsUUID } from 'class-validator';
 
 export class RemoveDocumentFromFolderDto {
-  @IsUUID()
+  @IsUUID('4', { message: 'Folder id must be valid.' })
   folderId: string;
 
-  @IsUUID()
+  @IsUUID('4', { message: 'Document id must be valid.' })
   documentId: string;
 }

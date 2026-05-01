@@ -6,6 +6,7 @@ type RateLimitEntry = {
 };
 
 type RateLimitOptions = {
+  identityFields?: string[];
   keyPrefix: string;
   maxRequests: number;
   windowMs: number;
@@ -15,21 +16,33 @@ type RateLimitOptions = {
 
 const stores = new Map<string, Map<string, RateLimitEntry>>();
 
-const getClientIdentifier = (req: Request, keyPrefix: string) => {
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const firstForwardedIp = Array.isArray(forwardedFor)
-    ? forwardedFor[0]
-    : typeof forwardedFor === 'string'
-      ? forwardedFor.split(',')[0]?.trim()
-      : '';
+const normalizeIdentityValue = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value.trim().toLowerCase();
+  }
 
-  const ip =
-    firstForwardedIp ||
-    req.ip ||
-    req.socket?.remoteAddress ||
-    'anonymous-client';
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
 
-  return `${keyPrefix}:${ip}`;
+  return '';
+};
+
+const getRateLimitKeys = (req: Request, options: RateLimitOptions) => {
+  const ip = req.ip || req.socket?.remoteAddress || 'anonymous-client';
+  const keys = new Set([`${options.keyPrefix}:client:${ip}`]);
+
+  for (const field of options.identityFields ?? []) {
+    const identityValue = normalizeIdentityValue(
+      (req.body as Record<string, unknown> | undefined)?.[field],
+    );
+
+    if (identityValue) {
+      keys.add(`${options.keyPrefix}:identity:${field}:${identityValue}`);
+    }
+  }
+
+  return Array.from(keys);
 };
 
 const getStore = (keyPrefix: string) => {
@@ -73,34 +86,26 @@ export const createRateLimitMiddleware = (options: RateLimitOptions) => {
     const currentTime = Date.now();
     cleanupExpiredEntries(store, currentTime);
 
-    const key = getClientIdentifier(req, options.keyPrefix);
-    const currentEntry = store.get(key);
-
-    if (!currentEntry || currentEntry.resetAt <= currentTime) {
-      store.set(key, {
-        count: 1,
-        resetAt: currentTime + options.windowMs,
+    const keys = getRateLimitKeys(req, options);
+    const activeEntries = keys
+      .map((key) => ({ key, entry: store.get(key) }))
+      .filter((item): item is { key: string; entry: RateLimitEntry } => {
+        const entry = item.entry;
+        return entry !== undefined && entry.resetAt > currentTime;
       });
-
-      res.setHeader('X-RateLimit-Limit', String(options.maxRequests));
-      res.setHeader('X-RateLimit-Remaining', String(options.maxRequests - 1));
-      next();
-      return;
-    }
-
-    const remainingRequests = Math.max(
-      options.maxRequests - currentEntry.count - 1,
-      0,
+    const exceededEntry = activeEntries.find(
+      ({ entry }) => entry.count >= options.maxRequests,
     );
-    res.setHeader('X-RateLimit-Limit', String(options.maxRequests));
-    res.setHeader('X-RateLimit-Remaining', String(remainingRequests));
 
-    if (currentEntry.count >= options.maxRequests) {
+    res.setHeader('X-RateLimit-Limit', String(options.maxRequests));
+
+    if (exceededEntry) {
       const retryAfterSeconds = Math.max(
-        Math.ceil((currentEntry.resetAt - currentTime) / 1000),
+        Math.ceil((exceededEntry.entry.resetAt - currentTime) / 1000),
         1,
       );
 
+      res.setHeader('X-RateLimit-Remaining', '0');
       res.setHeader('Retry-After', String(retryAfterSeconds));
       res.status(429).json({
         statusCode: 429,
@@ -110,8 +115,24 @@ export const createRateLimitMiddleware = (options: RateLimitOptions) => {
       return;
     }
 
-    currentEntry.count += 1;
-    store.set(key, currentEntry);
+    const nextCounts = keys.map((key) => {
+      const currentEntry = store.get(key);
+
+      if (!currentEntry || currentEntry.resetAt <= currentTime) {
+        store.set(key, {
+          count: 1,
+          resetAt: currentTime + options.windowMs,
+        });
+        return 1;
+      }
+
+      currentEntry.count += 1;
+      store.set(key, currentEntry);
+      return currentEntry.count;
+    });
+    const highestCount = Math.max(...nextCounts);
+    const remainingRequests = Math.max(options.maxRequests - highestCount, 0);
+    res.setHeader('X-RateLimit-Remaining', String(remainingRequests));
     next();
   };
 };

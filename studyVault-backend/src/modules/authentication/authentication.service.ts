@@ -1,13 +1,16 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes } from 'crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import type { StringValue } from 'ms';
 import { MailService } from 'src/common/mail/mail.service';
+import { UserSessionRepository } from 'src/database/repositories/user-session.repository';
 import { UserRepository } from 'src/database/repositories/user.repository';
 import { UserRole } from 'src/database/entities/user.entity';
 import { ChangePasswordDto } from './dtos/change-password.dto';
@@ -21,18 +24,121 @@ import { UpdateProfileDto } from './dtos/update-profile.dto';
 
 const DEFAULT_RESET_PASSWORD_TTL_MINUTES = 15;
 const DEFAULT_EMAIL_VERIFICATION_TTL_MINUTES = 60 * 24;
-const DEFAULT_RETURN_RESET_TOKEN = false;
+const DEFAULT_REFRESH_TOKEN_TTL_DAYS = 7;
+const DEFAULT_ACCESS_TOKEN_EXPIRES_IN = '15m';
+const INVALID_LOGIN_RESPONSE = 'Invalid credentials';
+const DUMMY_PASSWORD_HASH =
+  '$2b$10$LTWKSBc351ul97UU4i.8zOes0/iZ2dQMoU6rWlLzvAIBY8WDP6l2q';
+const PASSWORD_RESET_RESPONSE =
+  'Please check your email to reset your password.';
 const EMAIL_VERIFICATION_RESPONSE =
   'If an account with that email needs verification, a verification link has been issued.';
 
+type SessionRequestContext = {
+  ipAddress?: string;
+  userAgent?: string;
+};
+
+type SessionTokenBundle = {
+  rawRefreshToken: string;
+  refreshTokenHash: string;
+  refreshTokenExpiresAt: Date;
+  rawCsrfToken: string;
+  csrfTokenHash: string;
+};
+
 @Injectable()
 export class AuthenticationService {
+  private readonly logger = new Logger(AuthenticationService.name);
+
   constructor(
     private readonly userRepository: UserRepository,
+    private readonly userSessionRepository: UserSessionRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
   ) {}
+
+  private hashToken(rawToken: string): string {
+    return createHash('sha256').update(rawToken).digest('hex');
+  }
+
+  private isTokenHashMatch(
+    rawToken: string | undefined,
+    tokenHash?: string | null,
+  ): boolean {
+    if (!rawToken || !tokenHash) {
+      return false;
+    }
+
+    const rawTokenHash = Buffer.from(this.hashToken(rawToken), 'hex');
+    const storedTokenHash = Buffer.from(tokenHash, 'hex');
+
+    return (
+      rawTokenHash.length === storedTokenHash.length &&
+      timingSafeEqual(rawTokenHash, storedTokenHash)
+    );
+  }
+
+  private getAccessTokenExpiresIn(): string {
+    return (
+      this.configService.get<string>('JWT_EXPIRES_IN') ||
+      DEFAULT_ACCESS_TOKEN_EXPIRES_IN
+    );
+  }
+
+  private getRefreshTokenExpiresAt(): Date {
+    const expiresAt = new Date();
+    const ttlDays = Number(
+      this.configService.get<string>('REFRESH_TOKEN_TTL_DAYS') ||
+        DEFAULT_REFRESH_TOKEN_TTL_DAYS,
+    );
+
+    expiresAt.setDate(expiresAt.getDate() + ttlDays);
+    return expiresAt;
+  }
+
+  private createSessionTokenBundle(): SessionTokenBundle {
+    const rawRefreshToken = randomBytes(64).toString('hex');
+    const refreshTokenHash = this.hashToken(rawRefreshToken);
+    const refreshTokenExpiresAt = this.getRefreshTokenExpiresAt();
+    const rawCsrfToken = randomBytes(32).toString('hex');
+    const csrfTokenHash = this.hashToken(rawCsrfToken);
+
+    return {
+      rawRefreshToken,
+      refreshTokenHash,
+      refreshTokenExpiresAt,
+      rawCsrfToken,
+      csrfTokenHash,
+    };
+  }
+
+  private async signAccessToken(
+    user: {
+      id: string;
+      role: UserRole;
+    },
+    sessionId: string,
+  ): Promise<string> {
+    return this.jwtService.signAsync(
+      {
+        sub: user.id,
+        role: user.role,
+        sid: sessionId,
+      },
+      { expiresIn: this.getAccessTokenExpiresIn() as StringValue },
+    );
+  }
+
+  private assertCsrfToken(
+    session: { csrfTokenHash?: string | null },
+    csrfToken?: string,
+  ) {
+    if (!this.isTokenHashMatch(csrfToken, session.csrfTokenHash)) {
+      throw new UnauthorizedException('CSRF token is invalid or missing');
+    }
+  }
 
   private createResetPasswordToken(): {
     rawToken: string;
@@ -56,24 +162,9 @@ export class AuthenticationService {
     };
   }
 
-  private buildResetPasswordResponse(rawToken: string, expiresAt: Date) {
-    const shouldReturnToken =
-      (this.configService.get<string>('AUTH_RETURN_RESET_TOKEN') ??
-        String(DEFAULT_RETURN_RESET_TOKEN)) === 'true';
-
-    const baseResponse = {
-      message: 'Please check your email to reset your password.',
-    };
-
-    if (!shouldReturnToken) {
-      return baseResponse;
-    }
-
+  private buildResetPasswordResponse() {
     return {
-      ...baseResponse,
-      resetToken: rawToken,
-      resetTokenExpiresAt: expiresAt.toISOString(),
-      delivery: 'direct',
+      message: PASSWORD_RESET_RESPONSE,
     };
   }
 
@@ -101,8 +192,7 @@ export class AuthenticationService {
 
   private buildResetPasswordUrl(rawToken: string): string {
     const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') ||
-      'http://localhost:3000';
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const baseUrl = frontendUrl.endsWith('/') ? frontendUrl : `${frontendUrl}/`;
     const resetUrl = new URL('/reset-password', baseUrl);
     resetUrl.searchParams.set('token', rawToken);
@@ -111,23 +201,11 @@ export class AuthenticationService {
 
   private buildEmailVerificationUrl(rawToken: string): string {
     const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') ||
-      'http://localhost:3000';
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
     const baseUrl = frontendUrl.endsWith('/') ? frontendUrl : `${frontendUrl}/`;
     const verificationUrl = new URL('/complete-registration', baseUrl);
     verificationUrl.searchParams.set('token', rawToken);
     return verificationUrl.toString();
-  }
-
-  private isConfiguredAdminEmail(email: string): boolean {
-    const configuredEmails =
-      this.configService.get<string>('ADMIN_EMAILS') || '';
-
-    return configuredEmails
-      .split(',')
-      .map((item) => item.trim().toLowerCase())
-      .filter(Boolean)
-      .includes(email);
   }
 
   async register(dto: CreateUserDto) {
@@ -144,29 +222,30 @@ export class AuthenticationService {
     const { rawToken, tokenHash, expiresAt } =
       this.createEmailVerificationToken();
 
-    const user =
-      existingUser ||
-      (await this.userRepository.create({
-        email: normalizedEmail,
-        password: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
-        name: displayName,
-        role: this.isConfiguredAdminEmail(normalizedEmail)
-          ? UserRole.ADMIN
-          : UserRole.USER,
-        isActive: true,
-        isEmailVerified: false,
-        emailVerifiedAt: null,
-        emailVerificationTokenHash: tokenHash,
-        emailVerificationTokenExpiresAt: expiresAt,
-      }));
-
-    if (existingUser) {
-      await this.userRepository.update(existingUser.id, {
-        name: displayName,
-        emailVerificationTokenHash: tokenHash,
-        emailVerificationTokenExpiresAt: expiresAt,
-      });
-    }
+    const user = existingUser
+      ? ((await this.userRepository.update(existingUser.id, {
+          name: displayName,
+          role: UserRole.USER,
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationTokenExpiresAt: expiresAt,
+        })) ?? {
+          ...existingUser,
+          name: displayName,
+          role: UserRole.USER,
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationTokenExpiresAt: expiresAt,
+        })
+      : await this.userRepository.create({
+          email: normalizedEmail,
+          password: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
+          name: displayName,
+          role: UserRole.USER,
+          isActive: true,
+          isEmailVerified: false,
+          emailVerifiedAt: null,
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationTokenExpiresAt: expiresAt,
+        });
 
     try {
       await this.mailService.sendEmailVerificationEmail(
@@ -178,6 +257,7 @@ export class AuthenticationService {
       if (existingUser) {
         await this.userRepository.update(existingUser.id, {
           name: existingUser.name,
+          role: existingUser.role,
           emailVerificationTokenHash: existingUser.emailVerificationTokenHash,
           emailVerificationTokenExpiresAt:
             existingUser.emailVerificationTokenExpiresAt,
@@ -201,14 +281,20 @@ export class AuthenticationService {
     };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, context: SessionRequestContext = {}) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({
       where: { email: normalizedEmail },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
+      throw new UnauthorizedException(INVALID_LOGIN_RESPONSE);
+    }
+
+    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException(INVALID_LOGIN_RESPONSE);
     }
 
     if (!user.isActive) {
@@ -221,19 +307,24 @@ export class AuthenticationService {
       );
     }
 
-    const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const payload = {
-      sub: user.id,
-      role: user.role,
-    };
+    const sessionTokens = this.createSessionTokenBundle();
+    const session = await this.userSessionRepository.create({
+      userId: user.id,
+      refreshTokenHash: sessionTokens.refreshTokenHash,
+      csrfTokenHash: sessionTokens.csrfTokenHash,
+      refreshTokenExpiresAt: sessionTokens.refreshTokenExpiresAt,
+      revokedAt: null,
+      lastUsedAt: null,
+      userAgent: context.userAgent || null,
+      ipAddress: context.ipAddress || null,
+    });
 
     return {
       message: 'Login successful.',
-      accessToken: await this.jwtService.signAsync(payload),
+      accessToken: await this.signAccessToken(user, session.id),
+      refreshToken: sessionTokens.rawRefreshToken,
+      refreshTokenExpiresAt: sessionTokens.refreshTokenExpiresAt,
+      csrfToken: sessionTokens.rawCsrfToken,
       user: {
         id: user.id,
         email: user.email,
@@ -244,26 +335,118 @@ export class AuthenticationService {
     };
   }
 
+  async refreshSession(
+    refreshToken: string,
+    csrfToken?: string,
+    context: SessionRequestContext = {},
+  ) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    const session = await this.userSessionRepository.findByRefreshTokenHash(
+      this.hashToken(refreshToken),
+    );
+
+    if (!session) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    if (session.revokedAt) {
+      await this.userSessionRepository.revokeAllForUser(session.userId);
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    if (
+      session.refreshTokenExpiresAt <= new Date() ||
+      !session.user?.isActive ||
+      !session.user.isEmailVerified
+    ) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    this.assertCsrfToken(session, csrfToken);
+
+    const nextSessionTokens = this.createSessionTokenBundle();
+    const nextSession = await this.userSessionRepository.rotateRefreshToken(
+      session.id,
+      {
+        refreshTokenHash: nextSessionTokens.refreshTokenHash,
+        csrfTokenHash: nextSessionTokens.csrfTokenHash,
+        refreshTokenExpiresAt: nextSessionTokens.refreshTokenExpiresAt,
+        userAgent: context.userAgent,
+        ipAddress: context.ipAddress,
+      },
+    );
+
+    if (!nextSession) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    return {
+      message: 'Session refreshed successfully.',
+      accessToken: await this.signAccessToken(session.user, nextSession.id),
+      refreshToken: nextSessionTokens.rawRefreshToken,
+      refreshTokenExpiresAt: nextSessionTokens.refreshTokenExpiresAt,
+      csrfToken: nextSessionTokens.rawCsrfToken,
+    };
+  }
+
+  async logoutSession(refreshToken?: string, csrfToken?: string) {
+    if (refreshToken) {
+      const session = await this.userSessionRepository.findByRefreshTokenHash(
+        this.hashToken(refreshToken),
+      );
+
+      if (session && !session.revokedAt) {
+        this.assertCsrfToken(session, csrfToken);
+        await this.userSessionRepository.revokeSession(session.id);
+      }
+    }
+
+    return {
+      message: 'Signed out successfully.',
+    };
+  }
+
+  async logoutAllSessions(
+    userId: string,
+    refreshToken?: string,
+    csrfToken?: string,
+  ) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    const session = await this.userSessionRepository.findByRefreshTokenHash(
+      this.hashToken(refreshToken),
+    );
+
+    if (!session || session.revokedAt || session.userId !== userId) {
+      throw new UnauthorizedException('Refresh session is invalid or expired');
+    }
+
+    this.assertCsrfToken(session, csrfToken);
+
+    await this.userSessionRepository.revokeAllForUser(userId);
+
+    return {
+      message: 'All sessions signed out successfully.',
+    };
+  }
+
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.userRepository.findOne({
       where: { email: dto.email.toLowerCase().trim() },
     });
 
-    if (!user) {
-      throw new BadRequestException('Email does not exist in the system.');
-    }
-
-    if (!user.isActive) {
-      throw new BadRequestException('This account has been deactivated.');
-    }
-
-    if (!user.isEmailVerified) {
-      throw new BadRequestException(
-        'This account has not been activated. Please check your verification email first.',
-      );
+    if (!user || !user.isActive || !user.isEmailVerified) {
+      return this.buildResetPasswordResponse();
     }
 
     const { rawToken, tokenHash, expiresAt } = this.createResetPasswordToken();
+    const previousTokenHash = user.resetPasswordTokenHash;
+    const previousExpiresAt = user.resetPasswordTokenExpiresAt;
 
     await this.userRepository.update(user.id, {
       resetPasswordTokenHash: tokenHash,
@@ -278,13 +461,17 @@ export class AuthenticationService {
       );
     } catch (error) {
       await this.userRepository.update(user.id, {
-        resetPasswordTokenHash: null,
-        resetPasswordTokenExpiresAt: null,
+        resetPasswordTokenHash: previousTokenHash,
+        resetPasswordTokenExpiresAt: previousExpiresAt,
       });
-      throw error;
+      this.logger.warn(
+        `Password reset email could not be sent for user ${user.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
 
-    return this.buildResetPasswordResponse(rawToken, expiresAt);
+    return this.buildResetPasswordResponse();
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -315,6 +502,7 @@ export class AuthenticationService {
       resetPasswordTokenHash: null,
       resetPasswordTokenExpiresAt: null,
     });
+    await this.userSessionRepository.revokeAllForUser(user.id);
 
     return {
       message: 'Password reset successful.',
@@ -483,6 +671,7 @@ export class AuthenticationService {
       resetPasswordTokenHash: null,
       resetPasswordTokenExpiresAt: null,
     });
+    await this.userSessionRepository.revokeAllForUser(user.id);
 
     return {
       message: 'Password changed successfully.',

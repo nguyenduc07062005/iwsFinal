@@ -1,6 +1,5 @@
 /week-6-folder-rag-ui-plan.md
 /temp-rag-doc.txt
-/docs/
 /plan.md
 /*.docx
 **/runtime-logs/
@@ -18,6 +17,7 @@
 # Environment files
 **/.env*
 !**/.env.example
+!**/.env.*.example
 
 # Logs
 **/npm-debug.log*

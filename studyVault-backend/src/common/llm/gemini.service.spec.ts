@@ -15,7 +15,7 @@ jest.mock('@google/genai', () => ({
 }));
 
 jest.mock('@langchain/google', () => ({
-  ChatGoogle: jest.fn().mockImplementation((params) => ({
+  ChatGoogle: jest.fn().mockImplementation((params: unknown) => ({
     params,
   })),
 }));

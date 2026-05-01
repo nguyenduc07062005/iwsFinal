@@ -185,7 +185,12 @@ const Favorites = () => {
           total: 0,
           totalPages: 1,
         });
-        setError(getApiErrorMessage(requestError, 'Could not load favorites.'));
+        setError(
+          getApiErrorMessage(
+            requestError,
+            'Favorite documents could not be loaded. Please refresh and try again.',
+          ),
+        );
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);
@@ -210,7 +215,10 @@ const Favorites = () => {
     } catch (requestError) {
       setFlash({
         tone: 'error',
-        message: getApiErrorMessage(requestError, 'Could not load file.'),
+        message: getApiErrorMessage(
+          requestError,
+          'The document could not be downloaded. Please try again.',
+        ),
       });
     }
   };
@@ -237,7 +245,10 @@ const Favorites = () => {
     } catch (requestError) {
       setFlash({
         tone: 'error',
-        message: getApiErrorMessage(requestError, 'Could not update favorites.'),
+        message: getApiErrorMessage(
+          requestError,
+          'Favorite status could not be updated. Please try again.',
+        ),
       });
     }
   };

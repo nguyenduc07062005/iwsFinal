@@ -11,6 +11,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest } from 'express';
 import { AskRagDto } from './dtos/ask-rag.dto';
 import { GenerateSummaryDto } from './dtos/generate-summary.dto';
@@ -19,6 +20,8 @@ import { RagMindMapService } from './services/rag-mind-map.service';
 import { RagSummaryService } from './services/rag-summary.service';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 
+@ApiTags('rag')
+@ApiBearerAuth('bearer')
 @Controller('rag')
 @UseGuards(JwtAuthGuard)
 export class RagController {

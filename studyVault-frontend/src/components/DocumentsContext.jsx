@@ -92,7 +92,12 @@ export const DocumentsProvider = ({ children }) => {
       setTotal(0);
       setCurrentPage(1);
       setTotalPages(1);
-      setError(getApiErrorMessage(err, 'Failed to load folders.'));
+      setError(
+        getApiErrorMessage(
+          err,
+          'Folders could not be loaded. Please refresh and try again.',
+        ),
+      );
     } finally {
       setFoldersLoading(false);
     }
@@ -133,7 +138,12 @@ export const DocumentsProvider = ({ children }) => {
       setTotal(0);
       setCurrentPage(1);
       setTotalPages(1);
-      setError(getApiErrorMessage(err, 'Failed to load documents.'));
+      setError(
+        getApiErrorMessage(
+          err,
+          'Documents could not be loaded. Please refresh and try again.',
+        ),
+      );
     } finally {
       if (requestId === documentsRequestRef.current) {
         setDocumentsLoading(false);

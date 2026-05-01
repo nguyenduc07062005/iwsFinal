@@ -217,7 +217,10 @@ const DocumentViewer = () => {
       } catch (error) {
         setSummaryState({
           loading: false,
-          error: getApiErrorMessage(error, 'Could not create a summary for this document.'),
+          error: getApiErrorMessage(
+            error,
+            'A summary could not be created for this document. Please try again.',
+          ),
           data: null,
         });
       }
@@ -235,7 +238,12 @@ const DocumentViewer = () => {
       setAskHistoryLoaded(true);
       setAskHistoryError('');
     } catch (error) {
-      setAskHistoryError(getApiErrorMessage(error, 'Could not load Q&A history.'));
+      setAskHistoryError(
+        getApiErrorMessage(
+          error,
+          'Q&A history could not be loaded. Please refresh and try again.',
+        ),
+      );
       setAskHistoryLoaded(true);
     } finally {
       setAskHistoryLoading(false);
@@ -251,7 +259,12 @@ const DocumentViewer = () => {
       setStudyNotes(result.notes || []);
       setNoteError('');
     } catch (error) {
-      setNoteError(getApiErrorMessage(error, 'Could not load study notes.'));
+      setNoteError(
+        getApiErrorMessage(
+          error,
+          'Study notes could not be loaded. Please refresh and try again.',
+        ),
+      );
     } finally {
       setNotesLoading(false);
     }
@@ -281,11 +294,19 @@ const DocumentViewer = () => {
         setContentType(nextContentType || blob.type || '');
       } catch (previewRequestError) {
         setPreviewError(
-          getApiErrorMessage(previewRequestError, 'Could not preview this file.'),
+          getApiErrorMessage(
+            previewRequestError,
+            'This file could not be previewed. Please download it or upload it again.',
+          ),
         );
       }
     } catch (error) {
-      setViewerError(getApiErrorMessage(error, 'Could not open the document.'));
+      setViewerError(
+        getApiErrorMessage(
+          error,
+          'The document could not be opened. Please refresh and try again.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -347,7 +368,12 @@ const DocumentViewer = () => {
         ...(result.document || {}),
       }));
     } catch (error) {
-      setViewerError(getApiErrorMessage(error, 'Could not update favorites.'));
+      setViewerError(
+        getApiErrorMessage(
+          error,
+          'Favorite status could not be updated. Please try again.',
+        ),
+      );
     }
   };
 
@@ -374,7 +400,10 @@ const DocumentViewer = () => {
     } catch (error) {
       setAskState({
         loading: false,
-        error: getApiErrorMessage(error, 'Could not create an answer.'),
+        error: getApiErrorMessage(
+          error,
+          'An answer could not be created. Please try again.',
+        ),
         pendingQuestion: '',
       });
     }
@@ -390,7 +419,12 @@ const DocumentViewer = () => {
       setAskHistoryError('');
       setAskHistoryLoaded(true);
     } catch (error) {
-      setAskHistoryError(getApiErrorMessage(error, 'Could not clear Q&A history.'));
+      setAskHistoryError(
+        getApiErrorMessage(
+          error,
+          'Q&A history could not be cleared. Please try again.',
+        ),
+      );
     } finally {
       setAskHistoryLoading(false);
     }
@@ -407,7 +441,12 @@ const DocumentViewer = () => {
       setNoteContent('');
       setNoteError('');
     } catch (error) {
-      setNoteError(getApiErrorMessage(error, 'Could not save study note.'));
+      setNoteError(
+        getApiErrorMessage(
+          error,
+          'The study note could not be saved. Please try again.',
+        ),
+      );
     } finally {
       setNoteSaving(false);
     }
@@ -427,7 +466,12 @@ const DocumentViewer = () => {
       setEditingNoteContent('');
       setNoteError('');
     } catch (error) {
-      setNoteError(getApiErrorMessage(error, 'Could not update study note.'));
+      setNoteError(
+        getApiErrorMessage(
+          error,
+          'The study note could not be updated. Please try again.',
+        ),
+      );
     } finally {
       setNoteSaving(false);
     }
@@ -442,7 +486,12 @@ const DocumentViewer = () => {
       setStudyNotes((current) => current.filter((note) => note.id !== noteId));
       setNoteError('');
     } catch (error) {
-      setNoteError(getApiErrorMessage(error, 'Could not delete study note.'));
+      setNoteError(
+        getApiErrorMessage(
+          error,
+          'The study note could not be deleted. Please try again.',
+        ),
+      );
     } finally {
       setNoteSaving(false);
     }

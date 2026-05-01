@@ -1,11 +1,20 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 export class UpdateFolderByIdDto {
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'Folder name must be text.' })
+  @IsNotEmpty({ message: 'Folder name is required.' })
+  @MaxLength(80, {
+    message: 'Folder name cannot be longer than 80 characters.',
+  })
   name: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('4', { message: 'Parent folder id must be valid.' })
   parentId?: string;
 }

@@ -1,51 +1,55 @@
 # StudyVault Frontend
 
-React + Vite frontend for the StudyVault final project. This is the production-facing client that talks to `studyVault-backend`.
+React + Vite frontend cho StudyVault. Frontend gọi backend qua `VITE_API_BASE_URL`, quản lý workspace tài liệu, document viewer, authentication UI, profile, favorites và admin dashboard.
 
-## Product Scope
+## Tech Stack
 
-The current frontend covers the main defense flow:
+- React 19
+- Vite
+- React Router
+- Tailwind CSS
+- Axios
+- Motion
+- Lucide icons
 
-- auth: login, register, forgot password, reset password
-- protected workspace shell
-- folder/document CRUD
-- favorites
-- server-side search, filter, sort, and pagination
-- document detail with preview fallback and AI summary
+## Cách Chạy Frontend
 
-Mindmap is no longer part of the production flow.
+Frontend có thể chạy theo hai kiểu:
 
-## Quick Start
+1. Chạy trong Docker Compose cùng backend/database.
+2. Chạy local trực tiếp bằng `npm run dev`.
 
-```bash
+Nếu chạy full Docker, dùng hướng dẫn ở root [README.md](../README.md).
+
+## Chạy Local
+
+Backend cần chạy sẵn tại `http://localhost:8000/api`, có thể là backend local hoặc backend trong Docker.
+
+```powershell
+copy .env.local.example .env
 npm install
-cp .env.example .env
 npm run dev
 ```
 
-Default dev server: `http://localhost:5173`
+Frontend mặc định chạy tại:
 
-## Environment Variables
+- `http://localhost:3000`
 
-Copy [`.env.example`](/D:/S2026/iws/projectfinal/studyVault-frontend/.env.example).
+Env local mặc định:
 
-- `VITE_API_BASE_URL`: backend base URL, default `http://localhost:8000/api`
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+```
 
 ## Useful Scripts
 
-```bash
+```powershell
 npm run dev
 npm run lint
+npm test
 npm run build
 npm run preview
 ```
-
-## Architecture Notes
-
-- Visual direction follows `frontendthaythe/studyvault`
-- Frontend rules follow `QUY_TAC_FRONTEND.md`
-- Product name in the UI is `StudyVault`
-- Auth/session UX, error boundary, and redirect handling were polished in Phase 7
 
 ## Main Routes
 
@@ -59,6 +63,15 @@ npm run preview
 - `/app/documents/:id`
 - `/profile`
 
-## Build Status
+## Auth/Session Notes
 
-`npm run lint` and `npm run build` both pass on the current Phase 8 state.
+- Access token được giữ trong memory, không lưu trong localStorage.
+- Refresh token nằm trong HttpOnly cookie do backend set.
+- Refresh/logout gửi `X-CSRF-Token` theo yêu cầu backend.
+- Khi reload trang, frontend có thể rehydrate access token bằng refresh cookie + CSRF token nếu session còn hợp lệ.
+
+## Demo Notes
+
+- Nếu AI quota hết, phần upload và xem document vẫn nên hoạt động.
+- Nếu register không nhận email, kiểm tra SMTP config ở backend.
+- Admin dashboard cần backend bootstrap admin bằng `ADMIN_EMAILS` và `ADMIN_BOOTSTRAP_PASSWORD`.

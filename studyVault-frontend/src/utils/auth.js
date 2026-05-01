@@ -1,28 +1,21 @@
-const TOKEN_KEY = 'token';
-const AUTH_NOTICE_KEY = 'auth_notice';
-const AUTH_REDIRECT_KEY = 'auth_redirect_path';
+const TOKEN_KEY = "token";
+const CSRF_TOKEN_KEY = "csrf_token";
+const CSRF_TOKEN_COOKIE_NAME = "studyvault_csrf_token";
+const AUTH_NOTICE_KEY = "auth_notice";
+const AUTH_REDIRECT_KEY = "auth_redirect_path";
 const AUTH_ROUTE_PREFIXES = [
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
 ];
-
-const canUseStorage = () => {
-  try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined'
-    );
-  } catch {
-    return false;
-  }
-};
+let accessToken = null;
+let csrfTokenMemory = null;
 
 const decodeBase64Url = (value) => {
   try {
-    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
     return JSON.parse(atob(padded));
   } catch {
     return null;
@@ -36,7 +29,7 @@ const getTokenPayload = () => {
     return null;
   }
 
-  const [, payload] = token.split('.');
+  const [, payload] = token.split(".");
 
   if (!payload) {
     return null;
@@ -48,8 +41,8 @@ const getTokenPayload = () => {
 const canUseSessionStorage = () => {
   try {
     return (
-      typeof window !== 'undefined' &&
-      typeof window.sessionStorage !== 'undefined'
+      typeof window !== "undefined" &&
+      typeof window.sessionStorage !== "undefined"
     );
   } catch {
     return false;
@@ -60,43 +53,75 @@ export const isTokenExpired = () => {
   const payload = getTokenPayload();
 
   if (!payload?.exp) {
-    return false;
+    return true;
   }
 
   return payload.exp * 1000 <= Date.now();
 };
 
 export const setToken = (token) => {
-  if (!canUseStorage()) {
-    return;
-  }
+  accessToken = typeof token === "string" && token.trim() ? token : null;
 
   try {
-    window.localStorage.setItem(TOKEN_KEY, token);
+    window.localStorage?.removeItem(TOKEN_KEY);
   } catch {
-    // Ignore browser storage failures and fall back to unauthenticated mode.
+    // Ignore browser storage failures and keep token memory-only.
   }
 };
 
 export const getToken = () => {
-  if (!canUseStorage()) {
-    return null;
-  }
-
-  try {
-    return window.localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return accessToken;
 };
 
 export const clearToken = () => {
-  if (!canUseStorage()) {
-    return;
-  }
+  accessToken = null;
 
   try {
-    window.localStorage.removeItem(TOKEN_KEY);
+    window.localStorage?.removeItem(TOKEN_KEY);
+  } catch {
+    // Ignore browser storage failures and keep the app responsive.
+  }
+};
+
+const getCookieValue = (cookieName) => {
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return (
+    document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith(`${cookieName}=`))
+      ?.slice(`${cookieName}=`.length) || null
+  );
+};
+
+export const setCsrfToken = (csrfToken) => {
+  csrfTokenMemory =
+    typeof csrfToken === "string" && csrfToken.trim() ? csrfToken : null;
+
+  try {
+    window.localStorage?.removeItem(CSRF_TOKEN_KEY);
+  } catch {
+    // Ignore browser storage failures; cookie fallback may still be available.
+  }
+};
+
+export const getCsrfToken = () => {
+  if (csrfTokenMemory) {
+    return csrfTokenMemory;
+  }
+
+  const csrfCookie = getCookieValue(CSRF_TOKEN_COOKIE_NAME);
+  return csrfCookie ? decodeURIComponent(csrfCookie) : null;
+};
+
+export const clearCsrfToken = () => {
+  csrfTokenMemory = null;
+
+  try {
+    window.localStorage?.removeItem(CSRF_TOKEN_KEY);
   } catch {
     // Ignore browser storage failures and keep the app responsive.
   }
@@ -105,16 +130,11 @@ export const clearToken = () => {
 export const isAuthenticated = () => {
   const token = getToken();
 
-  if (!token) {
-    return false;
+  if (token && !isTokenExpired()) {
+    return true;
   }
 
-  if (isTokenExpired()) {
-    clearToken();
-    return false;
-  }
-
-  return true;
+  return Boolean(getCsrfToken());
 };
 
 export const getRoleFromToken = () => {
@@ -129,7 +149,7 @@ export const getUserIdFromToken = () => {
   return payload?.sub || payload?.userId || null;
 };
 
-export const isAuthRoutePath = (pathname = '') =>
+export const isAuthRoutePath = (pathname = "") =>
   AUTH_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 export const setAuthNotice = (message) => {
@@ -139,11 +159,11 @@ export const setAuthNotice = (message) => {
 
   try {
     const payload =
-      typeof message === 'string'
-        ? { message, tone: 'info' }
+      typeof message === "string"
+        ? { message, tone: "info" }
         : {
-            message: message?.message || '',
-            tone: message?.tone || 'info',
+            message: message?.message || "",
+            tone: message?.tone || "info",
           };
     window.sessionStorage.setItem(AUTH_NOTICE_KEY, JSON.stringify(payload));
   } catch {
@@ -157,7 +177,7 @@ export const consumeAuthNotice = () => {
   }
 
   try {
-    const rawValue = window.sessionStorage.getItem(AUTH_NOTICE_KEY) || '';
+    const rawValue = window.sessionStorage.getItem(AUTH_NOTICE_KEY) || "";
     window.sessionStorage.removeItem(AUTH_NOTICE_KEY);
 
     if (!rawValue) {
@@ -165,13 +185,16 @@ export const consumeAuthNotice = () => {
     }
 
     const parsedValue = JSON.parse(rawValue);
-    if (typeof parsedValue?.message !== 'string' || !parsedValue.message.trim()) {
+    if (
+      typeof parsedValue?.message !== "string" ||
+      !parsedValue.message.trim()
+    ) {
       return null;
     }
 
     return {
       message: parsedValue.message,
-      tone: parsedValue.tone || 'info',
+      tone: parsedValue.tone || "info",
     };
   } catch {
     return null;
@@ -197,41 +220,43 @@ export const setAuthRedirectPath = (value) => {
 
 export const consumeAuthRedirectPath = () => {
   if (!canUseSessionStorage()) {
-    return '';
+    return "";
   }
 
   try {
-    const value = window.sessionStorage.getItem(AUTH_REDIRECT_KEY) || '';
+    const value = window.sessionStorage.getItem(AUTH_REDIRECT_KEY) || "";
     window.sessionStorage.removeItem(AUTH_REDIRECT_KEY);
     return value;
   } catch {
-    return '';
+    return "";
   }
 };
 
 export const expireSession = ({
-  message = 'Your session expired. Please sign in again.',
-  redirectPath = '',
+  message = "Your session expired. Please sign in again.",
+  redirectPath = "",
 } = {}) => {
   clearToken();
+  clearCsrfToken();
   setAuthNotice({
     message,
-    tone: 'info',
+    tone: "info",
   });
   setAuthRedirectPath(redirectPath);
 };
 
 export const logout = ({
-  message = 'You signed out successfully.',
+  message = "You signed out successfully.",
   announce = true,
 } = {}) => {
   clearToken();
-  setAuthRedirectPath('');
+  clearCsrfToken();
+  setAuthRedirectPath("");
 
   if (announce) {
     setAuthNotice({
       message,
-      tone: 'info',
+      tone: "info",
     });
   }
 };

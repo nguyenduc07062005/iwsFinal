@@ -203,7 +203,12 @@ const UploadModal = ({
       );
       onClose();
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Upload failed.'));
+      setError(
+        getApiErrorMessage(
+          err,
+          'The document could not be uploaded. Please check the file and try again.',
+        ),
+      );
     } finally {
       setIsUploading(false);
     }
@@ -279,7 +284,12 @@ const UploadModal = ({
       setNewTagName('');
       setNewTagColor('#9b3f36');
     } catch (err) {
-      setTagError(getApiErrorMessage(err, 'Could not create tag.'));
+      setTagError(
+        getApiErrorMessage(
+          err,
+          'The tag could not be created. Please check the name and try again.',
+        ),
+      );
     } finally {
       setIsTagMutating(false);
     }
@@ -306,7 +316,12 @@ const UploadModal = ({
         setTagPickerValue('');
       }
     } catch (err) {
-      setTagError(getApiErrorMessage(err, 'Could not delete tag.'));
+      setTagError(
+        getApiErrorMessage(
+          err,
+          'The tag could not be deleted. Please refresh and try again.',
+        ),
+      );
     } finally {
       setIsTagMutating(false);
     }

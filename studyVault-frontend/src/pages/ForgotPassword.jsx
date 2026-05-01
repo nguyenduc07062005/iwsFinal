@@ -38,7 +38,10 @@ const ForgotPassword = () => {
       toast.success('Please check your email to reset your password.');
     } catch (requestError) {
       setError(
-        getApiErrorMessage(requestError, 'Could not start password recovery. Please try again.'),
+        getApiErrorMessage(
+          requestError,
+          'Password recovery could not be started. Please check the email and try again.',
+        ),
       );
     } finally {
       setIsSubmitting(false);

@@ -1,43 +1,75 @@
 # StudyVault
 
-StudyVault là project cuối kỳ môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng cho phép đăng ký, xác thực email, đăng nhập tài khoản, tổ chức tài liệu theo thư mục, tải tệp lên, tìm kiếm tài liệu theo nhiều tiêu chí, đánh dấu yêu thích, xem chi tiết tài liệu, sinh tóm tắt AI, và hỏi đáp theo ngữ cảnh tài liệu.
+StudyVault là final project môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng hỗ trợ đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, upload tài liệu, xem tài liệu, tìm kiếm/lọc/sắp xếp, ghi chú học tập, tóm tắt bằng AI và hỏi đáp theo nội dung tài liệu.
 
-Repo này đã được dọn lại để chỉ giữ những phần phục vụ sản phẩm thật:
+## Tổng Quan Hệ Thống
 
-- `studyVault-backend`: NestJS REST API
-- `studyVault-frontend`: React + Vite frontend
-- `PROJECT_PROPOSAL.md`: tài liệu giới thiệu và hướng dẫn đọc hiểu dự án
-- `QUY_TAC_FRONTEND.md`: quy tắc giao diện và coding cho frontend
+StudyVault có thể chạy theo hai hướng:
 
-## Scope Hiện Tại
+- **Full Docker**: frontend, backend, database đều chạy trong Docker Compose.
+- **Local dev**: frontend/backend chạy trực tiếp trên máy dev, database có thể là PostgreSQL local hoặc chỉ chạy riêng service database bằng Docker.
 
-StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp theo rubric:
+Khi chạy bằng Docker Compose, hệ thống gồm ba service chính:
 
-- đăng ký bằng tên/email, xác thực email rồi mới đặt mật khẩu, đăng nhập, quên mật khẩu, đặt lại mật khẩu
-- route bảo vệ theo phiên đăng nhập
-- CRUD thư mục
-- CRUD tài liệu
-- tải tệp `PDF`, `DOCX`, `TXT`
-- tìm kiếm, lọc, sắp xếp, phân trang từ backend
-- đánh dấu yêu thích
-- xem chi tiết tài liệu
-- sinh tóm tắt AI
-- hỏi đáp theo nội dung tài liệu
+- `studyVault-frontend`: React + Vite frontend.
+- `studyVault-backend`: NestJS REST API.
+- `database`: PostgreSQL kèm pgvector để lưu dữ liệu và embedding.
 
-`Mindmap` không còn là một phần của flow frontend production.
+Các tài liệu nộp final project nằm trong thư mục `docs/`. Bản chính tiếng Việt:
 
-## Cấu Trúc Repo
+- [docs/final-project-submission.vi.md](./docs/final-project-submission.vi.md)
 
-```text
-.
-├── studyVault-backend/          # API, database, auth, document/folder logic, AI services
-├── studyVault-frontend/         # client React gọi API backend
-├── PROJECT_PROPOSAL.md   # tài liệu mô tả project chi tiết cho team
-├── QUY_TAC_FRONTEND.md   # quy tắc UI/frontend
-└── README.md
-```
+## Chức Năng Chính
 
-## Công Nghệ Chính
+### Authentication và Security
+
+- Đăng ký bằng tên và email.
+- Xác thực email trước khi đặt mật khẩu.
+- Đăng nhập bằng email/password.
+- Access token ngắn hạn, mặc định `15m`.
+- Access token chỉ lưu trong memory phía frontend.
+- Refresh token nằm trong HttpOnly cookie.
+- Refresh/logout dùng CSRF token qua header `X-CSRF-Token`.
+- Forgot password và reset password.
+- Password policy tối thiểu 12 ký tự và có yêu cầu độ phức tạp.
+- Logout hiện tại và logout tất cả phiên.
+- Public registration chỉ tạo tài khoản role `user`.
+- Admin được tạo bằng bootstrap qua `ADMIN_EMAILS` và `ADMIN_BOOTSTRAP_PASSWORD`.
+- Admin không được khóa chính mình hoặc khóa admin khác.
+- Admin actions được ghi audit log.
+
+### Document Workspace
+
+- Upload tài liệu `PDF`, `DOCX`, `TXT`.
+- Giới hạn file upload mặc định `10MB`.
+- Validate file type, filename, kích thước và nội dung đọc được.
+- Upload document không phụ thuộc AI quota: file vẫn được lưu và xem được nếu AI indexing lỗi.
+- Danh sách document có pagination/filter/sort.
+- Xem chi tiết document và protected file preview.
+- Đổi tên, xóa, đánh dấu yêu thích.
+- Folder CRUD và move folder.
+- Tag CRUD và gán tag cho document.
+- Study notes theo từng document.
+- Tìm kiếm tài liệu và tài liệu liên quan.
+
+### AI / RAG
+
+- Background indexing sau khi upload.
+- Hỏi đáp theo nội dung document.
+- Lịch sử hỏi đáp.
+- Sinh tóm tắt.
+- Mind map / diagram endpoints.
+- Nếu `GEMINI_API_KEY` hết quota hoặc chưa cấu hình, upload và xem document vẫn hoạt động.
+
+### Admin
+
+- Danh sách users.
+- Khóa/mở khóa user thường.
+- Audit logs cho hành động admin.
+- Dashboard stats.
+- LLM diagnostic endpoints chỉ dành cho admin.
+
+## Công Nghệ
 
 ### Frontend
 
@@ -47,124 +79,311 @@ StudyVault đang tập trung vào các chức năng ăn điểm trực tiếp th
 - Tailwind CSS
 - Axios
 - Motion
+- Lucide icons
 
 ### Backend
 
 - NestJS
 - TypeORM
 - PostgreSQL
-- JWT Authentication
+- pgvector
+- JWT authentication
 - class-validator / class-transformer
+- Nodemailer
+- Helmet
 
-### AI / Xử Lý Tài Liệu
+### AI và Xử Lý File
 
 - Google Gemini
 - `pdf-parse`
 - `mammoth`
-- chunking + retrieval pipeline phục vụ summary và ask-document
+- chunking + retrieval pipeline
 
-## Luồng Người Dùng Chính
+## Cấu Trúc Project
 
-1. Người dùng nhập tên/email, mở link email để đặt mật khẩu, rồi đăng nhập.
-2. Hệ thống đưa vào màn `Không gian` tại `/app`.
-3. Người dùng tạo thư mục hoặc chọn thư mục có sẵn.
-4. Người dùng tải tài liệu lên backend.
-5. Tài liệu xuất hiện trong danh sách theo phân trang server-side.
-6. Người dùng tìm kiếm, lọc, sắp xếp, đổi tên, di chuyển, xóa, hoặc đánh dấu yêu thích.
-7. Khi mở chi tiết tài liệu, người dùng có thể xem preview, metadata, summary, và hỏi đáp theo tài liệu.
+```text
+.
+├── studyVault-backend/        # NestJS API, auth, database, document, folder, tag, RAG, admin
+├── studyVault-frontend/       # React + Vite frontend
+├── docs/                      # Tài liệu nộp, security, authorization, demo runbook
+├── scripts/                   # Script hỗ trợ demo/readiness
+├── docker-compose.yml         # Docker development stack
+├── docker-compose.prod.yml    # Production-like Docker stack
+├── docker.env.example         # Env mẫu cho Docker development
+├── studyVault-backend/.env.example                 # Env mẫu backend local với PostgreSQL local
+├── studyVault-backend/.env.local-docker-db.example # Env mẫu backend local với database Docker
+├── studyVault-frontend/.env.example                # Env mẫu frontend
+├── studyVault-frontend/.env.local.example          # Env mẫu frontend local
+└── README.md
+```
 
-## Chạy Project Local
+## Hai Hướng Chạy Project
 
-### 1. Backend
+Bạn có thể chọn một trong hai hướng tùy thói quen dev.
+
+| Hướng chạy | Phù hợp khi | Database host backend dùng |
+| --- | --- | --- |
+| Full Docker | Muốn setup nhanh, ít phụ thuộc môi trường máy | `database:5432` bên trong Docker network |
+| Local dev | Muốn debug frontend/backend trực tiếp bằng IDE | `localhost:5432` nếu dùng PostgreSQL local, hoặc `localhost:15432` nếu dùng database service từ Docker |
+
+## Hướng 1: Full Docker
+
+Hướng này chạy toàn bộ frontend, backend, database bằng Docker Compose từ thư mục root.
+
+### 1. Tạo file môi trường
 
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-backend
-npm install
+copy docker.env.example .env
+```
+
+Nếu chỉ cần chạy thử giao diện và API cơ bản, có thể giữ phần lớn giá trị mặc định.
+
+Nếu muốn demo email verification thật, cấu hình:
+
+```env
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-gmail-app-password
+MAIL_FROM="StudyVault <your-email@gmail.com>"
+```
+
+Nếu muốn demo AI summary/Q&A, cấu hình:
+
+```env
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+Nếu muốn có admin account khi chạy sạch database, cấu hình:
+
+```env
+ADMIN_EMAILS=admin@example.com
+ADMIN_BOOTSTRAP_PASSWORD=Admin#12345678
+```
+
+`ADMIN_BOOTSTRAP_PASSWORD` cần tối thiểu 12 ký tự và có chữ hoa, chữ thường, số, ký tự đặc biệt.
+
+### 2. Start hệ thống
+
+```powershell
+docker compose up --build
+```
+
+Sau khi các container chạy:
+
+- Frontend: `http://localhost:3000`
+- Backend API: `http://localhost:8000/api`
+- Backend health: `http://localhost:8000/api/health`
+- API docs: `http://localhost:8000/api/docs` nếu `SWAGGER_ENABLED=true`
+- PostgreSQL: `localhost:15432`
+
+Compose sẽ tự chạy migration trước khi start backend. Database và uploads được lưu trong Docker volumes.
+
+### 3. Kiểm tra readiness trước demo
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-readiness.ps1
+```
+
+Script này kiểm tra:
+
+- Docker Compose có đọc được trạng thái service không.
+- Backend `/api/health` có trả `ok` và database có sẵn sàng không.
+- Frontend có mở được không.
+
+## Các Lệnh Docker Hữu Ích
+
+```powershell
+docker compose ps
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose down
+```
+
+Chạy lại migration thủ công:
+
+```powershell
+docker compose exec backend npm run migration:run
+```
+
+Xóa sạch database/upload volumes để demo lại từ đầu:
+
+```powershell
+docker compose down -v
+```
+
+## Hướng 2: Local Dev
+
+Hướng này chạy backend/frontend trực tiếp trên máy dev. Database có hai lựa chọn.
+
+### Lựa chọn database A: Dùng PostgreSQL local
+
+Cần cài PostgreSQL kèm extension `pgvector`, tạo database `studyvault_iws`, rồi dùng env local mặc định:
+
+```powershell
+cd studyVault-backend
 copy .env.example .env
+```
+
+Trong trường hợp này backend kết nối:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+```
+
+### Lựa chọn database B: Chỉ chạy database bằng Docker
+
+Nếu không muốn cài PostgreSQL/pgvector trực tiếp trên máy, có thể chỉ start service database:
+
+```powershell
+docker compose up -d database
+```
+
+Sau đó dùng env mẫu dành riêng cho backend local kết nối vào database container qua port expose `15432`:
+
+```powershell
+cd studyVault-backend
+copy .env.local-docker-db.example .env
+```
+
+Trong trường hợp này backend kết nối:
+
+```env
+DATABASE_HOST=localhost
+DATABASE_PORT=15432
+```
+
+### Chạy backend local
+
+```powershell
+cd studyVault-backend
+npm install
 npm run migration:run
 npm run start:dev
 ```
 
-Backend mặc định chạy tại:
+Backend chạy tại:
 
 - `http://localhost:8000/api`
+- `http://localhost:8000/api/health`
+- `http://localhost:8000/api/docs` nếu `SWAGGER_ENABLED=true`
 
-### 2. Frontend
+### Chạy frontend local
+
+Mở terminal khác:
 
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-frontend
+cd studyVault-frontend
 npm install
-copy .env.example .env
+copy .env.local.example .env
 npm run dev
 ```
 
-Frontend mặc định chạy tại:
+Frontend chạy tại:
 
 - `http://localhost:3000`
 
+### Kiểm tra readiness khi chạy local
+
+Khi backend và frontend local đã chạy:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\demo-readiness.ps1 -SkipDocker
+```
+
+## Luồng Demo Khuyến Nghị
+
+1. Mở `http://localhost:3000`.
+2. Register user mới bằng tên và email.
+3. Mở email verification và hoàn tất đặt mật khẩu.
+4. Login.
+5. Upload file `PDF`, `DOCX`, hoặc `TXT`.
+6. Mở document viewer để xem file.
+7. Demo filter/sort/tag/folder/favorite/download.
+8. Demo summary hoặc Q&A nếu `GEMINI_API_KEY` còn quota.
+9. Giải thích rằng upload/view vẫn hoạt động nếu AI quota hết.
+10. Login bằng admin account.
+11. Xem users, lock/unlock user thường, và audit logs.
+12. Logout và refresh page để chứng minh session được xóa.
+
+Runbook chi tiết:
+
+- [docs/demo-runbook.md](./docs/demo-runbook.md)
+
 ## Biến Môi Trường Quan Trọng
 
-### Backend
+### Backend / Docker
 
-Xem mẫu tại [studyVault-backend/.env.example](/D:/S2026/iws/projectfinal/studyVault-backend/.env.example)
-
-- `PORT`
-- `CORS_ORIGIN`
-- `FRONTEND_URL`
-- `DATABASE_HOST`
-- `DATABASE_PORT`
-- `DATABASE_USERNAME`
-- `DATABASE_PASSWORD`
-- `DATABASE_NAME`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN`
-- `EMAIL_VERIFICATION_TTL_MINUTES`
-- `RESET_PASSWORD_TTL_MINUTES`
-- `AUTH_RETURN_RESET_TOKEN`
-- `SMTP_HOST`
-- `SMTP_PORT`
-- `SMTP_SECURE`
-- `SMTP_USER`
-- `SMTP_PASS`
-- `MAIL_FROM`
-- `GEMINI_API_KEY`
-
-Email verification và forgot password đều gửi email thật qua Gmail SMTP. Để demo flow này, bật 2-Step Verification cho Gmail, tạo App Password, rồi đặt `SMTP_USER` và `SMTP_PASS` trong `studyVault-backend/.env`. Không bật `AUTH_RETURN_RESET_TOKEN=true` khi demo chấm điểm vì chế độ đó chỉ dành cho test local.
-
-### Frontend
-
-Xem mẫu tại [studyVault-frontend/.env.example](/D:/S2026/iws/projectfinal/studyVault-frontend/.env.example)
-
-- `VITE_API_BASE_URL`
-
-## Kiểm Tra Nhanh Trước Khi Demo
-
-### Backend
-
-```powershell
-cd D:\S2026\iws\projectfinal\studyVault-backend
-npm run build
-npm run test:e2e -- --runInBand
-```
+| Biến | Ý nghĩa |
+| --- | --- |
+| `PORT` | Port backend trong container |
+| `CORS_ORIGIN` | Danh sách origin frontend được phép gọi API |
+| `FRONTEND_URL` | URL frontend để tạo link email |
+| `DATABASE_HOST` | Host database |
+| `DATABASE_PORT` | Port database |
+| `DATABASE_USERNAME` | User database |
+| `DATABASE_PASSWORD` | Password database |
+| `DATABASE_NAME` | Tên database |
+| `JWT_SECRET` | Secret ký JWT |
+| `JWT_EXPIRES_IN` | Thời gian sống access token, mặc định `15m` |
+| `REFRESH_TOKEN_TTL_DAYS` | Thời gian sống refresh session |
+| `AUTH_RETURN_RESET_TOKEN` | Chỉ dùng local/test, không bật khi demo production-like |
+| `ADMIN_EMAILS` | Danh sách email admin bootstrap |
+| `ADMIN_BOOTSTRAP_PASSWORD` | Password ban đầu cho admin bootstrap |
+| `SWAGGER_ENABLED` | Bật/tắt API docs |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE` | Cấu hình SMTP |
+| `SMTP_USER`, `SMTP_PASS` | Tài khoản SMTP |
+| `MAIL_FROM` | Sender email |
+| `GEMINI_API_KEY` | API key cho AI features |
+| `GEMINI_TEXT_MODEL` | Model sinh text chính |
+| `GEMINI_TEXT_MODEL_FALLBACKS` | Danh sách model fallback |
+| `GEMINI_EMBEDDING_MODEL` | Model embedding |
 
 ### Frontend
 
+| Biến | Ý nghĩa |
+| --- | --- |
+| `VITE_API_BASE_URL` | Base URL backend API, mặc định `http://localhost:8000/api` |
+
+## Kiểm Tra Trước Khi Nộp
+
+Backend:
+
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-frontend
+cd studyVault-backend
 npm run lint
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
 npm run build
 ```
 
-## Tài Liệu Dành Cho Team
+Frontend:
 
-Nếu team cần một bản mô tả đầy đủ hơn về mục tiêu, kiến trúc, chức năng, luồng dữ liệu, và cách chia module, đọc file:
+```powershell
+cd studyVault-frontend
+npm run lint
+npm test
+npm run build
+```
 
-- [PROJECT_PROPOSAL.md](/D:/S2026/iws/projectfinal/PROJECT_PROPOSAL.md)
+Docker config:
 
-## Ghi Chú
+```powershell
+docker compose config --quiet
+```
 
-- Repo đã được dọn để bỏ các thư mục planning cũ và các file frontend mẫu không còn dùng.
-- Landing page marketing không còn là route thật của app.
-- Route `/` hiện chỉ dùng để điều hướng:
-  - đã đăng nhập -> `/app`
-  - chưa đăng nhập -> `/login`
+## Tài Liệu Quan Trọng
+
+- [docs/final-project-submission.vi.md](./docs/final-project-submission.vi.md): bản nộp chính tiếng Việt.
+- [docs/authorization-matrix.md](./docs/authorization-matrix.md): ma trận phân quyền chi tiết.
+- [docs/security-architecture-and-demo.md](./docs/security-architecture-and-demo.md): kiến trúc security và evidence map.
+- [docs/demo-runbook.md](./docs/demo-runbook.md): checklist demo.
+- [docs/production-deployment.md](./docs/production-deployment.md): ghi chú Docker production-like.
+- [docs/README.md](./docs/README.md): index tài liệu.
+
+## Ghi Chú Trạng Thái Hiện Tại
+
+- CORS đã allow `X-CSRF-Token`, nên refresh/logout dùng CSRF hoạt động với browser thật.
+- Upload document đã validate folder/tag trước side effect và dùng transaction/cleanup để tránh dữ liệu mồ côi.
+- Admin bootstrap đã có cơ chế sạch, không cần thao tác database thủ công.
+- Swagger/API docs không còn bật vô điều kiện trong production-like; dùng `SWAGGER_ENABLED`.
+- Dependency audit backend còn cảnh báo transitive `typeorm -> uuid`. Không dùng `npm audit fix --force` vì sẽ kéo TypeORM xuống nhánh cũ không phù hợp.

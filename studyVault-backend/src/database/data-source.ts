@@ -10,6 +10,8 @@ import { DocumentAskHistory } from './entities/document-ask-history.entity';
 import { StudyNote } from './entities/study-note.entity';
 import { Tag } from './entities/tag.entity';
 import { UserDocumentTag } from './entities/user-document-tag.entity';
+import { AdminAuditLog } from './entities/admin-audit-log.entity';
+import { UserSession } from './entities/user-session.entity';
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -30,6 +32,8 @@ export const AppDataSource = new DataSource({
     Tag,
     UserDocumentTag,
     StudyNote,
+    AdminAuditLog,
+    UserSession,
   ],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'migrations',

@@ -10,12 +10,16 @@ import { DocumentAskHistory } from './entities/document-ask-history.entity';
 import { StudyNote } from './entities/study-note.entity';
 import { Tag } from './entities/tag.entity';
 import { UserDocumentTag } from './entities/user-document-tag.entity';
+import { AdminAuditLog } from './entities/admin-audit-log.entity';
+import { UserSession } from './entities/user-session.entity';
 import { UserRepository } from './repositories/user.repository';
 import { DocumentRepository } from './repositories/document.repository';
 import { ChunkRepository } from './repositories/chunks.repository';
 import { UserDocumentRepository } from './repositories/user-document.repository';
 import { FolderRepository } from './repositories/folder.repository';
 import { DocumentAskHistoryRepository } from './repositories/document-ask-history.repository';
+import { AdminAuditLogRepository } from './repositories/admin-audit-log.repository';
+import { UserSessionRepository } from './repositories/user-session.repository';
 
 @Global()
 @Module({
@@ -41,6 +45,8 @@ import { DocumentAskHistoryRepository } from './repositories/document-ask-histor
           Tag,
           UserDocumentTag,
           StudyNote,
+          AdminAuditLog,
+          UserSession,
         ],
         synchronize:
           (config.get<string>('DATABASE_SYNC') ?? 'false') === 'true',
@@ -57,6 +63,8 @@ import { DocumentAskHistoryRepository } from './repositories/document-ask-histor
       Tag,
       UserDocumentTag,
       StudyNote,
+      AdminAuditLog,
+      UserSession,
     ]),
   ],
   providers: [
@@ -66,6 +74,8 @@ import { DocumentAskHistoryRepository } from './repositories/document-ask-histor
     UserDocumentRepository,
     FolderRepository,
     DocumentAskHistoryRepository,
+    AdminAuditLogRepository,
+    UserSessionRepository,
   ],
   exports: [
     TypeOrmModule,
@@ -75,6 +85,8 @@ import { DocumentAskHistoryRepository } from './repositories/document-ask-histor
     UserDocumentRepository,
     FolderRepository,
     DocumentAskHistoryRepository,
+    AdminAuditLogRepository,
+    UserSessionRepository,
   ],
 })
 export class DatabaseModule {}

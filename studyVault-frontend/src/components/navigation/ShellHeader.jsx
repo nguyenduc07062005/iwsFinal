@@ -1,15 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Library, Star, UserRound, Plus, LogOut, ShieldCheck } from 'lucide-react';
-import { motion } from 'motion/react';
-import { cn } from '@/lib/utils.js';
-import { getProfile } from '../../service/authAPI.js';
-import { logout } from '../../utils/auth.js';
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  Library,
+  Star,
+  UserRound,
+  Plus,
+  LogOut,
+  ShieldCheck,
+} from "lucide-react";
+import { motion } from "motion/react";
+import { cn } from "@/lib/utils.js";
+import { getProfile, postLogout } from "../../service/authAPI.js";
+import { logout } from "../../utils/auth.js";
 
 const NAV_LINKS = [
-  { name: 'Library', path: '/app', icon: Library, end: true },
-  { name: 'Favorites', path: '/app/favorites', icon: Star },
-  { name: 'Profile', path: '/profile', icon: UserRound },
+  { name: "Library", path: "/app", icon: Library, end: true },
+  { name: "Favorites", path: "/app/favorites", icon: Star },
+  { name: "Profile", path: "/profile", icon: UserRound },
 ];
 
 const MotionDiv = motion.div;
@@ -25,8 +32,8 @@ const ShellHeader = () => {
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
@@ -40,30 +47,37 @@ const ShellHeader = () => {
       }
     };
     void loadProfile();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   const avatarUrl = useMemo(() => {
-    const seed = encodeURIComponent(profile?.name || profile?.email || 'StudyVault');
+    const seed = encodeURIComponent(
+      profile?.name || profile?.email || "StudyVault",
+    );
     return `https://ui-avatars.com/api/?name=${seed}&background=6366f1&color=ffffff&bold=true`;
   }, [profile]);
 
   const navLinks = useMemo(() => {
-    if (profile?.role !== 'admin') {
+    if (profile?.role !== "admin") {
       return NAV_LINKS;
     }
 
-    return [
-      ...NAV_LINKS,
-      { name: 'Admin', path: '/admin', icon: ShieldCheck },
-    ];
+    return [...NAV_LINKS, { name: "Admin", path: "/admin", icon: ShieldCheck }];
   }, [profile]);
 
-  const handleUploadClick = () => navigate('/app?openUpload=true');
+  const handleUploadClick = () => navigate("/app?openUpload=true");
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await postLogout();
+    } catch {
+      // Local logout still keeps the UI responsive if the session was already gone.
+    }
+
     logout();
-    navigate('/login', { replace: true });
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -71,7 +85,8 @@ const ShellHeader = () => {
       <div
         className={cn(
           "mx-auto flex w-full items-center justify-between rounded-2xl border border-white/40 bg-white/70 px-4 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-300 sm:px-6",
-          isScrolled && "border-brand-100/20 bg-white/90 shadow-lg shadow-brand-500/5 py-2"
+          isScrolled &&
+            "border-brand-100/20 bg-white/90 shadow-lg shadow-brand-500/5 py-2",
         )}
       >
         {/* Left Section: Logo & Nav */}
@@ -88,7 +103,11 @@ const ShellHeader = () => {
           {/* Icon-centric Navigation */}
           <div className="flex items-center gap-1 sm:gap-2">
             {navLinks.map((link) => {
-              const active = isActivePath(location.pathname, link.path, link.end);
+              const active = isActivePath(
+                location.pathname,
+                link.path,
+                link.end,
+              );
               const Icon = link.icon;
               return (
                 <Link
@@ -97,13 +116,13 @@ const ShellHeader = () => {
                   aria-label={link.name}
                   className={cn(
                     "relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 group/nav",
-                    active 
-                      ? "bg-brand-50 text-brand-600 shadow-sm shadow-brand-500/10" 
-                      : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-800"
+                    active
+                      ? "bg-brand-50 text-brand-600 shadow-sm shadow-brand-500/10"
+                      : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-800",
                   )}
                 >
                   <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-                  
+
                   {/* Tooltip */}
                   <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 scale-0 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-medium text-white transition-all group-hover/nav:scale-100">
                     {link.name}
@@ -113,7 +132,11 @@ const ShellHeader = () => {
                     <MotionDiv
                       layoutId="nav-pill"
                       className="absolute inset-0 rounded-xl border-2 border-brand-200/50"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      transition={{
+                        type: "spring",
+                        bounce: 0.2,
+                        duration: 0.6,
+                      }}
                     />
                   )}
                 </Link>
@@ -151,7 +174,7 @@ const ShellHeader = () => {
             </Link>
 
             <button
-              onClick={handleLogout}
+              onClick={() => void handleLogout()}
               aria-label="Sign out"
               className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 active:scale-95"
             >
@@ -160,7 +183,7 @@ const ShellHeader = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Mobile Bottom Nav - keeping it for better mobile UX but keeping top bar as well */}
       <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/40 bg-white/80 px-2 shadow-2xl backdrop-blur-xl md:hidden">
         {navLinks.map((link) => {
@@ -172,11 +195,13 @@ const ShellHeader = () => {
               to={link.path}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-1 px-4 transition-all",
-                active ? "text-brand-600" : "text-slate-400"
+                active ? "text-brand-600" : "text-slate-400",
               )}
             >
               <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">{link.name}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest">
+                {link.name}
+              </span>
               {active && (
                 <MotionDiv
                   layoutId="mobile-nav-pill"

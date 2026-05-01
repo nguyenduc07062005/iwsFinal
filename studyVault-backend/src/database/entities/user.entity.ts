@@ -4,6 +4,7 @@ import { UserDocument } from './user-document.entity';
 import { Folder } from './folder.entity';
 import { StudyNote } from './study-note.entity';
 import { Tag } from './tag.entity';
+import { UserSession } from './user-session.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -82,4 +83,7 @@ export class User extends BaseEntity {
 
   @OneToMany(() => StudyNote, (note) => note.user)
   studyNotes: StudyNote[];
+
+  @OneToMany(() => UserSession, (session) => session.user)
+  sessions: UserSession[];
 }

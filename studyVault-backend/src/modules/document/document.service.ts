@@ -3,6 +3,7 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { DocumentDto } from './dtos/document.dto';
 import { Document } from 'src/database/entities/document.entity';
@@ -23,7 +24,14 @@ import {
 } from './dtos/list-documents.dto';
 import { StudyNoteDto } from './dtos/study-note.dto';
 
-import { DataSource, In, IsNull, SelectQueryBuilder } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  In,
+  IsNull,
+  Repository,
+  SelectQueryBuilder,
+} from 'typeorm';
 
 import * as crypto from 'crypto';
 import { PDFParse } from 'pdf-parse';
@@ -90,6 +98,32 @@ type DocumentListResult = {
   };
 };
 
+const MAX_UPLOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+type UploadTypeConfig = {
+  extensions: readonly string[];
+  mimeTypes: readonly string[];
+};
+
+const SUPPORTED_UPLOAD_TYPES = {
+  pdf: {
+    extensions: ['.pdf'],
+    mimeTypes: ['application/pdf'],
+  },
+  docx: {
+    extensions: ['.docx'],
+    mimeTypes: [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ],
+  },
+  txt: {
+    extensions: ['.txt'],
+    mimeTypes: ['text/plain'],
+  },
+} as const satisfies Record<string, UploadTypeConfig>;
+
+type SupportedUploadType = keyof typeof SUPPORTED_UPLOAD_TYPES;
+
 @Injectable()
 export class DocumentService {
   private readonly logger = new Logger(DocumentService.name);
@@ -110,53 +144,58 @@ export class DocumentService {
     dto: DocumentDto,
     contentHash?: string,
   ): Promise<CreatedDocumentResult> {
-    return this.dataSource.transaction(async (manager) => {
-      // Save the document
-      const document = manager.create(Document, {
-        title: dto.title,
-        metadata: dto.metadata || {},
-        docDate: dto.docDate || undefined,
-        extraAttributes: dto.extraAttributes || {},
-        fileRef: dto.fileRef,
-        fileSize: dto.fileSize,
-        contentHash:
-          contentHash ||
-          this.generateContentHash(Buffer.from(dto.chunks?.join(' ') || '')),
-        status: 'processed',
-      });
+    return this.dataSource.transaction((manager) =>
+      this.createDocumentWithChunks(manager, dto, contentHash),
+    );
+  }
 
-      const savedDocument = await manager.save(Document, document);
-
-      // Create and save chunks
-      const chunks: Chunk[] = (dto.chunks || []).map((chunkText, idx) =>
-        manager.create(Chunk, {
-          documents: [savedDocument],
-          chunkIndex: idx,
-          chunkText: chunkText,
-          tokenCount: chunkText.split(/\s+/).length,
-        }),
-      );
-
-      const savedChunks = await manager.save(Chunk, chunks);
-
-      // Link chunks to document
-      savedDocument.chunks = savedChunks;
-      await manager.save(Document, savedDocument);
-
-      return {
-        id: savedDocument.id,
-        title: savedDocument.title,
-        metadata: savedDocument.metadata,
-        docDate: savedDocument.docDate,
-        extraAttributes: savedDocument.extraAttributes,
-        fileRef: savedDocument.fileRef,
-        contentHash: savedDocument.contentHash,
-        status: savedDocument.status,
-        createdAt: savedDocument.createdAt,
-        updatedAt: savedDocument.updatedAt,
-        chunks: savedDocument.chunks,
-      };
+  private async createDocumentWithChunks(
+    manager: EntityManager,
+    dto: DocumentDto,
+    contentHash?: string,
+  ): Promise<CreatedDocumentResult> {
+    const document = manager.create(Document, {
+      title: dto.title,
+      metadata: dto.metadata || {},
+      docDate: dto.docDate || undefined,
+      extraAttributes: dto.extraAttributes || {},
+      fileRef: dto.fileRef,
+      fileSize: dto.fileSize,
+      contentHash:
+        contentHash ||
+        this.generateContentHash(Buffer.from(dto.chunks?.join(' ') || '')),
+      status: 'ready',
     });
+
+    const savedDocument = await manager.save(Document, document);
+
+    const chunks: Chunk[] = (dto.chunks || []).map((chunkText, idx) =>
+      manager.create(Chunk, {
+        documents: [savedDocument],
+        chunkIndex: idx,
+        chunkText,
+        tokenCount: chunkText.split(/\s+/).length,
+      }),
+    );
+
+    const savedChunks = await manager.save(Chunk, chunks);
+
+    savedDocument.chunks = savedChunks;
+    await manager.save(Document, savedDocument);
+
+    return {
+      id: savedDocument.id,
+      title: savedDocument.title,
+      metadata: savedDocument.metadata,
+      docDate: savedDocument.docDate,
+      extraAttributes: savedDocument.extraAttributes,
+      fileRef: savedDocument.fileRef,
+      contentHash: savedDocument.contentHash,
+      status: savedDocument.status,
+      createdAt: savedDocument.createdAt,
+      updatedAt: savedDocument.updatedAt,
+      chunks: savedDocument.chunks,
+    };
   }
 
   /**
@@ -181,16 +220,10 @@ export class DocumentService {
       ownerId,
     );
     if (userDoc) {
-      throw new BadRequestException('Duplicate file upload');
-    } else {
-      // Different user – link existing document
-      await this.userDocumentRepository.create({
-        user: { id: ownerId },
-        document: { id: existingDoc.id },
-        isFavorite: false,
-      });
-      return existingDoc;
+      throw new BadRequestException('This file is already in your library.');
     }
+
+    return existingDoc;
   }
 
   /**
@@ -221,7 +254,7 @@ export class DocumentService {
       }
       default:
         throw new BadRequestException(
-          `Unsupported file type: ${file.mimetype}`,
+          'Only PDF, DOCX, or TXT files are supported.',
         );
     }
 
@@ -229,10 +262,121 @@ export class DocumentService {
     text = text.split(String.fromCharCode(0)).join('');
 
     if (!text.trim()) {
-      throw new BadRequestException('Unable to extract text from file');
+      throw new BadRequestException(
+        'We could not read any text from this file. Upload a text-based PDF, DOCX, or TXT file; scanned or image-only files are not supported yet.',
+      );
     }
 
     return text;
+  }
+
+  sanitizeOriginalFileName(originalName: string): string {
+    const baseName = path.basename(originalName || 'document.txt');
+    const sanitizedName = baseName
+      .normalize('NFKC')
+      .replace(/[<>:"/\\|?*]+/g, '_')
+      .replaceAll(/./g, (character) =>
+        character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127
+          ? '_'
+          : character,
+      )
+      .replace(/\s+/g, ' ')
+      .replace(/^\.+/, '')
+      .trim()
+      .slice(0, 180);
+
+    return sanitizedName || 'document.txt';
+  }
+
+  validateUploadFile(file: Express.Multer.File): void {
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      throw new BadRequestException(
+        'No readable file was received. Please choose a non-empty PDF, DOCX, or TXT file.',
+      );
+    }
+
+    if (file.size > MAX_UPLOAD_FILE_SIZE_BYTES) {
+      throw new BadRequestException('Maximum file size is 10MB.');
+    }
+
+    const uploadType = this.resolveUploadType(file);
+
+    if (!this.doesFileContentMatchType(file.buffer, uploadType)) {
+      throw new BadRequestException(
+        'The uploaded file content does not match its file type.',
+      );
+    }
+  }
+
+  private resolveUploadType(file: Express.Multer.File): SupportedUploadType {
+    const mimeType = String(file.mimetype || '')
+      .toLowerCase()
+      .split(';')[0]
+      .trim();
+    const extension = path.extname(file.originalname || '').toLowerCase();
+    const typeByMime = this.findUploadTypeBy('mimeTypes', mimeType);
+    const typeByExtension = this.findUploadTypeBy('extensions', extension);
+
+    if (!typeByMime || !typeByExtension || typeByMime !== typeByExtension) {
+      throw new BadRequestException(
+        'Only PDF, DOCX, or TXT files are supported.',
+      );
+    }
+
+    return typeByMime;
+  }
+
+  private findUploadTypeBy(
+    key: keyof UploadTypeConfig,
+    value: string,
+  ): SupportedUploadType | undefined {
+    return (Object.keys(SUPPORTED_UPLOAD_TYPES) as SupportedUploadType[]).find(
+      (uploadType) => {
+        const values: readonly string[] =
+          SUPPORTED_UPLOAD_TYPES[uploadType][key];
+
+        return values.includes(value);
+      },
+    );
+  }
+
+  private doesFileContentMatchType(
+    buffer: Buffer,
+    uploadType: SupportedUploadType,
+  ): boolean {
+    switch (uploadType) {
+      case 'pdf':
+        return buffer.subarray(0, 5).equals(Buffer.from('%PDF-'));
+      case 'docx':
+        return (
+          this.hasZipHeader(buffer) &&
+          buffer.includes(Buffer.from('[Content_Types].xml')) &&
+          buffer.includes(Buffer.from('word/'))
+        );
+      case 'txt':
+        return this.looksLikeText(buffer);
+      default:
+        return false;
+    }
+  }
+
+  private hasZipHeader(buffer: Buffer): boolean {
+    const zipHeaders = [
+      Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+      Buffer.from([0x50, 0x4b, 0x05, 0x06]),
+      Buffer.from([0x50, 0x4b, 0x07, 0x08]),
+    ];
+
+    return zipHeaders.some((header) =>
+      buffer.subarray(0, header.length).equals(header),
+    );
+  }
+
+  private looksLikeText(buffer: Buffer): boolean {
+    return !buffer.some(
+      (byte) =>
+        byte === 0 || (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13),
+    );
   }
 
   private async ensureRootFolder(ownerId: string) {
@@ -251,6 +395,48 @@ export class DocumentService {
     });
   }
 
+  private async resolveTargetFolderId(
+    ownerId: string,
+    folderId?: string,
+  ): Promise<string> {
+    if (!folderId) {
+      return (await this.ensureRootFolder(ownerId)).id;
+    }
+
+    const folder = await this.folderRepository.findOne({
+      where: { id: folderId, ownerId },
+    });
+
+    if (!folder) {
+      throw new BadRequestException(
+        'The selected folder no longer exists or is not available.',
+      );
+    }
+
+    return folder.id;
+  }
+
+  private async replaceUserDocumentTags(
+    documentTagRepository: Repository<UserDocumentTag>,
+    userDocumentId: string,
+    tags: Tag[],
+  ) {
+    await documentTagRepository.delete({ userDocumentId });
+
+    if (tags.length === 0) {
+      return;
+    }
+
+    await documentTagRepository.save(
+      tags.map((tag) =>
+        documentTagRepository.create({
+          userDocumentId,
+          tagId: tag.id,
+        }),
+      ),
+    );
+  }
+
   /**
    * Upload file -> extract text -> chunk -> save to DB
    */
@@ -259,80 +445,76 @@ export class DocumentService {
     dto: DocumentDto,
     ownerId: string,
   ): Promise<UploadDocumentResult> {
+    let savedFilePath: string | null = null;
+
     try {
-      if (!file || !file.buffer || file.buffer.length === 0) {
-        throw new BadRequestException('File not retrieved or empty');
-      }
+      this.validateUploadFile(file);
 
       if (!dto.title || dto.title.trim().length === 0) {
         dto.title = file.originalname;
       }
 
-      // Generate content hash for deduplication
       const contentHash = this.generateContentHash(file.buffer);
-
-      // Handle duplication
       const duplicateDoc = await this.handleDocumentDuplication(
         contentHash,
         ownerId,
       );
+
       if (duplicateDoc) {
-        let targetFolderId = dto.folderId;
-        if (targetFolderId) {
-          const folder = await this.folderRepository.findOne({
-            where: { id: targetFolderId, ownerId },
-          });
+        const targetFolderId = await this.resolveTargetFolderId(
+          ownerId,
+          dto.folderId,
+        );
+        const tags = dto.tagIds?.length
+          ? await this.getOwnedTags(ownerId, dto.tagIds)
+          : [];
 
-          if (!folder) {
-            throw new BadRequestException('Invalid folder selected');
-          }
-        } else {
-          targetFolderId = (await this.ensureRootFolder(ownerId)).id;
-        }
-
-        const userDocument = await this.userDocumentRepository.findOne({
-          where: {
-            user: { id: ownerId },
+        await this.dataSource.transaction(async (manager) => {
+          const userDocument = manager.create(UserDocument, {
             document: { id: duplicateDoc.id },
-          },
-          relations: ['folder'],
-        });
+            documentName: dto.title || file.originalname,
+            folder: { id: targetFolderId },
+            isFavorite: false,
+            user: { id: ownerId },
+          });
+          const savedUserDocument = await manager.save(
+            UserDocument,
+            userDocument,
+          );
 
-        if (userDocument) {
-          userDocument.folder = { id: targetFolderId } as never;
-          userDocument.documentName = dto.title || file.originalname;
-          await this.userDocumentRepository.getRepository().save(userDocument);
-          if (dto.tagIds?.length) {
-            await this.syncUserDocumentTags(
-              userDocument.id,
-              ownerId,
-              dto.tagIds,
-            );
-          }
-        }
+          await this.replaceUserDocumentTags(
+            manager.getRepository(UserDocumentTag),
+            savedUserDocument.id,
+            tags,
+          );
+        });
 
         return {
           id: duplicateDoc.id,
           ownerId,
           title: duplicateDoc.title,
           fileName: duplicateDoc.fileRef,
-          totalChunks: duplicateDoc.chunks.length,
+          totalChunks: duplicateDoc.chunks?.length ?? 0,
         };
       }
 
-      // Save file to disk
-      const uniqueName = `${crypto.randomUUID()}-${file.originalname}`;
+      const text = await this.extractTextFromFile(file);
+      const chunks = this.chunkText(text, 1000);
+      const targetFolderId = await this.resolveTargetFolderId(
+        ownerId,
+        dto.folderId,
+      );
+      const tags = dto.tagIds?.length
+        ? await this.getOwnedTags(ownerId, dto.tagIds)
+        : [];
+      const uniqueName = `${crypto.randomUUID()}-${this.sanitizeOriginalFileName(
+        file.originalname,
+      )}`;
       await fs.mkdir(this.uploadsDirectory, { recursive: true });
       const filePath = path.join(this.uploadsDirectory, uniqueName);
       await fs.writeFile(filePath, file.buffer);
+      savedFilePath = filePath;
 
-      // Extract text from file
-      const text = await this.extractTextFromFile(file);
-
-      // Chunk the text
-      const chunks = this.chunkText(text, 1000);
-
-      // Create document record
       const documentDto: DocumentDto = {
         title: dto.title || file.originalname,
         metadata: dto.metadata || {},
@@ -343,33 +525,34 @@ export class DocumentService {
         chunks,
       };
 
-      const createdDoc = await this.createDocument(documentDto, contentHash);
+      const createdDoc = await this.dataSource.transaction(async (manager) => {
+        const savedDocument = await this.createDocumentWithChunks(
+          manager,
+          documentDto,
+          contentHash,
+        );
 
-      let targetFolderId = dto.folderId;
-      if (targetFolderId) {
-        const folder = await this.folderRepository.findOne({
-          where: { id: targetFolderId, ownerId },
+        const userDocument = manager.create(UserDocument, {
+          user: { id: ownerId },
+          document: { id: savedDocument.id },
+          folder: { id: targetFolderId },
+          documentName: dto.title || file.originalname,
+          isFavorite: false,
         });
+        const savedUserDocument = await manager.save(
+          UserDocument,
+          userDocument,
+        );
 
-        if (!folder) {
-          throw new BadRequestException('Invalid folder selected');
-        }
-      } else {
-        targetFolderId = (await this.ensureRootFolder(ownerId)).id;
-      }
+        await this.replaceUserDocumentTags(
+          manager.getRepository(UserDocumentTag),
+          savedUserDocument.id,
+          tags,
+        );
 
-      // Create UserDocument relation
-      const userDocument = await this.userDocumentRepository.create({
-        user: { id: ownerId },
-        document: { id: createdDoc.id },
-        folder: { id: targetFolderId },
-        documentName: dto.title || file.originalname,
-        isFavorite: false,
+        return savedDocument;
       });
-
-      if (dto.tagIds?.length) {
-        await this.syncUserDocumentTags(userDocument.id, ownerId, dto.tagIds);
-      }
+      savedFilePath = null;
 
       return {
         id: createdDoc.id,
@@ -379,6 +562,10 @@ export class DocumentService {
         totalChunks: createdDoc.chunks.length,
       };
     } catch (error: unknown) {
+      if (savedFilePath) {
+        await fs.rm(savedFilePath, { force: true });
+      }
+
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -386,8 +573,8 @@ export class DocumentService {
         `Upload document failed: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException(
-        'Document upload failed due to server error',
+      throw new InternalServerErrorException(
+        'The document could not be saved. Please try again in a moment.',
       );
     }
   }
@@ -445,7 +632,9 @@ export class DocumentService {
     });
 
     if (tags.length !== uniqueTagIds.length) {
-      throw new BadRequestException('One or more selected tags are invalid');
+      throw new BadRequestException(
+        'One or more selected tags no longer exist or are not available.',
+      );
     }
 
     return tags;
@@ -460,18 +649,11 @@ export class DocumentService {
     const documentTagRepository =
       this.dataSource.getRepository(UserDocumentTag);
 
-    await documentTagRepository.delete({ userDocumentId });
-
-    if (tags.length > 0) {
-      await documentTagRepository.save(
-        tags.map((tag) =>
-          documentTagRepository.create({
-            userDocumentId,
-            tagId: tag.id,
-          }),
-        ),
-      );
-    }
+    await this.replaceUserDocumentTags(
+      documentTagRepository,
+      userDocumentId,
+      tags,
+    );
 
     return tags;
   }
@@ -861,8 +1043,8 @@ export class DocumentService {
         `Failed to retrieve documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException(
-        'Unable to retrieve documents due to server connection issue',
+      throw new InternalServerErrorException(
+        'Documents could not be loaded. Please refresh and try again.',
       );
     }
   }
@@ -989,7 +1171,9 @@ export class DocumentService {
         `Failed to toggle favorite: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException('Unable to toggle favorite');
+      throw new InternalServerErrorException(
+        'Favorite status could not be updated. Please try again.',
+      );
     }
   }
 
@@ -1010,7 +1194,9 @@ export class DocumentService {
         `Failed to get favorites: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException('Unable to retrieve favorites');
+      throw new InternalServerErrorException(
+        'Favorite documents could not be loaded. Please refresh and try again.',
+      );
     }
   }
 
@@ -1118,7 +1304,9 @@ export class DocumentService {
         `Failed to search documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException('Unable to search documents');
+      throw new InternalServerErrorException(
+        'Document search could not be completed. Please try again.',
+      );
     }
   }
 
@@ -1243,7 +1431,9 @@ export class DocumentService {
         `Failed to get related documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
-      throw new BadRequestException('Unable to retrieve related documents');
+      throw new InternalServerErrorException(
+        'Related documents could not be loaded. Please try again.',
+      );
     }
   }
 
@@ -1308,17 +1498,19 @@ export class DocumentService {
         const fileName = path.basename(document.fileRef);
         const localFilePath = path.join(this.uploadsDirectory, fileName);
         await fs.access(localFilePath);
-        
+
         // Auto-heal the database path
         if (localFilePath !== document.fileRef) {
           document.fileRef = localFilePath;
-          await this.documentRepository.save(document);
+          await this.documentRepository.getRepository().save(document);
         }
-        
+
         return localFilePath;
-      } catch (e) {
+      } catch {
         this.logger.error(`File missing on disk: ${document.fileRef}`);
-        throw new BadRequestException('Document file not found on server');
+        throw new NotFoundException(
+          'The uploaded file is missing from storage. Please upload the document again.',
+        );
       }
     }
   }

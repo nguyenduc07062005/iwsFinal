@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDownAZ,
   BrainCircuit,
+  Check,
   ChevronDown,
   Clock,
   CloudUpload,
@@ -91,29 +93,245 @@ const sortTagOptions = (tags) =>
   });
 
 const FilterDropdown = ({
-  children,
   Icon,
+  groups = [],
   label,
-  onChange,
+  onChangeValue,
+  options = [],
   value,
 }) => {
   const FilterIcon = Icon;
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const normalizedGroups = groups.length > 0 ? groups : [{ options }];
+  const flatOptions = normalizedGroups.flatMap((group) => group.options || []);
+  const activeOption =
+    flatOptions.find((option) => option.value === value) || flatOptions[0];
+  const optionCount = flatOptions.length;
+  const groupCount = normalizedGroups.filter((group) => group.label).length;
+
+  const updateMenuPosition = useCallback(() => {
+    const button = buttonRef.current;
+    if (!button || typeof window === 'undefined') return;
+
+    const rect = button.getBoundingClientRect();
+    const viewportPadding = 16;
+    const targetWidth = Math.min(
+      Math.max(rect.width, 280),
+      window.innerWidth - viewportPadding * 2,
+    );
+    const left = Math.min(
+      Math.max(rect.left, viewportPadding),
+      window.innerWidth - targetWidth - viewportPadding,
+    );
+    const estimatedHeight = Math.min(288, 18 + optionCount * 58 + groupCount * 28);
+    const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+    const spaceAbove = rect.top - viewportPadding;
+    const openUp = spaceBelow < Math.min(estimatedHeight, 220) && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(
+      180,
+      Math.min(288, openUp ? spaceAbove - 8 : spaceBelow - 8),
+    );
+    const top = openUp
+      ? Math.max(viewportPadding, rect.top - maxHeight - 8)
+      : rect.bottom + 8;
+
+    setMenuStyle({
+      left,
+      maxHeight,
+      top,
+      width: targetWidth,
+    });
+  }, [groupCount, optionCount, setMenuStyle]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (
+        !buttonRef.current?.contains(event.target) &&
+        !menuRef.current?.contains(event.target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return undefined;
+
+    updateMenuPosition();
+
+    window.addEventListener('resize', updateMenuPosition);
+    window.addEventListener('scroll', updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updateMenuPosition);
+      window.removeEventListener('scroll', updateMenuPosition, true);
+    };
+  }, [isOpen, updateMenuPosition]);
+
+  const selectOption = (optionValue) => {
+    onChangeValue(optionValue);
+    setIsOpen(false);
+  };
+
+  const toggleMenu = () => {
+    if (!isOpen) {
+      updateMenuPosition();
+    }
+
+    setIsOpen((current) => !current);
+  };
 
   return (
-    <label className="flex h-12 min-w-0 items-center gap-2 rounded-full border border-white/70 bg-white/72 px-3 shadow-sm transition-all focus-within:border-brand-200 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-500/15">
-      <FilterIcon size={16} className="shrink-0 text-brand-600" />
-      <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-        {label}
-      </span>
-      <select
-        value={value}
-        onChange={onChange}
-        className="min-w-0 flex-1 appearance-none bg-transparent text-sm font-extrabold text-slate-700 outline-none"
+    <div className="relative min-w-0">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onClick={toggleMenu}
+        className={cn(
+          'group flex h-14 w-full min-w-0 items-center gap-3 rounded-[1.35rem] border border-white/70 bg-white/72 px-3.5 text-left shadow-sm transition-all hover:border-brand-100 hover:bg-white hover:shadow-[0_18px_46px_-38px_rgba(45,44,47,0.5)] focus:outline-none focus:ring-2 focus:ring-brand-500/15',
+          isOpen && 'border-brand-100 bg-white shadow-[0_18px_48px_-34px_rgba(155,63,54,0.5)]',
+        )}
       >
-        {children}
-      </select>
-      <ChevronDown size={14} className="shrink-0 text-slate-400" />
-    </label>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-100">
+          <FilterIcon size={16} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            {label}
+          </span>
+          <span className="mt-0.5 block truncate text-sm font-extrabold text-slate-800">
+            {activeOption?.label || 'Select'}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={cn(
+            'shrink-0 text-slate-400 transition-transform',
+            isOpen && 'rotate-180 text-brand-600',
+          )}
+        />
+      </button>
+
+      {typeof document !== 'undefined'
+        ? createPortal(
+          <AnimatePresence>
+            {isOpen ? (
+              <motion.div
+                ref={menuRef}
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                style={{
+                  left: menuStyle?.left ?? 0,
+                  maxHeight: menuStyle?.maxHeight ?? 288,
+                  top: menuStyle?.top ?? 0,
+                  width: menuStyle?.width ?? 320,
+                  visibility: menuStyle ? 'visible' : 'hidden',
+                }}
+                className="fixed z-[1000] overflow-hidden rounded-[1.35rem] border border-white/85 bg-white/95 p-2 shadow-[0_26px_76px_-36px_rgba(45,44,47,0.58)] backdrop-blur-xl"
+                role="listbox"
+              >
+                <div
+                  className="overflow-y-auto pr-1"
+                  style={{ maxHeight: Math.max((menuStyle?.maxHeight ?? 288) - 16, 160) }}
+                >
+                  {normalizedGroups.map((group, groupIndex) => {
+                    const groupOptions = group.options || [];
+                    if (groupOptions.length === 0) return null;
+
+                    return (
+                      <div key={group.label || `group-${groupIndex}`} className={groupIndex > 0 ? 'mt-2' : ''}>
+                        {group.label ? (
+                          <p className="px-3 pb-1.5 pt-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                            {group.label}
+                          </p>
+                        ) : null}
+
+                        <div className="space-y-1">
+                          {groupOptions.map((option) => {
+                            const selected = option.value === value;
+                            const OptionIcon = option.Icon;
+
+                            return (
+                              <button
+                                key={option.value || option.label}
+                                type="button"
+                                role="option"
+                                aria-selected={selected}
+                                onClick={() => selectOption(option.value)}
+                                title={option.description || option.label}
+                                className={cn(
+                                  'grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-all',
+                                  selected
+                                    ? 'bg-brand-50 text-brand-700 shadow-sm'
+                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'flex h-8 w-8 items-center justify-center rounded-full',
+                                    selected ? 'bg-white text-brand-600' : 'bg-slate-50 text-slate-400',
+                                  )}
+                                >
+                                  {OptionIcon ? <OptionIcon size={15} /> : <FilterIcon size={15} />}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block truncate text-sm font-extrabold">
+                                    {option.label}
+                                  </span>
+                                  {option.description ? (
+                                    <span className="mt-0.5 block truncate text-xs font-semibold text-slate-400">
+                                      {option.description}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'flex h-6 w-6 items-center justify-center rounded-full transition-all',
+                                    selected
+                                      ? 'bg-brand-600 text-white'
+                                      : 'bg-white text-transparent ring-1 ring-slate-100',
+                                  )}
+                                >
+                                  <Check size={13} />
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>,
+          document.body,
+        )
+        : null}
+    </div>
   );
 };
 
@@ -223,6 +441,51 @@ const WorkspacePage = () => {
   const sortValue = `${sortBy}:${sortOrder}`;
   const currentHeroSlide = WORKSPACE_HERO_SLIDES[activeHeroSlide];
   const ActiveViewIcon = viewMode === 'grid' ? LayoutGrid : List;
+  const typeFilterOptions = TYPE_FILTERS.map((option) => ({
+    ...option,
+    Icon: FileText,
+    label: option.label === 'All' ? 'All file types' : option.label,
+  }));
+  const tagFilterGroups = [
+    {
+      options: [
+        {
+          Icon: Tag,
+          description: tagOptions.length > 0 ? 'Show documents from every tag' : 'No saved tags yet',
+          label: 'All tags',
+          value: '',
+        },
+      ],
+    },
+    subjectOptions.length > 0
+      ? {
+        label: 'Subjects',
+        options: subjectOptions.map((subject) => ({
+          Icon: BrainCircuit,
+          description: 'Filter by subject',
+          label: subject.name,
+          value: `subject:${subject.id}`,
+        })),
+      }
+      : null,
+    otherTagOptions.length > 0
+      ? {
+        label: 'Tags',
+        options: otherTagOptions.map((tag) => ({
+          Icon: Tag,
+          description: 'Filter by saved tag',
+          label: tag.name,
+          value: `tag:${tag.id}`,
+        })),
+      }
+      : null,
+  ].filter(Boolean);
+  const sortFilterOptions = SORT_OPTIONS.map((option) => ({
+    Icon: option.Icon,
+    description: option.description,
+    label: option.label,
+    value: `${option.sortBy}:${option.sortOrder}`,
+  }));
   const workspaceMetrics = [
     {
       label: 'Documents',
@@ -366,7 +629,12 @@ const WorkspacePage = () => {
           total: 0,
           totalPages: 1,
         });
-        setDocumentsError(getApiErrorMessage(requestError, 'Could not load documents.'));
+        setDocumentsError(
+          getApiErrorMessage(
+            requestError,
+            'Documents could not be loaded. Please refresh and try again.',
+          ),
+        );
       } finally {
         if (requestId === requestIdRef.current) {
           setDocumentsLoading(false);
@@ -393,9 +661,7 @@ const WorkspacePage = () => {
     updateQuery({ keyword: searchInput.trim() || undefined }, { resetPage: true });
   };
 
-  const handleTagFilterChange = (event) => {
-    const value = event.target.value;
-
+  const handleTagFilterChange = (value) => {
     if (!value) {
       updateQuery({ subjectId: undefined, tagId: undefined }, { resetPage: true });
       return;
@@ -411,8 +677,8 @@ const WorkspacePage = () => {
     );
   };
 
-  const handleSortChange = (event) => {
-    const [nextSortBy, nextSortOrder] = event.target.value.split(':');
+  const handleSortChange = (value) => {
+    const [nextSortBy, nextSortOrder] = value.split(':');
     updateQuery(
       { sortBy: nextSortBy, sortOrder: nextSortOrder },
       { resetPage: true },
@@ -485,10 +751,10 @@ const WorkspacePage = () => {
         .map((currentDocument) =>
           currentDocument.id === document.id
             ? {
-                ...currentDocument,
-                subject: nextSubject,
-                tags: nextTags,
-              }
+              ...currentDocument,
+              subject: nextSubject,
+              tags: nextTags,
+            }
             : currentDocument,
         )
         .filter(
@@ -505,7 +771,12 @@ const WorkspacePage = () => {
       await toggleFavorite(documentId);
       refreshList();
     } catch (requestError) {
-      showError(getApiErrorMessage(requestError, 'Could not update favorites.'));
+      showError(
+        getApiErrorMessage(
+          requestError,
+          'Favorite status could not be updated. Please try again.',
+        ),
+      );
     }
   };
 
@@ -513,7 +784,12 @@ const WorkspacePage = () => {
     try {
       await downloadDocumentFile(documentId, title);
     } catch (requestError) {
-      showError(getApiErrorMessage(requestError, 'Could not download document.'));
+      showError(
+        getApiErrorMessage(
+          requestError,
+          'The document could not be downloaded. Please try again.',
+        ),
+      );
     }
   };
 
@@ -532,7 +808,12 @@ const WorkspacePage = () => {
       refreshList();
       showSuccess('Document renamed.');
     } catch (requestError) {
-      setRenameError(getApiErrorMessage(requestError, 'Could not rename document.'));
+      setRenameError(
+        getApiErrorMessage(
+          requestError,
+          'The document could not be renamed. Please check the name and try again.',
+        ),
+      );
       setRenaming(false);
     }
   };
@@ -561,7 +842,12 @@ const WorkspacePage = () => {
       refreshList();
       showSuccess('Document moved.');
     } catch (requestError) {
-      setMoveError(getApiErrorMessage(requestError, 'Could not move document.'));
+      setMoveError(
+        getApiErrorMessage(
+          requestError,
+          'The document could not be moved. Please choose another folder and try again.',
+        ),
+      );
       setMoving(false);
     }
   };
@@ -578,7 +864,12 @@ const WorkspacePage = () => {
       refreshList();
       showSuccess('Document deleted.');
     } catch (requestError) {
-      setDeleteError(getApiErrorMessage(requestError, 'Could not delete document.'));
+      setDeleteError(
+        getApiErrorMessage(
+          requestError,
+          'The document could not be deleted. Please refresh and try again.',
+        ),
+      );
       setDeleting(false);
     }
   };
@@ -805,63 +1096,31 @@ const WorkspacePage = () => {
                 <FilterDropdown
                   Icon={FileText}
                   label="Type"
+                  options={typeFilterOptions}
                   value={type}
-                  onChange={(event) =>
+                  onChangeValue={(nextType) =>
                     updateQuery(
-                      { type: event.target.value || undefined },
+                      { type: nextType || undefined },
                       { resetPage: true },
                     )
                   }
-                >
-                  {TYPE_FILTERS.map((option) => (
-                    <option key={option.label} value={option.value}>
-                      {option.label === 'All' ? 'All file types' : option.label}
-                    </option>
-                  ))}
-                </FilterDropdown>
+                />
 
                 <FilterDropdown
                   Icon={Tag}
+                  groups={tagFilterGroups}
                   label="Tag"
                   value={tagFilterValue}
-                  onChange={handleTagFilterChange}
-                >
-                  <option value="">All tags</option>
-                  {subjectOptions.length > 0 ? (
-                    <optgroup label="Subjects">
-                      {subjectOptions.map((subject) => (
-                        <option key={subject.id} value={`subject:${subject.id}`}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                  {otherTagOptions.length > 0 ? (
-                    <optgroup label="Tags">
-                      {otherTagOptions.map((tag) => (
-                        <option key={tag.id} value={`tag:${tag.id}`}>
-                          {tag.name}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ) : null}
-                </FilterDropdown>
+                  onChangeValue={handleTagFilterChange}
+                />
 
                 <FilterDropdown
                   Icon={ArrowDownAZ}
                   label="Sort"
+                  options={sortFilterOptions}
                   value={sortValue}
-                  onChange={handleSortChange}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <option
-                      key={`${option.sortBy}-${option.sortOrder}`}
-                      value={`${option.sortBy}:${option.sortOrder}`}
-                    >
-                      {option.label}
-                    </option>
-                  ))}
-                </FilterDropdown>
+                  onChangeValue={handleSortChange}
+                />
               </div>
 
             </div>

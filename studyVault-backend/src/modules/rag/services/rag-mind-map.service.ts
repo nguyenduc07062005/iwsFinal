@@ -1185,12 +1185,15 @@ export class RagMindMapService {
       .trim();
   }
 
+  /* eslint-disable no-useless-escape */
   private normalizeMindMapLabel(value: string | null | undefined): string {
     return this.normalizeMindMapText(value)
       .replace(/^[,;:.()\[\]\-–]+\s*/, '')
       .replace(/\s*[,;:.()\[\]\-–]+$/, '')
       .trim();
   }
+
+  /* eslint-enable no-useless-escape */
 
   private extractMindMapLabelSource(value: string): string {
     const normalizedValue = this.normalizeMindMapText(value);
