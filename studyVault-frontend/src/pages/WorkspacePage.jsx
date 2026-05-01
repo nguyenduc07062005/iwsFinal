@@ -1054,14 +1054,16 @@ const WorkspacePage = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowUploadModal(true)}
-                    className="sks-ai-glow-btn inline-flex items-center gap-2 rounded-full bg-brand-900 px-4 py-2.5 text-sm font-extrabold text-white shadow-[var(--shadow-brand)] transition-all hover:-translate-y-0.5 hover:bg-brand-600"
-                  >
-                    <CloudUpload size={17} />
-                    Upload
-                  </button>
+                  {documents.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowUploadModal(true)}
+                      className="sks-ai-glow-btn inline-flex items-center gap-2 rounded-full bg-brand-900 px-4 py-2.5 text-sm font-extrabold text-white shadow-[var(--shadow-brand)] transition-all hover:-translate-y-0.5 hover:bg-brand-600"
+                    >
+                      <CloudUpload size={17} />
+                      Upload
+                    </button>
+                  )}
 
                   <div className="flex rounded-full border border-white/70 bg-white/62 p-1">
                     <button

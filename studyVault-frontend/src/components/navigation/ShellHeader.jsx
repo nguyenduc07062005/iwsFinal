@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
+  ChevronDown,
   Library,
+  LogOut,
+  Plus,
+  ShieldCheck,
   Star,
   UserRound,
-  Plus,
-  LogOut,
-  ShieldCheck,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils.js";
@@ -14,9 +15,8 @@ import { getProfile, postLogout } from "../../service/authAPI.js";
 import { logout } from "../../utils/auth.js";
 
 const NAV_LINKS = [
-  { name: "Library", path: "/app", icon: Library, end: true },
+  { name: "Workspace", path: "/app", icon: Library, end: true },
   { name: "Favorites", path: "/app/favorites", icon: Star },
-  { name: "Profile", path: "/profile", icon: UserRound },
 ];
 
 const MotionDiv = motion.div;
@@ -29,6 +29,7 @@ const ShellHeader = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -67,6 +68,11 @@ const ShellHeader = () => {
     return [...NAV_LINKS, { name: "Admin", path: "/admin", icon: ShieldCheck }];
   }, [profile]);
 
+  const profileName =
+    profile?.name?.trim() || profile?.email?.split("@")[0] || "StudyVault user";
+  const profileEmail = profile?.email || "Signed in";
+  const showQuickUpload = location.pathname !== "/app";
+
   const handleUploadClick = () => navigate("/app?openUpload=true");
 
   const handleLogout = async () => {
@@ -81,111 +87,178 @@ const ShellHeader = () => {
   };
 
   return (
-    <nav className="fixed left-0 right-0 top-0 z-50 w-full px-4 pt-4 sm:px-6 lg:px-8">
+    <nav className="fixed left-0 right-0 top-0 z-50 w-full px-3 pt-3 sm:px-6 lg:px-8">
       <div
         className={cn(
-          "mx-auto flex w-full items-center justify-between rounded-2xl border border-white/40 bg-white/70 px-4 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-xl transition-all duration-300 sm:px-6",
+          "relative mx-auto flex h-16 w-full max-w-[1760px] items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 sm:px-5",
           isScrolled &&
-            "border-brand-100/20 bg-white/90 shadow-lg shadow-brand-500/5 py-2",
+            "border-brand-100/30 bg-white/95 shadow-lg shadow-brand-500/5",
         )}
       >
-        {/* Left Section: Logo & Nav */}
-        <div className="flex items-center gap-6 sm:gap-10">
-          <Link to="/app" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md transition-transform group-hover:scale-105 active:scale-95">
-              <Library size={18} strokeWidth={2.5} />
-            </div>
-            <span className="hidden lg:block text-lg font-bold tracking-tight text-slate-800">
-              StudyVault
-            </span>
-          </Link>
-
-          {/* Icon-centric Navigation */}
-          <div className="flex items-center gap-1 sm:gap-2">
-            {navLinks.map((link) => {
-              const active = isActivePath(
-                location.pathname,
-                link.path,
-                link.end,
-              );
-              const Icon = link.icon;
-              return (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  aria-label={link.name}
-                  className={cn(
-                    "relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 group/nav",
-                    active
-                      ? "bg-brand-50 text-brand-600 shadow-sm shadow-brand-500/10"
-                      : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-800",
-                  )}
-                >
-                  <Icon size={20} strokeWidth={active ? 2.5 : 2} />
-
-                  {/* Tooltip */}
-                  <span className="absolute -bottom-10 left-1/2 -translate-x-1/2 scale-0 rounded-md bg-slate-800 px-2 py-1 text-[10px] font-medium text-white transition-all group-hover/nav:scale-100">
-                    {link.name}
-                  </span>
-
-                  {active && (
-                    <MotionDiv
-                      layoutId="nav-pill"
-                      className="absolute inset-0 rounded-xl border-2 border-brand-200/50"
-                      transition={{
-                        type: "spring",
-                        bounce: 0.2,
-                        duration: 0.6,
-                      }}
-                    />
-                  )}
-                </Link>
-              );
-            })}
+        <Link
+          to="/app"
+          className="group relative z-10 flex shrink-0 items-center gap-2.5"
+        >
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md transition-transform group-hover:scale-105 active:scale-95">
+            <Library size={18} strokeWidth={2.5} />
           </div>
+          <span className="hidden text-lg font-bold tracking-tight text-slate-800 sm:block">
+            StudyVault
+          </span>
+        </Link>
+
+        <div className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-1 md:flex">
+          {navLinks.map((link) => {
+            const active = isActivePath(
+              location.pathname,
+              link.path,
+              link.end,
+            );
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn(
+                  "relative flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-semibold transition-all duration-200",
+                  active
+                    ? "bg-brand-50 text-brand-700 shadow-sm shadow-brand-500/10"
+                    : "text-slate-500 hover:bg-slate-100/70 hover:text-slate-900",
+                )}
+              >
+                {active && (
+                  <MotionDiv
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-xl border border-brand-200/70"
+                    transition={{
+                      type: "spring",
+                      bounce: 0.2,
+                      duration: 0.55,
+                    }}
+                  />
+                )}
+                <Icon
+                  className="relative z-10"
+                  size={18}
+                  strokeWidth={active ? 2.5 : 2}
+                />
+                <span className="relative z-10 whitespace-nowrap">
+                  {link.name}
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
-        {/* Right Section: Actions */}
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button
-            onClick={handleUploadClick}
-            aria-label="Upload document"
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-900 text-white shadow-lg shadow-brand-900/10 transition-all hover:bg-brand-600 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
-          >
-            <Plus size={20} strokeWidth={3} />
-          </button>
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+          {showQuickUpload && (
+            <>
+              <button
+                type="button"
+                onClick={handleUploadClick}
+                aria-label="Upload document"
+                className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-900 px-3 text-white shadow-lg shadow-brand-900/10 transition-all hover:-translate-y-0.5 hover:bg-brand-600 active:translate-y-0 active:scale-95 sm:px-4"
+              >
+                <Plus size={20} strokeWidth={3} />
+                <span className="hidden text-sm font-bold sm:inline">
+                  Upload
+                </span>
+              </button>
 
-          <div className="h-6 w-px bg-slate-200/60" />
+              <div className="hidden h-6 w-px bg-slate-200/70 sm:block" />
+            </>
+          )}
 
-          <div className="flex items-center gap-2">
-            <Link
-              to="/profile"
-              aria-label="User profile"
-              className="group flex h-10 w-10 items-center justify-center rounded-xl transition-colors hover:bg-slate-100/50"
-            >
-              <div className="relative">
-                <img
-                  src={avatarUrl}
-                  alt="Profile"
-                  className="h-8 w-8 rounded-lg border border-white object-cover shadow-sm transition-transform group-hover:scale-105"
-                />
-                <div className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500" />
-              </div>
-            </Link>
-
+          <div className="relative">
             <button
-              onClick={() => void handleLogout()}
-              aria-label="Sign out"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 active:scale-95"
+              type="button"
+              onClick={() => setIsAccountMenuOpen((open) => !open)}
+              aria-expanded={isAccountMenuOpen}
+              aria-label="Open account menu"
+              className="group flex h-10 items-center gap-2 rounded-xl px-1.5 transition-colors hover:bg-slate-100/70 sm:px-2"
             >
-              <LogOut size={18} />
+              <img
+                src={avatarUrl}
+                alt="Profile"
+                className="h-8 w-8 rounded-lg border border-white object-cover shadow-sm transition-transform group-hover:scale-105"
+              />
+              <div className="hidden min-w-0 flex-col items-start leading-tight xl:flex">
+                <span className="max-w-28 truncate text-sm font-bold text-slate-800">
+                  {profileName}
+                </span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  {profile?.role === "admin" ? "Admin" : "Account"}
+                </span>
+              </div>
+              <ChevronDown
+                size={16}
+                className={cn(
+                  "hidden text-slate-400 transition-transform sm:block",
+                  isAccountMenuOpen && "rotate-180",
+                )}
+              />
             </button>
+
+            {isAccountMenuOpen && (
+              <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10">
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <p className="truncate text-sm font-bold text-slate-900">
+                    {profileName}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                    {profileEmail}
+                  </p>
+                </div>
+
+                <div className="p-1.5">
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsAccountMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                  >
+                    <UserRound size={17} />
+                    Profile
+                  </Link>
+
+                  {profile?.role === "admin" && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setIsAccountMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                    >
+                      <ShieldCheck size={17} />
+                      Admin dashboard
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAccountMenuOpen(false);
+                      void handleLogout();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                  >
+                    <LogOut size={17} />
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            aria-label="Sign out"
+            className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 active:scale-95 sm:flex lg:hidden"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
 
-      {/* Mobile Bottom Nav - keeping it for better mobile UX but keeping top bar as well */}
-      <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/40 bg-white/80 px-2 shadow-2xl backdrop-blur-xl md:hidden">
+      <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/60 bg-white/90 px-2 shadow-2xl backdrop-blur-xl md:hidden">
         {navLinks.map((link) => {
           const active = isActivePath(location.pathname, link.path, link.end);
           const Icon = link.icon;
@@ -194,12 +267,12 @@ const ShellHeader = () => {
               key={link.path}
               to={link.path}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-1 px-4 transition-all",
+                "relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-2 transition-all",
                 active ? "text-brand-600" : "text-slate-400",
               )}
             >
               <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-              <span className="text-[10px] font-bold uppercase tracking-widest">
+              <span className="max-w-full truncate text-[10px] font-bold uppercase tracking-wide">
                 {link.name}
               </span>
               {active && (
