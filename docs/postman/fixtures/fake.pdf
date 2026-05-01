@@ -1,3 +1,2 @@
-%PDF-1.7
-This file is intentionally not a valid PDF body.
-It is used to confirm that StudyVault rejects fake or unreadable PDF uploads.
+This is intentionally not a PDF file.
+It uses a .pdf extension in Postman to confirm that StudyVault rejects files whose bytes do not match the declared PDF type.

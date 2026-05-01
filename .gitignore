@@ -19,6 +19,11 @@
 !**/.env.example
 !**/.env.*.example
 
+# Local Postman data
+docs/postman/*.private.postman_environment.json
+docs/postman/reports/
+.playwright-cli/
+
 # Logs
 **/npm-debug.log*
 **/yarn-debug.log*
