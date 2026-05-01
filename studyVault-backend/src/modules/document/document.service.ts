@@ -872,7 +872,7 @@ export class DocumentService {
         SELECT 1
         FROM user_document_tags document_tag_filter
         INNER JOIN tags tag_filter ON tag_filter.id = document_tag_filter.tag_id
-        WHERE document_tag_filter.user_document_id = userDocument.id
+        WHERE document_tag_filter.user_document_id = "userDocument"."id"
           AND tag_filter.id = :${parameterName}
           AND tag_filter.owner_id = :ownerId
       )`,
@@ -898,7 +898,7 @@ export class DocumentService {
 
     if (!folder.parentId) {
       queryBuilder.andWhere(
-        '(folder.id = :folderId OR userDocument.folder IS NULL)',
+        '("folder"."id" = :folderId OR "userDocument"."folder_id" IS NULL)',
         {
           folderId,
         },
@@ -977,7 +977,7 @@ export class DocumentService {
 
       if (query.type) {
         queryBuilder.andWhere(
-          "LOWER(COALESCE(document.file_ref, '')) LIKE :typePattern",
+          'LOWER(COALESCE("document"."file_ref", \'\')) LIKE :typePattern',
           {
             typePattern: `%.${query.type}`,
           },
@@ -987,9 +987,9 @@ export class DocumentService {
       if (query.keyword) {
         queryBuilder.andWhere(
           `(
-            LOWER(COALESCE(userDocument.document_name, document.title, '')) LIKE :keyword
-            OR LOWER(COALESCE(document.metadata::text, '')) LIKE :keyword
-            OR LOWER(COALESCE(document.extra_attributes::text, '')) LIKE :keyword
+            LOWER(COALESCE("userDocument"."document_name", "document"."title", '')) LIKE :keyword
+            OR LOWER(COALESCE("document"."metadata"::text, '')) LIKE :keyword
+            OR LOWER(COALESCE("document"."extra_attributes"::text, '')) LIKE :keyword
           )`,
           {
             keyword: `%${query.keyword.trim().toLowerCase()}%`,
@@ -1067,13 +1067,13 @@ export class DocumentService {
         .leftJoin('userDocument.document', 'document')
         .leftJoin('userDocument.user', 'user')
         .select('userDocument.id')
-        .addSelect('document.file_ref', 'fileRef')
-        .addSelect('document.id', 'documentId')
+        .addSelect('"document"."file_ref"', 'fileRef')
+        .addSelect('"document"."id"', 'documentId')
         .addSelect(
-          'COALESCE(userDocument.document_name, document.title)',
+          'COALESCE("userDocument"."document_name", "document"."title")',
           'title',
         )
-        .where('document.id = :id AND user.id = :ownerId', {
+        .where('"document"."id" = :id AND "user"."id" = :ownerId', {
           id: documentId,
           ownerId,
         })
@@ -1235,7 +1235,7 @@ export class DocumentService {
         ])
         .where('user.id = :ownerId', { ownerId })
         .andWhere(
-          "LOWER(COALESCE(userDocument.documentName, document.title, '')) LIKE LOWER(:query)",
+          'LOWER(COALESCE("userDocument"."document_name", "document"."title", \'\')) LIKE LOWER(:query)',
           {
             query: `%${keyword}%`,
           },
@@ -1274,19 +1274,19 @@ export class DocumentService {
           'folder.name',
         ])
         .where('user.id = :ownerId', { ownerId })
-        .andWhere('LOWER(chunk.chunkText) LIKE LOWER(:query)', {
+        .andWhere('LOWER("chunk"."chunk_text") LIKE LOWER(:query)', {
           query: `%${keyword}%`,
         })
         .andWhere(
           excludedIds.length > 0
-            ? 'document.id NOT IN (:...excludedIds)'
+            ? '"document"."id" NOT IN (:...excludedIds)'
             : '1 = 1',
           { excludedIds },
         )
-        .groupBy('userDocument.id')
-        .addGroupBy('document.id')
-        .addGroupBy('folder.id')
-        .addGroupBy('folder.name')
+        .groupBy('"userDocument"."id"')
+        .addGroupBy('"document"."id"')
+        .addGroupBy('"folder"."id"')
+        .addGroupBy('"folder"."name"')
         .orderBy('document.createdAt', 'DESC')
         .take(limit)
         .getMany();
@@ -1369,7 +1369,7 @@ export class DocumentService {
           'folder.name',
         ])
         .where('user.id = :ownerId', { ownerId })
-        .andWhere('document.id != :documentId', { documentId })
+        .andWhere('"document"."id" != :documentId', { documentId })
         .orderBy('document.createdAt', 'DESC')
         .getMany();
 

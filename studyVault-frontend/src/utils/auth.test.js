@@ -69,6 +69,33 @@ test("allows protected routes to rehydrate from the CSRF cookie", async () => {
   assert.equal(isAuthenticated(), true);
 });
 
+test("does not treat a CSRF-only session as a valid access token", async () => {
+  globalThis.window = {
+    localStorage: createStorage(),
+    sessionStorage: createStorage(),
+  };
+  globalThis.document = { cookie: "studyvault_csrf_token=csrf-token" };
+
+  const { hasValidAccessToken } = await loadAuthModule();
+
+  assert.equal(hasValidAccessToken(), false);
+});
+
+test("clears the readable CSRF cookie on local session expiry", async () => {
+  globalThis.window = {
+    localStorage: createStorage(),
+    sessionStorage: createStorage(),
+  };
+  globalThis.document = { cookie: "studyvault_csrf_token=csrf-token" };
+
+  const { clearCsrfToken, getCsrfToken } = await loadAuthModule();
+
+  clearCsrfToken();
+
+  assert.equal(getCsrfToken(), null);
+  assert.match(globalThis.document.cookie, /Max-Age=0/);
+});
+
 test("keeps CSRF tokens out of localStorage while retaining a cookie fallback", async () => {
   const localStorage = createStorage();
   globalThis.window = {

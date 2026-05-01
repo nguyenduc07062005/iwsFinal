@@ -97,6 +97,14 @@ const getCookieValue = (cookieName) => {
   );
 };
 
+const deleteCookie = (cookieName) => {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${cookieName}=; Max-Age=0; path=/; SameSite=Lax`;
+};
+
 export const setCsrfToken = (csrfToken) => {
   csrfTokenMemory =
     typeof csrfToken === "string" && csrfToken.trim() ? csrfToken : null;
@@ -119,6 +127,7 @@ export const getCsrfToken = () => {
 
 export const clearCsrfToken = () => {
   csrfTokenMemory = null;
+  deleteCookie(CSRF_TOKEN_COOKIE_NAME);
 
   try {
     window.localStorage?.removeItem(CSRF_TOKEN_KEY);
@@ -127,14 +136,16 @@ export const clearCsrfToken = () => {
   }
 };
 
-export const isAuthenticated = () => {
+export const hasValidAccessToken = () => {
   const token = getToken();
 
-  if (token && !isTokenExpired()) {
-    return true;
-  }
+  return Boolean(token && !isTokenExpired());
+};
 
-  return Boolean(getCsrfToken());
+export const hasRefreshSessionHint = () => Boolean(getCsrfToken());
+
+export const isAuthenticated = () => {
+  return hasValidAccessToken() || hasRefreshSessionHint();
 };
 
 export const getRoleFromToken = () => {
