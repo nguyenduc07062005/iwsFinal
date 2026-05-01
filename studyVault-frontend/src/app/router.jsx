@@ -9,6 +9,7 @@ import ForgotPassword from '../pages/ForgotPassword.jsx';
 import ResetPassword from '../pages/ResetPassword.jsx';
 import CompleteRegistration from '../pages/CompleteRegistration.jsx';
 import Profile from '../pages/Profile.jsx';
+import Landing from '../pages/Landing.jsx';
 import AuthLayout from '../layouts/AuthLayout.jsx';
 import AppShell from '../layouts/AppShell.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
@@ -51,7 +52,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomeRedirect />,
+        element: <Landing />,
       },
       {
         element: <GuestOnlyRoute />,
