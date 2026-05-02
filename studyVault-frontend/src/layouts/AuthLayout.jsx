@@ -140,23 +140,6 @@ const AuthLayout = () => {
           </div>
         </div>
 
-        <div className="absolute right-0 top-0 h-64 w-64 opacity-10">
-          <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="150" cy="50" r="80" stroke="#b87333" strokeWidth="0.5" />
-            <circle cx="150" cy="50" r="60" stroke="#e2725b" strokeWidth="0.5" />
-            <circle cx="150" cy="50" r="40" stroke="#b87333" strokeWidth="0.5" />
-            <circle cx="150" cy="50" r="20" stroke="#e2725b" strokeWidth="0.5" />
-          </svg>
-        </div>
-        <div className="absolute bottom-0 left-0 h-48 w-48 opacity-10">
-          <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="10" width="40" height="40" rx="8" stroke="#b87333" strokeWidth="0.5" />
-            <rect x="60" y="60" width="40" height="40" rx="8" stroke="#e2725b" strokeWidth="0.5" />
-            <rect x="110" y="110" width="40" height="40" rx="8" stroke="#b87333" strokeWidth="0.5" />
-            <rect x="35" y="35" width="40" height="40" rx="8" stroke="#e2725b" strokeWidth="0.3" />
-            <rect x="85" y="85" width="40" height="40" rx="8" stroke="#b87333" strokeWidth="0.3" />
-          </svg>
-        </div>
       </div>
     </div>
   );

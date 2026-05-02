@@ -81,7 +81,7 @@ const FolderActionButton = ({ icon, label, onClick, tone = 'default' }) => (
     aria-label={label}
     title={label}
     className={cn(
-      'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-all hover:bg-white hover:shadow-sm',
+      'inline-flex h-8 w-8 items-center justify-center rounded-xl transition-all hover:bg-white hover:shadow-sm sm:h-9 sm:w-9 sm:rounded-2xl',
       tone === 'danger'
         ? 'text-rose-500 hover:text-rose-600'
         : 'text-slate-600 hover:text-brand-900',
@@ -316,7 +316,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
 
   return (
     <>
-      <div className="flex h-full min-h-[520px] flex-col">
+      <div className="flex h-full min-h-[360px] flex-col sm:min-h-[420px] xl:min-h-[520px]">
         <header className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">

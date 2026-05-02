@@ -1123,7 +1123,7 @@ const WorkspacePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden pb-20">
+    <div className="relative min-h-screen overflow-x-hidden pb-24 md:pb-8">
       <div
         className="workspace-aurora pointer-events-none inset-0 z-0"
       />
@@ -1135,7 +1135,7 @@ const WorkspacePage = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.94 }}
             className={cn(
-              'fixed bottom-10 left-1/2 z-[100] -translate-x-1/2 rounded-full px-6 py-3 text-xs font-black uppercase tracking-[0.18em] shadow-2xl',
+              'fixed bottom-24 left-1/2 z-[100] max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-full px-5 py-3 text-center text-xs font-black uppercase tracking-[0.14em] shadow-2xl md:bottom-10 md:px-6 md:tracking-[0.18em]',
               flash.tone === 'error' ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white',
             )}
           >
@@ -1149,7 +1149,7 @@ const WorkspacePage = () => {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
-          className="relative mx-auto grid w-full max-w-[1480px] grid-cols-1 items-center gap-4 overflow-visible px-4 pb-6 pt-2 sm:px-6 lg:min-h-[300px] lg:grid-cols-[minmax(0,1fr)_minmax(540px,44vw)] lg:px-8 lg:pt-2 2xl:grid-cols-[minmax(0,1fr)_760px]"
+          className="relative mx-auto grid w-full max-w-[1480px] grid-cols-1 items-center gap-4 overflow-visible px-0 pb-5 pt-0 sm:pb-6 lg:min-h-[300px] lg:grid-cols-[minmax(0,1fr)_minmax(540px,44vw)] lg:pt-2 2xl:grid-cols-[minmax(0,1fr)_760px]"
         >
           <div className="relative flex flex-col items-center text-center lg:items-start lg:text-left">
             <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-brand-600 shadow-sm">
@@ -1193,7 +1193,7 @@ const WorkspacePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleApplySearch}
-                className="sks-ai-glow-btn rounded-[0.95rem] bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:bg-brand-600"
+                className="sks-ai-glow-btn shrink-0 rounded-[0.95rem] bg-brand-900 px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:bg-brand-600 sm:px-5"
               >
                 Search
               </MotionButton>
@@ -1203,19 +1203,20 @@ const WorkspacePage = () => {
               {workspaceMetrics.map(({ label, value, icon }, index) => (
                 <MotionDiv
                   key={label}
+                  aria-label={`${label}: ${value}`}
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, delay: 0.16 + index * 0.08, ease: 'easeOut' }}
-                  className="workspace-metric-tile group min-h-[3.15rem] flex-1 basis-[160px] !rounded-[1rem] !px-3 !py-2"
+                  className="workspace-metric-tile group min-h-[3.15rem] flex-1 basis-[104px] justify-center !rounded-[1rem] !px-2.5 !py-2 sm:basis-[160px] sm:justify-start sm:!px-3"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition-transform group-hover:scale-105">
+                  <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition-transform group-hover:scale-105 sm:flex">
                     {icon}
                   </span>
                   <span className="min-w-0 text-left">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+                    <span className="hidden truncate text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 sm:block">
                       {label}
                     </span>
-                    <span className="mt-0.5 block truncate text-sm font-black text-slate-900">
+                    <span className="block truncate text-sm font-black text-slate-900 sm:mt-0.5">
                       {value}
                     </span>
                   </span>
@@ -1228,7 +1229,7 @@ const WorkspacePage = () => {
             initial={{ opacity: 0, scale: 0.96, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.12, ease: 'easeOut' }}
-            className="workspace-visual-panel workspace-visual-panel--compact group"
+            className="workspace-visual-panel workspace-visual-panel--compact group hidden sm:block"
           >
             <AnimatePresence mode="wait">
               <MotionImg
@@ -1263,7 +1264,7 @@ const WorkspacePage = () => {
           </MotionDiv>
         </MotionDiv>
 
-        <section className="-mt-3 grid w-full grid-cols-1 gap-5 px-4 sm:px-6 lg:px-8 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
+        <section className="mt-1 grid w-full grid-cols-1 gap-5 px-0 sm:-mt-3 xl:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
           <MotionAside
             initial={{ opacity: 0, x: -18 }}
             animate={{ opacity: 1, x: 0 }}

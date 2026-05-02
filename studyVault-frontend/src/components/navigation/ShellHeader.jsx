@@ -94,11 +94,20 @@ const ShellHeader = () => {
     };
   }, [isAccountMenuOpen]);
 
-  const avatarUrl = useMemo(() => {
-    const seed = encodeURIComponent(
-      profile?.name || profile?.email || "StudyVault",
+  const profileInitials = useMemo(() => {
+    const source =
+      profile?.name?.trim() || profile?.email?.split("@")[0] || "SV";
+    const parts = source
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2);
+
+    return (
+      parts
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase() || "SV"
     );
-    return `https://ui-avatars.com/api/?name=${seed}&background=8f3b32&color=ffffff&bold=true`;
   }, [profile]);
 
   const navLinks = useMemo(() => {
@@ -149,7 +158,7 @@ const ShellHeader = () => {
           </span>
         </Link>
 
-        <div className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-1 lg:flex">
+        <div className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-1 md:flex">
           {navLinks.map((link) => {
             const active = isActivePath(
               location.pathname,
@@ -224,11 +233,9 @@ const ShellHeader = () => {
               aria-label="Open account menu"
               className="group flex h-10 items-center gap-2 rounded-xl px-1.5 transition-colors hover:bg-slate-100/70 sm:px-2"
             >
-              <img
-                src={avatarUrl}
-                alt="Profile"
-                className="h-8 w-8 rounded-lg border border-white object-cover shadow-sm transition-transform group-hover:scale-105"
-              />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white bg-gradient-to-tr from-brand-900 to-brand-500 text-xs font-black text-white shadow-sm transition-transform group-hover:scale-105">
+                {profileInitials}
+              </span>
               <div className="hidden min-w-0 flex-col items-start leading-tight xl:flex">
                 <span className="max-w-28 truncate text-sm font-bold text-slate-800">
                   {profileName}
@@ -306,14 +313,14 @@ const ShellHeader = () => {
             type="button"
             onClick={() => void handleLogout()}
             aria-label="Sign out"
-            className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 active:scale-95 sm:flex lg:hidden"
+            className="hidden h-10 w-10 items-center justify-center rounded-xl text-slate-400 transition-all hover:bg-rose-50 hover:text-rose-500 active:scale-95 sm:flex md:hidden"
           >
             <LogOut size={18} />
           </button>
         </div>
       </div>
 
-      <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/60 bg-white/90 px-2 shadow-2xl backdrop-blur-xl lg:hidden">
+      <nav className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/60 bg-white/90 px-2 shadow-2xl backdrop-blur-xl md:hidden">
         {navLinks.map((link) => {
           const active = isActivePath(location.pathname, link.path, link.end);
           const Icon = link.icon;

@@ -11,7 +11,7 @@ const AppShell = () => {
 
       <ShellHeader />
 
-      <div className="relative z-10 w-full px-4 pt-28 pb-20 sm:px-6 lg:px-8">
+      <div className="relative z-10 w-full px-4 pb-24 pt-24 sm:px-6 md:pb-8 lg:px-8">
         <Outlet />
       </div>
     </main>

@@ -238,7 +238,7 @@ const DropdownActions = ({
             transition={{ duration: 0.2, ease: emphasisEase }}
             className={cn(
               "absolute bottom-full right-0 z-[80] mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)]",
-              showTagPanel ? "w-80" : "w-max"
+              showTagPanel ? "w-[calc(100vw-2rem)] max-w-80" : "w-max"
             )}
           >
             <div className="flex items-center gap-1">
