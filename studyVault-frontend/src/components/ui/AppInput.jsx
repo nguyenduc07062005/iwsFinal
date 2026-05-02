@@ -12,20 +12,20 @@ export function AppInput({
   return (
     <label className={cn('flex w-full flex-col gap-2', wrapperClassName)}>
       {label ? (
-        <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+        <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700">
           {label}
         </span>
       ) : null}
 
       <span className="relative">
         {icon ? (
-          <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-400">
+          <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-slate-500">
             {icon}
           </span>
         ) : null}
         <input
           className={cn(
-            'control-surface w-full rounded-[var(--radius-control)] px-4 py-3.5 text-sm font-semibold text-slate-800 outline-none transition-all duration-300 focus:border-brand-200 focus:bg-white focus:shadow-[var(--shadow-medium)] focus:ring-2 focus:ring-brand-500/15',
+            'control-surface w-full rounded-[var(--radius-control)] px-4 py-3.5 text-sm font-semibold text-slate-900 outline-none transition-all duration-300 focus:border-brand-600 focus:bg-white focus:shadow-[var(--shadow-medium)] focus:ring-2 focus:ring-brand-600/20',
             icon && 'pl-12',
             error &&
               'border border-rose-200 bg-rose-50/70 text-rose-700 placeholder:text-rose-300 focus:border-rose-300 focus:ring-rose-400/10',
@@ -38,7 +38,7 @@ export function AppInput({
       {error ? (
         <span className="pl-1 text-xs font-bold text-rose-600">{error}</span>
       ) : hint ? (
-        <span className="pl-1 text-xs font-medium text-slate-500">{hint}</span>
+        <span className="pl-1 text-xs font-semibold text-slate-600">{hint}</span>
       ) : null}
     </label>
   );

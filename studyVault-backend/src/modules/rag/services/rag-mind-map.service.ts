@@ -1,5 +1,11 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PromptTemplate } from '@langchain/core/prompts';
+import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
 import {
   DocumentMindMapResponse,
   MindMapNode,
@@ -152,6 +158,7 @@ export class RagMindMapService {
     private readonly ragDocumentContextService: RagDocumentContextService,
     private readonly ragArtifactCacheService: RagArtifactCacheService,
     private readonly ragStructuredGenerationService: RagStructuredGenerationService,
+    private readonly userDocumentRepository: UserDocumentRepository,
   ) {}
 
   async getDocumentMindMap(
@@ -164,8 +171,18 @@ export class RagMindMapService {
       documentId,
       ownerId,
     );
+    const userDocument =
+      await this.userDocumentRepository.findByUserAndDocument(
+        ownerId,
+        documentId,
+      );
+
+    if (!userDocument) {
+      throw new NotFoundException('Document not found or not owned by user');
+    }
+
     const cachedMindMap = this.ragArtifactCacheService.getMindMap(
-      document,
+      userDocument,
       language,
     );
 
@@ -237,7 +254,7 @@ export class RagMindMapService {
 
     const generatedAt = new Date().toISOString();
 
-    await this.ragArtifactCacheService.saveMindMap(document, {
+    await this.ragArtifactCacheService.saveMindMap(userDocument, {
       root: mindMapRoot,
       summaryText,
       generatedAt,

@@ -28,10 +28,10 @@ import {
 const MotionDiv = motion.div;
 
 const inputClass =
-  "w-full rounded-2xl border border-white/75 bg-white/82 px-4 py-3 text-sm font-bold text-slate-800 outline-none shadow-sm transition-all placeholder:text-slate-400 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-600/14";
+  "w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-bold text-slate-900 outline-none shadow-sm transition-all placeholder:text-slate-500 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-600/14";
 
 const readOnlyClass =
-  "flex min-h-[48px] items-center gap-3 rounded-2xl border border-white/75 bg-white/58 px-4 text-sm font-bold text-slate-600 shadow-sm";
+  "flex min-h-[48px] items-center gap-3 rounded-2xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm";
 
 const Feedback = ({ feedback }) => {
   if (!feedback) return null;
@@ -54,13 +54,13 @@ const InfoPill = ({ icon, label, value }) => {
   const IconComponent = icon;
 
   return (
-    <div className="rounded-[1.35rem] border border-white/70 bg-white/66 p-4 shadow-sm backdrop-blur-xl">
+    <div className="rounded-[1.35rem] border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-900 shadow-sm">
           <IconComponent size={18} />
         </span>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">
             {label}
           </p>
           <p className="mt-1 truncate text-sm font-black text-slate-900">
@@ -281,16 +281,16 @@ const Profile = () => {
         <MotionDiv
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/62 shadow-[0_30px_90px_-62px_rgba(45,44,47,0.55)] backdrop-blur-xl"
+          className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_30px_90px_-62px_rgba(15,23,42,0.45)]"
         >
-          <div className="relative overflow-hidden border-b border-white/70 p-5 sm:p-7">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(216,107,84,0.24),transparent_34%),radial-gradient(circle_at_88%_4%,rgba(80,72,190,0.18),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.76),rgba(255,255,255,0.36))]" />
+          <div className="relative overflow-hidden border-b border-slate-200 p-5 sm:p-7">
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_0%,#f8fafc_58%,#fff4f1_100%)]" />
             <div className="relative flex flex-col gap-6">
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => navigate("/app")}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/82 text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
                   aria-label="Back to workspace"
                 >
                   <ArrowLeft size={18} />
@@ -313,14 +313,14 @@ const Profile = () => {
                     className="h-20 w-20 shrink-0 rounded-[1.6rem] border-4 border-white object-cover shadow-xl"
                   />
                   <div className="min-w-0">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brand-900 shadow-sm">
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brand-900 shadow-sm">
                       <ShieldCheck size={13} />
                       Personal profile
                     </div>
                     <h1 className="truncate text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
                       {displayName}
                     </h1>
-                    <p className="mt-1 flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-slate-500">
+                    <p className="mt-1 flex min-w-0 items-center gap-2 truncate text-sm font-semibold text-slate-700">
                       <Mail size={15} />
                       <span className="truncate">
                         {profile?.email || "Loading email..."}
@@ -344,7 +344,7 @@ const Profile = () => {
               </div>
             ) : (
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
-                <section className="rounded-[1.75rem] border border-white/70 bg-white/56 p-5 shadow-sm backdrop-blur-xl">
+                <section className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
                   <div className="mb-5">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-600">
                       Display information
@@ -353,7 +353,7 @@ const Profile = () => {
 
                   <form onSubmit={handleProfileSubmit} className="space-y-4">
                     <label className="block space-y-2">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
                         Display name
                       </span>
                       <input
@@ -372,7 +372,7 @@ const Profile = () => {
                         Sign-in email
                       </span>
                       <div className={readOnlyClass}>
-                        <Mail size={17} className="text-slate-400" />
+                        <Mail size={17} className="text-slate-600" />
                         <span className="min-w-0 truncate">
                           {profile?.email}
                         </span>
@@ -404,7 +404,7 @@ const Profile = () => {
                     value={profile?.isActive ? "Active" : "Suspended"}
                   />
 
-                  <div className="rounded-[1.75rem] border border-white/70 bg-white/54 p-5 shadow-sm backdrop-blur-xl">
+                  <div className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-start gap-3">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-dark text-white shadow-lg shadow-dark/12">
                         <KeyRound size={18} />
@@ -413,7 +413,7 @@ const Profile = () => {
                         <h3 className="text-base font-black text-slate-950">
                           Security
                         </h3>
-                        <p className="mt-1 text-sm font-semibold leading-6 text-slate-500">
+                        <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
                           Update your password when you need to improve account
                           security.
                         </p>
@@ -441,7 +441,7 @@ const Profile = () => {
               initial={{ opacity: 0, y: 24, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 18, scale: 0.98 }}
-              className="w-full max-w-[500px] rounded-[2rem] border border-white/70 bg-white/88 p-5 shadow-2xl backdrop-blur-2xl sm:p-6"
+              className="w-full max-w-[500px] rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
             >
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
@@ -460,7 +460,7 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={closePasswordPanel}
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-all hover:text-rose-500"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-sm transition-all hover:text-rose-600"
                   aria-label="Close password form"
                 >
                   <X size={18} />
@@ -469,7 +469,7 @@ const Profile = () => {
 
               <form onSubmit={handlePasswordSubmit} className="space-y-3">
                 <label className="block space-y-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
                     Current password
                   </span>
                   <input
@@ -487,7 +487,7 @@ const Profile = () => {
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
                     New password
                   </span>
                   <input
@@ -505,7 +505,7 @@ const Profile = () => {
                 </label>
 
                 <label className="block space-y-2">
-                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                  <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
                     Confirm password
                   </span>
                   <input

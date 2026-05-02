@@ -50,6 +50,8 @@ const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
 const VALID_TYPES = new Set(['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']);
 const VALID_VIEW_MODES = new Set(['grid', 'table']);
 const WORKSPACE_DOCUMENTS_PREFERENCES_KEY = 'studyvault.workspace.documents.preferences';
+const WORKSPACE_SCROLL_RESTORE_KEY = 'studyvault.workspace.scrollY';
+
 const WORKSPACE_QUERY_PREFERENCE_KEYS = [
   'favorite',
   'folderId',
@@ -836,6 +838,23 @@ const WorkspacePage = () => {
     void loadDocuments();
   }, [activeFolderId, documentQueryFolderId, favorite, isGlobalDocumentSearch, keyword, limit, page, queryPreferencesHydrated, reloadKey, rootFolder, sortBy, sortOrder, subjectId, tagId, type]);
 
+  // Restore scroll position after documents finish loading (when returning from DocumentViewer)
+  useEffect(() => {
+    if (documentsLoading) return;
+
+    const savedY = sessionStorage.getItem(WORKSPACE_SCROLL_RESTORE_KEY);
+    if (savedY === null) return;
+
+    sessionStorage.removeItem(WORKSPACE_SCROLL_RESTORE_KEY);
+    const targetY = Number(savedY);
+    if (!Number.isFinite(targetY) || targetY <= 0) return;
+
+    // rAF ensures the DOM has painted new documents before scrolling
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: targetY, behavior: 'instant' });
+    });
+  }, [documentsLoading]);
+
   const showSuccess = (message) => setFlash({ tone: 'success', message });
   const showError = (message) => setFlash({ tone: 'error', message });
 
@@ -1373,11 +1392,12 @@ const WorkspacePage = () => {
               error={documentsError}
               loading={foldersLoading || documentsLoading}
               onOpenFolder={handleFolderSelectionChange}
-              onOpenDocument={(id) =>
+              onOpenDocument={(id) => {
+                sessionStorage.setItem(WORKSPACE_SCROLL_RESTORE_KEY, String(window.scrollY));
                 navigate(`/app/documents/${id}`, {
                   state: { returnTo: documentReturnPath },
-                })
-              }
+                });
+              }}
               onDownloadDocument={handleDownloadDocument}
               onToggleFavorite={handleToggleFavorite}
               onMoveDocument={(doc) => {

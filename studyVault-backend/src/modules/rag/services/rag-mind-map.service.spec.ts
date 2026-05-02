@@ -6,6 +6,10 @@ describe('RagMindMapService', () => {
     id: string;
     title: string;
   };
+  type OwnedUserDocument = {
+    id: string;
+    documentName: string;
+  };
 
   type RepresentativeChunk = {
     chunkIndex: number;
@@ -57,11 +61,17 @@ describe('RagMindMapService', () => {
     buildSummaryContext: jest.fn<string, [RepresentativeChunk[]]>(),
   };
   const ragArtifactCacheService = {
-    getMindMap: jest.fn<unknown, [OwnedDocument, 'en' | 'vi']>(),
-    saveMindMap: jest.fn<Promise<void>, [OwnedDocument, unknown]>(),
+    getMindMap: jest.fn<unknown, [OwnedUserDocument, 'en' | 'vi']>(),
+    saveMindMap: jest.fn<Promise<void>, [OwnedUserDocument, unknown]>(),
   };
   const ragStructuredGenerationService = {
     generate: jest.fn<Promise<unknown>, [unknown]>(),
+  };
+  const userDocumentRepository = {
+    findByUserAndDocument: jest.fn<
+      Promise<OwnedUserDocument | null>,
+      [string, string]
+    >(),
   };
 
   let service: RagMindMapService;
@@ -72,6 +82,10 @@ describe('RagMindMapService', () => {
     ragDocumentContextService.ensureOwnedDocument.mockResolvedValue({
       id: 'doc-1',
       title: 'Debugging Notes',
+    });
+    userDocumentRepository.findByUserAndDocument.mockResolvedValue({
+      id: 'user-doc-1',
+      documentName: 'Debugging Notes',
     });
     ragDocumentContextService.getRepresentativeChunks.mockResolvedValue(
       representativeChunks,
@@ -132,6 +146,7 @@ describe('RagMindMapService', () => {
       ragDocumentContextService as never,
       ragArtifactCacheService as never,
       ragStructuredGenerationService as never,
+      userDocumentRepository as never,
     );
   });
 
@@ -161,6 +176,14 @@ describe('RagMindMapService', () => {
       generatedAt: cachedMindMap.generatedAt,
       cached: true,
     });
+    expect(userDocumentRepository.findByUserAndDocument).toHaveBeenCalledWith(
+      'user-1',
+      'doc-1',
+    );
+    expect(ragArtifactCacheService.getMindMap).toHaveBeenCalledWith(
+      { id: 'user-doc-1', documentName: 'Debugging Notes' },
+      'vi',
+    );
     expect(ragIndexingService.ensureDocumentIndexed).not.toHaveBeenCalled();
     expect(ragStructuredGenerationService.generate).not.toHaveBeenCalled();
     expect(ragArtifactCacheService.saveMindMap).not.toHaveBeenCalled();
@@ -195,7 +218,7 @@ describe('RagMindMapService', () => {
     expect(result.summary).toContain('Map branches:');
     expect(result.summary).toContain('- Core branch: This is the main idea.');
     expect(ragArtifactCacheService.saveMindMap).toHaveBeenCalledWith(
-      { id: 'doc-1', title: 'Debugging Notes' },
+      { id: 'user-doc-1', documentName: 'Debugging Notes' },
       expect.any(Object),
     );
     expect(ragStructuredGenerationService.generate).toHaveBeenCalledWith(
@@ -311,7 +334,7 @@ describe('RagMindMapService', () => {
     expect(result.mindMap.label).toBe('Debugging Notes');
     expect(result.mindMap.children.length).toBeGreaterThanOrEqual(2);
     expect(ragArtifactCacheService.saveMindMap).toHaveBeenCalledWith(
-      { id: 'doc-1', title: 'Debugging Notes' },
+      { id: 'user-doc-1', documentName: 'Debugging Notes' },
       expect.objectContaining({
         summaryLanguage: 'vi',
       }),

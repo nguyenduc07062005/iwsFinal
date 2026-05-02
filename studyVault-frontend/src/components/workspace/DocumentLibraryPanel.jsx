@@ -1,4 +1,4 @@
-/* eslint-disable react-refresh/only-export-components */
+﻿/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRightLeft,
@@ -120,7 +120,7 @@ const IconButton = ({ children, className, label, onClick }) => (
     title={label}
     onClick={onClick}
     className={cn(
-      'inline-flex h-9 w-9 items-center justify-center rounded-2xl text-slate-400 transition-all hover:bg-white hover:text-brand-600 hover:shadow-sm',
+      'inline-flex h-9 w-9 items-center justify-center rounded-2xl text-slate-600 transition-all hover:bg-white hover:text-brand-900 hover:shadow-sm',
       className,
     )}
   >
@@ -230,7 +230,7 @@ const DropdownActions = ({
 
       {isOpen ? (
         <div className={cn(
-          "absolute bottom-full right-0 z-[80] mb-2 rounded-2xl border border-white/85 bg-white/95 p-2 shadow-[0_24px_70px_-35px_rgba(45,44,47,0.55)] backdrop-blur-xl transition-all",
+          "absolute bottom-full right-0 z-[80] mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)] transition-all",
           showTagPanel ? "w-80" : "w-max"
         )}>
           <div className="flex items-center gap-1">
@@ -417,7 +417,7 @@ const DropdownActions = ({
 export const LoadingState = ({ viewMode }) => (
   <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-2.5'}>
     {Array.from({ length: 5 }).map((_, index) => (
-      <div key={index} className="rounded-2xl border border-white/70 bg-white/62 p-4">
+      <div key={index} className="rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex items-center gap-4">
           <AppSkeleton className="h-12 w-12 shrink-0 rounded-2xl" />
           <div className="flex-1 space-y-3">
@@ -434,20 +434,20 @@ const FolderRow = ({ folder, onOpenFolder }) => (
   <button
     type="button"
     onClick={() => onOpenFolder(folder.id)}
-    className="group flex w-full items-center gap-4 rounded-2xl border border-white/70 bg-white/62 px-4 py-3 text-left transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm"
+    className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-all hover:border-brand-200 hover:bg-white hover:shadow-sm"
   >
     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
       <FolderClosed size={20} />
     </span>
     <span className="min-w-0 flex-1">
       <span className="block truncate text-sm font-extrabold text-slate-800">{folder.name}</span>
-      <span className="mt-0.5 block text-xs font-semibold text-slate-400">Subfolder</span>
+      <span className="mt-0.5 block text-xs font-semibold text-slate-600">Subfolder</span>
     </span>
   </button>
 );
 
 const FileMeta = ({ doc, file, showFolderContext }) => (
-  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-slate-400">
+  <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-slate-600">
     <span>{file.label}</span>
     <span>{doc.formattedFileSize || 'N/A'}</span>
     <span>{formatDateLabel(doc.updatedAt || doc.createdAt)}</span>
@@ -511,7 +511,7 @@ const DocumentRow = ({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.025, 0.16) }}
-      className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-2xl border border-white/75 bg-white/66 px-4 py-3 shadow-[0_12px_34px_-32px_rgba(45,44,47,0.55)] transition-all hover:border-brand-100 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(45,44,47,0.48)] lg:grid-cols-[auto_minmax(0,1fr)_auto]"
+      className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_34px_-32px_rgba(15,23,42,0.45)] transition-all hover:border-brand-200 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(15,23,42,0.42)] lg:grid-cols-[auto_minmax(0,1fr)_auto]"
     >
       <button
         type="button"
@@ -585,7 +585,7 @@ const DocumentCard = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.035, 0.18) }}
       whileHover={{ y: -2 }}
-      className="group rounded-2xl border border-white/75 bg-white/66 p-4 shadow-[0_14px_38px_-34px_rgba(45,44,47,0.55)] transition-all hover:border-brand-100 hover:bg-white"
+      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_38px_-34px_rgba(15,23,42,0.45)] transition-all hover:border-brand-200 hover:bg-white"
     >
       <div className="flex items-start justify-between gap-4">
         <button
@@ -637,12 +637,12 @@ const DocumentCard = ({
 };
 
 const EmptyPanel = ({ action, description, title }) => (
-  <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-white/80 bg-white/45 p-8 text-center">
-    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-brand-500 shadow-sm">
+  <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
+    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 shadow-sm">
       <FileText size={28} />
     </div>
     <h3 className="text-xl font-extrabold text-slate-900">{title}</h3>
-    <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-500">{description}</p>
+    <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-600">{description}</p>
     {action ? <div className="mt-5">{action}</div> : null}
   </div>
 );
@@ -746,8 +746,8 @@ const DocumentLibraryPanel = ({
       )}
 
       {pagination && pagination.totalPages > 1 ? (
-        <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl border border-white/70 bg-white/45 px-4 py-3 sm:flex-row">
-          <p className="text-sm font-bold text-slate-500">
+        <div className="mt-6 flex flex-col items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row">
+          <p className="text-sm font-bold text-slate-600">
             Page {pagination.currentPage} / {pagination.totalPages} - {pagination.total} documents
           </p>
           <AppPagination

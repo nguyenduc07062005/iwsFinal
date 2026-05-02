@@ -14,7 +14,7 @@ const AuthLayout = () => {
   return (
     <div className="flex min-h-dvh overflow-x-hidden bg-slate-50 lg:h-screen lg:overflow-hidden">
       {/* Left Column: Form */}
-      <div 
+      <div
         className="scrollbar-hide relative z-10 flex w-full items-center justify-center overflow-y-auto bg-white p-4 py-8 shadow-2xl sm:p-10 lg:w-1/2 lg:p-16"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
@@ -44,44 +44,9 @@ const AuthLayout = () => {
       </div>
 
       {/* Right Column: Premium Visual Panel (Hidden on mobile) */}
-      <div
-        className="relative hidden flex-col items-center justify-center overflow-hidden p-8 lg:flex lg:w-1/2"
-        style={{
-          background:
-            'linear-gradient(135deg, #faf9f6 0%, #f4d6d0 30%, #faebe8 60%, #faf9f6 100%)',
-        }}
-      >
-        {/* Animated gradient overlay */}
-        <div className="bg-mesh absolute inset-0 opacity-50"></div>
-
-        {/* Decorative floating orbs */}
-        <MotionDiv
-          className="absolute right-[15%] top-[10%] h-40 w-40 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(184,115,51,0.25) 0%, transparent 70%)',
-          }}
-          animate={{ y: [0, -20, 0], x: [0, 10, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <MotionDiv
-          className="absolute bottom-[15%] left-[10%] h-56 w-56 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(226,114,91,0.2) 0%, transparent 70%)',
-          }}
-          animate={{ y: [0, 15, 0], x: [0, -10, 0], scale: [1, 1.15, 1] }}
-          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <MotionDiv
-          className="absolute left-[50%] top-[50%] h-32 w-32 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(184,115,51,0.15) 0%, transparent 70%)',
-          }}
-          animate={{ y: [0, -25, 0], scale: [1, 1.2, 1] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
-        />
+      <div className="relative hidden flex-col items-center justify-center overflow-hidden bg-slate-100 p-8 lg:flex lg:w-1/2">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_0%,#edf2f7_54%,#fff4f1_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.18)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.16)_1px,transparent_1px)] bg-[length:44px_44px]" />
 
         {/* Main content */}
         <div className="relative z-10 flex w-full max-w-lg flex-col items-center">
@@ -98,11 +63,7 @@ const AuthLayout = () => {
                 alt="StudyVault - Academic platform"
                 className="h-72 w-72 rounded-3xl object-contain"
                 style={{ mixBlendMode: 'multiply' }}
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               />
-              {/* Glow effect behind image */}
-              <div className="absolute inset-0 -z-10 scale-90 rounded-3xl bg-gradient-to-b from-brand-500/10 to-accent/10 blur-2xl"></div>
             </div>
           </MotionDiv>
 
@@ -119,7 +80,7 @@ const AuthLayout = () => {
                 Next Generation
               </span>
             </h3>
-            <p className="mx-auto max-w-sm text-sm font-medium leading-relaxed text-slate-500">
+            <p className="mx-auto max-w-sm text-sm font-semibold leading-relaxed text-slate-600">
               Manage, organize, and access study materials anytime, anywhere.
             </p>
           </MotionDiv>
@@ -157,7 +118,7 @@ const AuthLayout = () => {
                 whileHover={{ y: -4, scale: 1.02 }}
                 className="group cursor-default"
               >
-                <div className="glass h-full rounded-2xl border border-white/50 p-4 text-center shadow-lg transition-shadow duration-300 hover:shadow-xl">
+                <div className="h-full rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-[var(--shadow-soft)] transition-shadow duration-300 hover:shadow-[var(--shadow-medium)]">
                   <div
                     className={cn(
                       'mx-auto mb-2.5 flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md',
@@ -169,7 +130,7 @@ const AuthLayout = () => {
                   <h4 className="mb-0.5 text-sm font-bold text-slate-800">
                     {feature.title}
                   </h4>
-                  <p className="text-xs font-medium leading-tight text-slate-500">
+                  <p className="text-xs font-semibold leading-tight text-slate-600">
                     {feature.desc}
                   </p>
                 </div>
@@ -178,7 +139,6 @@ const AuthLayout = () => {
           </div>
         </div>
 
-        {/* Corner decorative patterns */}
         <div className="absolute right-0 top-0 h-64 w-64 opacity-10">
           <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="150" cy="50" r="80" stroke="#b87333" strokeWidth="0.5" />

@@ -113,6 +113,57 @@ describe('RagArtifactCacheService', () => {
     );
   });
 
+  it('does not expose custom fallback summaries stored on the shared document', () => {
+    const fallbackDocument = {
+      extraAttributes: {
+        aiArtifacts: {
+          summaryByLanguage: {
+            en: {
+              activeSlot: 'custom',
+              versions: {
+                default: {
+                  title: 'Default summary',
+                  overview: 'Default overview.',
+                  key_points: ['Default point'],
+                  conclusion: 'Default conclusion.',
+                  language: 'en',
+                  generatedAt: '2026-04-18T00:00:00.000Z',
+                  sources: [],
+                  slot: 'default',
+                },
+                custom: {
+                  title: 'Other user custom summary',
+                  overview: 'Private emphasis.',
+                  key_points: ['Private point'],
+                  conclusion: 'Private conclusion.',
+                  language: 'en',
+                  generatedAt: '2026-04-18T01:00:00.000Z',
+                  sources: [],
+                  slot: 'custom',
+                  instruction: 'Focus on my exam notes.',
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+    const userDocument = {
+      id: 'user-doc-2',
+      extraAttributes: {},
+    };
+
+    const summaryState = service.getSummaryState(
+      userDocument as never,
+      'en',
+      fallbackDocument as never,
+    );
+
+    expect(summaryState?.versions?.default?.title).toBe('Default summary');
+    expect(summaryState?.versions?.custom).toBeUndefined();
+    expect(summaryState?.activeSlot).toBe('default');
+  });
+
   it('persists a custom summary without dropping the fallback default version', async () => {
     const fallbackDocument = {
       extraAttributes: {

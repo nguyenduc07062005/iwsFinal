@@ -74,9 +74,9 @@ const WorkspaceShell = () => {
       className={`text-slate-900 relative font-sans ${isDocumentViewer ? "min-h-dvh overflow-x-hidden xl:h-screen xl:overflow-hidden" : "min-h-screen"}`}
     >
       {/* Dynamic Background Container (fixes horizontal scroll without breaking vertical scrollbars) */}
-      <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50/50">
-        <div className="absolute top-0 right-0 h-[50rem] w-[50rem] opacity-[0.12] mix-blend-multiply blur-3xl transform translate-x-1/3 -translate-y-1/2 rounded-full bg-gradient-to-tr from-cyan-400 via-blue-400 to-sky-300 pointer-events-none animate-spin-slow" />
-        <div className="absolute top-40 left-0 h-[40rem] w-[40rem] opacity-[0.12] mix-blend-multiply blur-3xl transform -translate-x-1/2 rounded-full bg-gradient-to-bl from-cyan-300 via-teal-300 to-emerald-400 pointer-events-none" />
+      <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-100">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_0%,#edf2f7_52%,#fff4f1_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(148,163,184,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.12)_1px,transparent_1px)] bg-[length:48px_48px]" />
       </div>
 
       <header
@@ -95,9 +95,8 @@ const WorkspaceShell = () => {
               className="group flex items-center gap-4 transition-all outline-none"
             >
               <div className="relative flex h-9 w-9 items-center justify-center">
-                <div className="absolute inset-0 animate-pulse rounded-2xl bg-cyan-500/20 blur-xl group-hover:bg-cyan-500/30 transition-colors" />
-                <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-slate-900 shadow-xl transition-all duration-500 hover:rotate-6 hover:scale-110">
-                  <span className="font-display text-[14px] font-black italic text-cyan-400">
+                <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl bg-brand-900 shadow-xl transition-all duration-500 hover:scale-105">
+                  <span className="font-display text-[14px] font-black italic text-white">
                     S
                   </span>
                 </div>
@@ -111,7 +110,7 @@ const WorkspaceShell = () => {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex h-1 w-1 rounded-full bg-emerald-500"></span>
                   </span>
-                  <span className="text-[7px] font-black uppercase tracking-[0.2em] text-cyan-600/80">
+                  <span className="text-[7px] font-black uppercase tracking-[0.2em] text-brand-900">
                     AI Active
                   </span>
                 </div>
@@ -136,10 +135,10 @@ const WorkspaceShell = () => {
                     <>
                       {item.label}
                       {isActive && (
-                        <div className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-cyan-500/10 blur-md" />
+                        <div className="absolute -bottom-2.5 left-1/2 h-5 w-5 -translate-x-1/2 rounded-full bg-brand-900/10 blur-md" />
                       )}
                       {isActive && (
-                        <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-cyan-500" />
+                        <span className="absolute -bottom-1.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-brand-900" />
                       )}
                     </>
                   )}
@@ -155,8 +154,7 @@ const WorkspaceShell = () => {
             >
               <div className="group relative flex items-center gap-3 cursor-pointer">
                 <div className="relative flex h-9 w-9 items-center justify-center">
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-cyan-400 to-blue-500 blur-md opacity-20 group-hover:opacity-40 transition-opacity" />
-                  <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-[13px] font-black text-white shadow-lg ring-1 ring-white/20 transition-transform group-hover:scale-105">
+                  <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-xl bg-brand-900 text-[13px] font-black text-white shadow-lg ring-1 ring-white/20 transition-transform group-hover:scale-105">
                     {profileInitial}
                   </div>
                 </div>
@@ -165,8 +163,8 @@ const WorkspaceShell = () => {
                     {profileName.split(" ")[0]}
                   </span>
                   <div className="flex items-center gap-1">
-                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,145,178,0.5)]" />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-cyan-600">
+                    <div className="h-1.5 w-1.5 rounded-full bg-brand-600 shadow-[0_0_8px_rgba(143,59,50,0.35)]" />
+                    <span className="text-[9px] font-black uppercase tracking-wider text-brand-900">
                       Premium Pro
                     </span>
                   </div>

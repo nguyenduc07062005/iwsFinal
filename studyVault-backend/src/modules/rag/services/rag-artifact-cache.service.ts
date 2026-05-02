@@ -40,9 +40,11 @@ export class RagArtifactCacheService {
       this.getArtifactCache(userDocument).summaryByLanguage?.[language],
       language,
     );
-    const fallbackSummaryState = this.getNormalizedSummaryState(
-      this.getArtifactCache(fallbackDocument).summaryByLanguage?.[language],
-      language,
+    const fallbackSummaryState = this.getShareableFallbackSummaryState(
+      this.getNormalizedSummaryState(
+        this.getArtifactCache(fallbackDocument).summaryByLanguage?.[language],
+        language,
+      ),
     );
 
     return this.mergeSummaryStates(fallbackSummaryState, userSummaryState);
@@ -72,23 +74,30 @@ export class RagArtifactCacheService {
   }
 
   getMindMap(
-    document: Document,
+    owner: Document | UserDocument,
     language: SummaryLanguage,
   ): MindMapArtifact | null {
     return (
-      this.getArtifactCache(document).mindMapByLanguage?.[language] ?? null
+      this.getArtifactCache(owner).mindMapByLanguage?.[language] ?? null
     );
   }
 
   async saveMindMap(
-    document: Document,
+    owner: Document | UserDocument,
     mindMap: MindMapArtifact,
   ): Promise<void> {
-    await this.saveDocumentArtifactCache(document, {
+    const patch = {
       mindMapByLanguage: {
         [mindMap.summaryLanguage]: mindMap,
       },
-    });
+    };
+
+    if (this.isUserDocument(owner)) {
+      await this.saveUserDocumentArtifactCache(owner, patch);
+      return;
+    }
+
+    await this.saveDocumentArtifactCache(owner, patch);
   }
 
   getDiagram(document: Document): DiagramArtifact | null {
@@ -269,6 +278,37 @@ export class RagArtifactCacheService {
         versions,
       ),
       versions,
+    };
+  }
+
+  private isUserDocument(owner: Document | UserDocument): owner is UserDocument {
+    return (
+      'documentName' in owner || 'isFavorite' in owner || 'folder' in owner
+    );
+  }
+
+  private getShareableFallbackSummaryState(
+    summaryState: SummaryLanguageCache | null,
+  ): SummaryLanguageCache | null {
+    const defaultVersion = summaryState?.versions?.default;
+
+    if (!defaultVersion || defaultVersion.slot === 'custom') {
+      return null;
+    }
+
+    if (defaultVersion.instruction) {
+      return null;
+    }
+
+    return {
+      activeSlot: 'default',
+      versions: {
+        default: {
+          ...defaultVersion,
+          slot: 'default',
+          instruction: null,
+        },
+      },
     };
   }
 

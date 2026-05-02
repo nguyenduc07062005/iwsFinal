@@ -9,15 +9,15 @@ const sizeClasses = {
 
 const variantClasses = {
   primary:
-    'bg-brand-900 text-white shadow-[var(--shadow-brand)] hover:-translate-y-0.5 hover:bg-brand-600',
+    'border border-brand-900 bg-brand-900 text-white shadow-[var(--shadow-brand)] hover:-translate-y-0.5 hover:bg-brand-600',
   secondary:
-    'glass text-slate-700 border-white/70 hover:-translate-y-0.5 hover:text-brand-600 hover:shadow-[var(--shadow-medium)]',
+    'border border-slate-300 bg-white text-slate-800 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:border-brand-600 hover:text-brand-900 hover:shadow-[var(--shadow-medium)]',
   outline:
-    'bg-white/85 text-slate-700 border border-slate-200 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-600',
+    'border border-slate-300 bg-white text-slate-800 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:border-brand-600 hover:text-brand-900',
   ghost:
-    'bg-transparent text-slate-600 shadow-none hover:bg-white/70 hover:text-brand-600',
+    'bg-transparent text-slate-700 shadow-none hover:bg-white hover:text-brand-900',
   danger:
-    'bg-rose-600 text-white shadow-[0_22px_55px_-28px_rgba(225,29,72,0.4)] hover:-translate-y-0.5 hover:bg-rose-700',
+    'border border-rose-700 bg-rose-600 text-white shadow-[0_22px_55px_-28px_rgba(225,29,72,0.4)] hover:-translate-y-0.5 hover:bg-rose-700',
 };
 
 export function AppButton({

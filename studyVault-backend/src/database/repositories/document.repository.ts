@@ -40,6 +40,23 @@ export class DocumentRepository extends BaseRepository<Document> {
       .getOne();
   }
 
+  // Find document by content hash, user AND specific folder (for per-folder duplicate check)
+  async findByContentHashAndUserAndFolder(
+    contentHash: string,
+    userId: string,
+    folderId: string,
+  ): Promise<Document | null> {
+    return this.repository
+      .createQueryBuilder('document')
+      .leftJoin('document.userDocuments', 'userDocument')
+      .leftJoin('userDocument.user', 'user')
+      .leftJoin('userDocument.folder', 'folder')
+      .where('document.contentHash = :contentHash', { contentHash })
+      .andWhere('user.id = :userId', { userId })
+      .andWhere('folder.id = :folderId', { folderId })
+      .getOne();
+  }
+
   // Find document by ID and user with chunks
   async findByIdAndOwner(
     id: string,

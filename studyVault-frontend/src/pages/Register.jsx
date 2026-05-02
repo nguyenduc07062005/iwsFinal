@@ -52,7 +52,7 @@ const Register = () => {
 
       setSuccessMessage(
         response.message ||
-          'Please check your email to verify your account and set a password.',
+        'Please check your email to verify your account and set a password.',
       );
       setLastSubmittedSignature(currentSignature);
     } catch (requestError) {
@@ -117,7 +117,7 @@ const Register = () => {
           </div>
         )}
 
-        <button 
+        <button
           disabled={isSubmitting || hasSubmittedCurrentInfo}
           className="group mt-1 flex w-full transform items-center justify-center gap-2 rounded-2xl bg-brand-900 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-brand-500/20 transition-all hover:-translate-y-1 hover:bg-brand-600 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-brand-900"
         >

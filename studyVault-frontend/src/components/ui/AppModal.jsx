@@ -39,7 +39,7 @@ export function AppModal({
             exit={{ opacity: 0, y: 14, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className={cn(
-              'floating-ring relative max-h-[calc(100vh-3rem)] w-full overflow-y-auto rounded-[1.5rem] border border-white/90 bg-white/95 px-5 py-5 shadow-[0_32px_90px_-48px_rgba(15,23,42,0.48)] sm:px-6 sm:py-6',
+              'floating-ring relative max-h-[calc(100vh-3rem)] w-full overflow-y-auto rounded-[1.25rem] border border-slate-200 bg-white px-5 py-5 shadow-[0_32px_90px_-48px_rgba(15,23,42,0.48)] sm:px-6 sm:py-6',
               sizeClasses[size],
             )}
             onClick={(event) => event.stopPropagation()}
@@ -47,7 +47,7 @@ export function AppModal({
             <button
               type="button"
               onClick={onClose}
-              className="absolute right-5 top-5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-slate-500 transition-all hover:bg-rose-50 hover:text-rose-500"
+              className="absolute right-5 top-5 inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition-all hover:bg-rose-50 hover:text-rose-600"
               aria-label="Close modal"
             >
               <X className="h-[18px] w-[18px]" />
@@ -59,7 +59,7 @@ export function AppModal({
               </h2>
             ) : null}
             {description ? (
-              <p className="mt-1 max-w-md pr-12 text-sm font-semibold leading-6 text-slate-500">
+              <p className="mt-1 max-w-md pr-12 text-sm font-semibold leading-6 text-slate-600">
                 {description}
               </p>
             ) : null}
@@ -67,7 +67,7 @@ export function AppModal({
             <div className={cn(title ? 'mt-5' : 'mt-0')}>{children}</div>
 
             {footer ? (
-              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
                 {footer}
               </div>
             ) : null}

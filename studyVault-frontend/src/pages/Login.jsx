@@ -143,7 +143,7 @@ const Login = () => {
           </div>
         )}
 
-        <button 
+        <button
           disabled={isSubmitting}
           className="group flex w-full transform items-center justify-center gap-2 rounded-2xl bg-brand-900 py-3.5 mt-1 text-sm font-extrabold text-white shadow-lg shadow-brand-500/20 transition-all hover:-translate-y-1 hover:bg-brand-600 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-brand-900"
         >

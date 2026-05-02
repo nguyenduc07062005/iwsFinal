@@ -133,7 +133,7 @@ const ShellHeader = () => {
         className={cn(
           "relative mx-auto flex h-16 w-full max-w-[1760px] items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl transition-all duration-300 sm:px-5",
           isScrolled &&
-            "border-brand-100/30 bg-white/95 shadow-lg shadow-brand-500/5",
+          "border-brand-100/30 bg-white/95 shadow-lg shadow-brand-500/5",
         )}
       >
         <Link

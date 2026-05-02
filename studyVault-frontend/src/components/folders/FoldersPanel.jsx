@@ -65,7 +65,7 @@ const FolderActionButton = ({ icon, label, onClick, tone = 'default' }) => (
       'inline-flex h-9 w-9 items-center justify-center rounded-2xl transition-all hover:bg-white hover:shadow-sm',
       tone === 'danger'
         ? 'text-rose-500 hover:text-rose-600'
-        : 'text-slate-400 hover:text-brand-600',
+        : 'text-slate-600 hover:text-brand-900',
     )}
   >
     {icon}
@@ -74,13 +74,13 @@ const FolderActionButton = ({ icon, label, onClick, tone = 'default' }) => (
 
 const SelectField = ({ label, onChange, options, value }) => (
   <label className="flex w-full flex-col gap-2">
-    <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+    <span className="pl-1 text-[11px] font-black uppercase tracking-[0.18em] text-slate-700">
       {label}
     </span>
     <select
       value={value}
       onChange={onChange}
-      className="control-surface w-full appearance-none rounded-[var(--radius-control)] px-4 py-3.5 pr-10 text-sm font-semibold text-slate-800 outline-none transition-all duration-300 focus:border-brand-200 focus:bg-white focus:shadow-[var(--shadow-medium)] focus:ring-2 focus:ring-brand-500/15"
+      className="control-surface w-full appearance-none rounded-[var(--radius-control)] px-4 py-3.5 pr-10 text-sm font-semibold text-slate-900 outline-none transition-all duration-300 focus:border-brand-600 focus:bg-white focus:shadow-[var(--shadow-medium)] focus:ring-2 focus:ring-brand-600/20"
     >
       {options.map((option) => (
         <option key={option.id} value={option.id}>
@@ -297,7 +297,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                 </h2>
               </div>
             </div>
-            <p className="mt-3 text-xs font-bold text-slate-400">
+            <p className="mt-3 text-xs font-bold text-slate-600">
               {totalFolderCount} folders · {visibleFolders.length} branches
             </p>
           </div>
@@ -307,7 +307,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
             onClick={openCreateModal}
             aria-label="Create folder"
             title="Create folder"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-white/80 transition-all hover:-translate-y-0.5 hover:bg-brand-900 hover:text-white"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-brand-900 hover:text-white"
           >
             <FolderPlus size={20} />
           </button>
@@ -329,7 +329,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                     'inline-flex max-w-[150px] items-center gap-1.5 truncate rounded-full px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] transition-all',
                     isCurrent
                       ? 'bg-brand-900 text-white shadow-sm'
-                      : 'bg-white/70 text-slate-500 hover:bg-white hover:text-brand-600',
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-white hover:text-brand-900',
                   )}
                 >
                   {index === 0 ? <Home size={12} /> : null}
@@ -344,7 +344,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
           <button
             type="button"
             onClick={() => goToFolder(parentFolder.id)}
-            className="mb-3 inline-flex w-fit items-center gap-2 rounded-full bg-white/75 px-3 py-2 text-xs font-extrabold text-slate-500 shadow-sm transition-colors hover:text-brand-600"
+            className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-extrabold text-slate-700 shadow-sm transition-colors hover:text-brand-900"
           >
             <ChevronLeft className="h-4 w-4" />
             Back
@@ -356,7 +356,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
             Array.from({ length: 5 }).map((_, index) => (
               <div
                 key={index}
-                className="rounded-2xl border border-white/70 bg-white/60 p-3"
+                className="rounded-2xl border border-slate-200 bg-white p-3"
               >
                 <div className="flex items-center gap-3">
                   <AppSkeleton className="h-11 w-11 rounded-2xl" />
@@ -377,7 +377,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                   <div
                     key={folder.id}
                     className={cn(
-                      'group flex items-center gap-3 rounded-2xl border border-white/70 bg-white/58 px-3 py-3 transition-all hover:border-brand-100 hover:bg-white hover:shadow-sm',
+                      'group flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3 transition-all hover:border-brand-200 hover:bg-white hover:shadow-sm',
                       isActive && 'border-brand-200 bg-white shadow-sm',
                     )}
                   >
@@ -398,7 +398,7 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
                         <span className="block truncate text-sm font-extrabold text-slate-900">
                           {getFolderLabel(folder)}
                         </span>
-                        <span className="mt-0.5 block text-xs font-bold text-slate-400">
+                        <span className="mt-0.5 block text-xs font-bold text-slate-600">
                           {childCount > 0 ? `${childCount} subfolders` : 'Open folder'}
                         </span>
                       </span>
@@ -429,17 +429,17 @@ const FoldersPanel = ({ onFolderSelectionChange }) => {
               <button
                 type="button"
                 onClick={openCreateModal}
-                className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-white/80 bg-white/50 px-5 py-8 text-center transition-all hover:border-brand-200 hover:bg-white/75"
+                className="flex w-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center transition-all hover:border-brand-200 hover:bg-white"
               >
-                <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-brand-500 shadow-sm">
+                <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 shadow-sm">
                   <FolderPlus size={24} />
                 </span>
                 <span className="text-sm font-extrabold text-slate-900">No subfolders yet</span>
-                <span className="mt-1 text-xs font-bold text-slate-400">Create folders to organize documents.</span>
+                <span className="mt-1 text-xs font-bold text-slate-600">Create folders to organize documents.</span>
               </button>
             )
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/80 bg-white/50 px-5 py-8 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
               <span className="text-sm font-extrabold text-slate-900">Workspace is not ready</span>
             </div>
           )}

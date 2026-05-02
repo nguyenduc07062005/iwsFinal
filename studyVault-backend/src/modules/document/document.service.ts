@@ -208,11 +208,16 @@ export class DocumentService {
   }
 
   /**
-   * Handle document duplication logic
+   * Handle document duplication logic.
+   * Throws if the exact same file (by content hash) already exists in the same
+   * folder for this user. If this user already has the same content elsewhere,
+   * let the caller create a separate Document so document-id based routes stay
+   * unambiguous for per-folder copies.
    */
   private async handleDocumentDuplication(
     contentHash: string,
     ownerId: string,
+    targetFolderId: string,
   ): Promise<Document | null> {
     const existingDoc = await this.documentRepository.findOne({
       where: { contentHash },
@@ -223,13 +228,27 @@ export class DocumentService {
       return null;
     }
 
-    // Check if same user already has it
-    const userDoc = await this.documentRepository.findByContentHashAndUser(
-      contentHash,
-      ownerId,
-    );
-    if (userDoc) {
-      throw new BadRequestException('This file is already in your library.');
+    const userDocInSameFolder =
+      await this.documentRepository.findByContentHashAndUserAndFolder(
+        contentHash,
+        ownerId,
+        targetFolderId,
+      );
+
+    if (userDocInSameFolder) {
+      throw new BadRequestException(
+        'This file already exists in the selected folder.',
+      );
+    }
+
+    const ownerDocWithSameContent =
+      await this.documentRepository.findByContentHashAndUser(
+        contentHash,
+        ownerId,
+      );
+
+    if (ownerDocWithSameContent) {
+      return null;
     }
 
     return existingDoc;
@@ -464,16 +483,23 @@ export class DocumentService {
       }
 
       const contentHash = this.generateContentHash(file.buffer);
+
+      // Resolve target folder BEFORE the duplicate check so we can do a
+      // per-folder comparison instead of a library-wide one.
+      const targetFolderId = await this.resolveTargetFolderId(
+        ownerId,
+        dto.folderId,
+      );
+
       const duplicateDoc = await this.handleDocumentDuplication(
         contentHash,
         ownerId,
+        targetFolderId,
       );
 
       if (duplicateDoc) {
-        const targetFolderId = await this.resolveTargetFolderId(
-          ownerId,
-          dto.folderId,
-        );
+        // Same file content already processed - reuse the existing Document
+        // record and just create a new UserDocument in the requested folder.
         const tags = dto.tagIds?.length
           ? await this.getOwnedTags(ownerId, dto.tagIds)
           : [];
@@ -509,10 +535,7 @@ export class DocumentService {
 
       const text = await this.extractTextFromFile(file);
       const chunks = this.chunkText(text, 1000);
-      const targetFolderId = await this.resolveTargetFolderId(
-        ownerId,
-        dto.folderId,
-      );
+      // targetFolderId already resolved above
       const tags = dto.tagIds?.length
         ? await this.getOwnedTags(ownerId, dto.tagIds)
         : [];
@@ -1154,15 +1177,15 @@ export class DocumentService {
         chunkIds.length === 0
           ? []
           : (
-              await chunkRepo
-                .createQueryBuilder('chunk')
-                .leftJoin('chunk.documents', 'document')
-                .select('chunk.id', 'id')
-                .where('chunk.id IN (:...chunkIds)', { chunkIds })
-                .groupBy('chunk.id')
-                .having('COUNT(document.id) = 1')
-                .getRawMany<{ id: string }>()
-            ).map((row) => row.id);
+            await chunkRepo
+              .createQueryBuilder('chunk')
+              .leftJoin('chunk.documents', 'document')
+              .select('chunk.id', 'id')
+              .where('chunk.id IN (:...chunkIds)', { chunkIds })
+              .groupBy('chunk.id')
+              .having('COUNT(document.id) = 1')
+              .getRawMany<{ id: string }>()
+          ).map((row) => row.id);
 
       await documentRepo.delete({ id: documentId });
 
