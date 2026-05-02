@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, IsNull } from 'typeorm';
+import { formatFileSize } from 'src/common/utils/format';
 import { Folder } from 'src/database/entities/folder.entity';
 import { UserDocument } from 'src/database/entities/user-document.entity';
 import { FolderRepository } from 'src/database/repositories/folder.repository';
@@ -386,7 +387,7 @@ export class FolderService {
         ...userDoc.document,
         title: userDoc.documentName || userDoc.document?.title,
         isFavorite: userDoc.isFavorite,
-        formattedFileSize: this.formatFileSize(userDoc.document?.fileSize || 0),
+        formattedFileSize: formatFileSize(userDoc.document?.fileSize || 0),
       })),
     };
   }
@@ -441,19 +442,9 @@ export class FolderService {
       ...userDocument.document,
       title: userDocument.documentName || userDocument.document?.title,
       isFavorite: userDocument.isFavorite,
-      formattedFileSize: this.formatFileSize(
-        userDocument.document?.fileSize || 0,
-      ),
+      formattedFileSize: formatFileSize(userDocument.document?.fileSize || 0),
       folderId: userDocument.folder?.id || null,
       folderName: userDocument.folder?.name || 'Workspace',
     };
-  }
-
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }

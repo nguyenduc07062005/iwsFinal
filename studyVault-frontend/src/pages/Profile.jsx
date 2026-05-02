@@ -75,7 +75,7 @@ const InfoPill = ({ icon, label, value }) => {
 
 const getRoleLabel = (role) => {
   if (role === "admin") return "Administrator";
-  return "Users";
+  return "User";
 };
 
 const Profile = () => {

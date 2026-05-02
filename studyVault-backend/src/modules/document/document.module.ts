@@ -11,6 +11,8 @@ import { UserRepository } from 'src/database/repositories/user.repository';
 import { RagModule } from '../rag/rag.module';
 
 import { DocumentService } from './document.service';
+import { DocumentFileService } from './document-file.service';
+import { DocumentNotesService } from './document-notes.service';
 import { DocumentController } from './document.controller';
 
 @Module({
@@ -18,11 +20,13 @@ import { DocumentController } from './document.controller';
   controllers: [DocumentController],
   providers: [
     DocumentService,
+    DocumentFileService,
+    DocumentNotesService,
     DocumentRepository,
     ChunkRepository,
     UserDocumentRepository,
     UserRepository,
   ],
-  exports: [DocumentService],
+  exports: [DocumentService, DocumentFileService, DocumentNotesService],
 })
 export class DocumentModule {}

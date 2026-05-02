@@ -9,7 +9,6 @@ import { DocumentDto } from './dtos/document.dto';
 import { Document } from 'src/database/entities/document.entity';
 import { Chunk } from 'src/database/entities/chunks.entity';
 import { UserDocument } from 'src/database/entities/user-document.entity';
-import { StudyNote } from 'src/database/entities/study-note.entity';
 import { Tag, TagType } from 'src/database/entities/tag.entity';
 import { UserDocumentTag } from 'src/database/entities/user-document-tag.entity';
 import { DocumentRepository } from 'src/database/repositories/document.repository';
@@ -22,11 +21,11 @@ import {
   DocumentTypeFilter,
   ListDocumentsDto,
 } from './dtos/list-documents.dto';
-import { StudyNoteDto } from './dtos/study-note.dto';
 import {
   buildContainsLikePattern,
   escapeLikePattern,
 } from 'src/common/database/like-pattern';
+import { formatFileSize, getErrorMessage } from 'src/common/utils/format';
 
 import {
   DataSource,
@@ -100,11 +99,6 @@ type DocumentListResult = {
     total: number;
     totalPages: number;
   };
-};
-
-type DocumentHtmlPreviewResult = {
-  html: string;
-  messages: string[];
 };
 
 const MAX_UPLOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -602,7 +596,7 @@ export class DocumentService {
         throw error;
       }
       this.logger.error(
-        `Upload document failed: ${this.getErrorMessage(error)}`,
+        `Upload document failed: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -726,88 +720,6 @@ export class DocumentService {
     );
 
     return tags.map((tag) => this.toTagSummary(tag));
-  }
-
-  async listStudyNotes(documentId: string, ownerId: string) {
-    const userDocument = await this.findUserDocumentForOwner(
-      documentId,
-      ownerId,
-      ['document'],
-    );
-
-    if (!userDocument) {
-      throw new NotFoundException('Document not found or not owned by user');
-    }
-
-    const notes = await this.dataSource.getRepository(StudyNote).find({
-      where: { userId: ownerId, userDocumentId: userDocument.id },
-      order: { updatedAt: 'DESC', createdAt: 'DESC' },
-    });
-
-    return notes.map((note) => this.toStudyNoteSummary(note));
-  }
-
-  async createStudyNote(
-    documentId: string,
-    ownerId: string,
-    dto: StudyNoteDto,
-  ) {
-    const userDocument = await this.findUserDocumentForOwner(
-      documentId,
-      ownerId,
-      ['document'],
-    );
-
-    if (!userDocument) {
-      throw new NotFoundException('Document not found or not owned by user');
-    }
-
-    const content = dto.content.trim();
-    if (!content) {
-      throw new BadRequestException('Note content is required');
-    }
-
-    const noteRepository = this.dataSource.getRepository(StudyNote);
-    const note = noteRepository.create({
-      userId: ownerId,
-      userDocumentId: userDocument.id,
-      content,
-    });
-
-    return this.toStudyNoteSummary(await noteRepository.save(note));
-  }
-
-  async updateStudyNote(noteId: string, ownerId: string, dto: StudyNoteDto) {
-    const noteRepository = this.dataSource.getRepository(StudyNote);
-    const note = await noteRepository.findOne({
-      where: { id: noteId, userId: ownerId },
-    });
-
-    if (!note) {
-      throw new NotFoundException('Study note not found');
-    }
-
-    const content = dto.content.trim();
-    if (!content) {
-      throw new BadRequestException('Note content is required');
-    }
-
-    note.content = content;
-    return this.toStudyNoteSummary(await noteRepository.save(note));
-  }
-
-  async deleteStudyNote(noteId: string, ownerId: string) {
-    const noteRepository = this.dataSource.getRepository(StudyNote);
-    const note = await noteRepository.findOne({
-      where: { id: noteId, userId: ownerId },
-    });
-
-    if (!note) {
-      throw new NotFoundException('Study note not found');
-    }
-
-    await noteRepository.delete(note.id);
-    return { id: note.id };
   }
 
   /**
@@ -1100,7 +1012,7 @@ export class DocumentService {
       }
 
       this.logger.error(
-        `Failed to retrieve documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
+        `Failed to retrieve documents for owner ${ownerId}: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -1177,15 +1089,15 @@ export class DocumentService {
         chunkIds.length === 0
           ? []
           : (
-            await chunkRepo
-              .createQueryBuilder('chunk')
-              .leftJoin('chunk.documents', 'document')
-              .select('chunk.id', 'id')
-              .where('chunk.id IN (:...chunkIds)', { chunkIds })
-              .groupBy('chunk.id')
-              .having('COUNT(document.id) = 1')
-              .getRawMany<{ id: string }>()
-          ).map((row) => row.id);
+              await chunkRepo
+                .createQueryBuilder('chunk')
+                .leftJoin('chunk.documents', 'document')
+                .select('chunk.id', 'id')
+                .where('chunk.id IN (:...chunkIds)', { chunkIds })
+                .groupBy('chunk.id')
+                .having('COUNT(document.id) = 1')
+                .getRawMany<{ id: string }>()
+            ).map((row) => row.id);
 
       await documentRepo.delete({ id: documentId });
 
@@ -1229,7 +1141,7 @@ export class DocumentService {
         throw error;
       }
       this.logger.error(
-        `Failed to toggle favorite: ${this.getErrorMessage(error)}`,
+        `Failed to toggle favorite: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -1252,7 +1164,7 @@ export class DocumentService {
       });
     } catch (error: unknown) {
       this.logger.error(
-        `Failed to get favorites: ${this.getErrorMessage(error)}`,
+        `Failed to get favorites: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -1365,7 +1277,7 @@ export class DocumentService {
       };
     } catch (error: unknown) {
       this.logger.error(
-        `Failed to search documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
+        `Failed to search documents for owner ${ownerId}: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -1492,7 +1404,7 @@ export class DocumentService {
         throw error;
       }
       this.logger.error(
-        `Failed to get related documents for owner ${ownerId}: ${this.getErrorMessage(error)}`,
+        `Failed to get related documents for owner ${ownerId}: ${getErrorMessage(error)}`,
         error instanceof Error ? error.stack : undefined,
       );
       throw new InternalServerErrorException(
@@ -1517,119 +1429,6 @@ export class DocumentService {
     }
 
     return this.toDocumentSummary(userDocument);
-  }
-
-  /**
-   * Get document file path for serving
-   * Supports both Document ID and UserDocument ID for robustness
-   */
-  async getDocumentFilePath(
-    documentId: string,
-    ownerId: string,
-  ): Promise<string> {
-    // Try to find by Document ID first
-    let document = await this.documentRepository.findByIdAndOwner(
-      documentId,
-      ownerId,
-    );
-
-    // If not found, try to find by UserDocument ID
-    if (!document) {
-      const userDoc = await this.dataSource
-        .getRepository(UserDocument)
-        .findOne({
-          where: { id: documentId, user: { id: ownerId } },
-          relations: ['document'],
-        });
-
-      if (userDoc?.document) {
-        document = userDoc.document;
-      }
-    }
-
-    if (!document) {
-      this.logger.warn(
-        `File request failed: Document ${documentId} not found for owner ${ownerId}`,
-      );
-      throw new NotFoundException('Document not found or not owned by user');
-    }
-
-    try {
-      await fs.access(document.fileRef);
-      return document.fileRef;
-    } catch {
-      try {
-        const fileName = path.basename(document.fileRef);
-        const localFilePath = path.join(this.uploadsDirectory, fileName);
-        await fs.access(localFilePath);
-
-        // Auto-heal the database path
-        if (localFilePath !== document.fileRef) {
-          document.fileRef = localFilePath;
-          await this.documentRepository.getRepository().save(document);
-        }
-
-        return localFilePath;
-      } catch {
-        this.logger.error(`File missing on disk: ${document.fileRef}`);
-        throw new NotFoundException(
-          'The uploaded file is missing from storage. Please upload the document again.',
-        );
-      }
-    }
-  }
-
-  async getDocumentHtmlPreview(
-    documentId: string,
-    ownerId: string,
-  ): Promise<DocumentHtmlPreviewResult> {
-    const filePath = await this.getDocumentFilePath(documentId, ownerId);
-    const extension = path.extname(filePath).toLowerCase();
-
-    if (extension !== '.docx') {
-      throw new BadRequestException(
-        'HTML preview is only available for DOCX files.',
-      );
-    }
-
-    try {
-      const result = await mammoth.convertToHtml(
-        { path: filePath },
-        {
-          styleMap: [
-            "p[style-name='Title'] => h1:fresh",
-            "p[style-name='Subtitle'] => h2:fresh",
-            "p[style-name='Heading 1'] => h1:fresh",
-            "p[style-name='Heading 2'] => h2:fresh",
-            "p[style-name='Heading 3'] => h3:fresh",
-          ],
-        },
-      );
-      const html = (result.value || '').trim();
-
-      if (!html) {
-        throw new BadRequestException(
-          'We could not render any previewable content from this DOCX file.',
-        );
-      }
-
-      return {
-        html,
-        messages: (result.messages || []).map((message) => message.message),
-      };
-    } catch (error: unknown) {
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-
-      this.logger.error(
-        `DOCX preview failed for document ${documentId}: ${this.getErrorMessage(error)}`,
-        error instanceof Error ? error.stack : undefined,
-      );
-      throw new InternalServerErrorException(
-        'The Word document preview could not be generated. Please download the file to open it on your device.',
-      );
-    }
   }
 
   /**
@@ -1685,16 +1484,6 @@ export class DocumentService {
       .map((tag) => this.toTagSummary(tag));
   }
 
-  private toStudyNoteSummary(note: StudyNote) {
-    return {
-      id: note.id,
-      content: note.content,
-      userDocumentId: note.userDocumentId,
-      createdAt: note.createdAt,
-      updatedAt: note.updatedAt,
-    };
-  }
-
   private toDocumentSummary(
     userDoc: UserDocument & {
       document: Document;
@@ -1709,26 +1498,11 @@ export class DocumentService {
       userDocumentId: userDoc.id,
       title: userDoc.documentName || userDoc.document?.title,
       isFavorite: userDoc.isFavorite,
-      formattedFileSize: this.formatFileSize(userDoc.document?.fileSize || 0),
+      formattedFileSize: formatFileSize(userDoc.document?.fileSize || 0),
       folderId: userDoc.folder?.id || null,
       folderName: userDoc.folder?.name || 'Workspace',
       subject: tags.find((tag) => tag.type === TagType.SUBJECT) || null,
       tags,
     };
-  }
-
-  /**
-   * Format file size to human readable
-   */
-  private formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  private getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : 'Unknown error';
   }
 }

@@ -1,10 +1,9 @@
 import { motion, AnimatePresence } from 'motion/react';
 import { Library, Bot, Search, ShieldCheck } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { cn } from '../lib/utils.js';
-import { emphasisEase } from '../lib/motion.js';
+import { Link, useLocation, Outlet } from 'react-router-dom';
+import { cn } from '@/lib/utils.js';
+import { emphasisEase } from '@/lib/motion.js';
 import studyIllustration from '../assets/study2.png';
-import { Outlet } from 'react-router-dom';
 
 const MotionDiv = motion.div;
 const MotionImg = motion.img;

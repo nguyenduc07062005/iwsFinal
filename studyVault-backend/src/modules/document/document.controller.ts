@@ -22,6 +22,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request as ExpressRequest, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { DocumentService } from './document.service';
+import { DocumentFileService } from './document-file.service';
+import { DocumentNotesService } from './document-notes.service';
 import { DocumentDto } from './dtos/document.dto';
 import { DeleteDocumentDto } from './dtos/delete-document.dto';
 import { ListDocumentsDto } from './dtos/list-documents.dto';
@@ -31,6 +33,13 @@ import { UpdateDocumentNameDto } from './dtos/update-document-name.dto';
 import { UpdateDocumentTagsDto } from './dtos/update-document-tags.dto';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 import { RagService } from '../rag/rag.service';
+
+type UploadResponse = {
+  message: string;
+  document: Awaited<ReturnType<DocumentService['getDocumentSummaryForOwner']>>;
+  uploaded: Awaited<ReturnType<DocumentService['uploadDocument']>>;
+  indexing: { status: string };
+};
 
 @ApiTags('documents')
 @ApiBearerAuth('bearer')
@@ -46,6 +55,8 @@ export class DocumentController {
 
   constructor(
     private readonly documentService: DocumentService,
+    private readonly documentFileService: DocumentFileService,
+    private readonly documentNotesService: DocumentNotesService,
     private readonly ragService: RagService,
   ) {}
 
@@ -90,7 +101,7 @@ export class DocumentController {
     @UploadedFile() file: Express.Multer.File,
     @Body() createDocumentDto: DocumentDto,
     @Request() req: ExpressRequest,
-  ): Promise<any> {
+  ): Promise<UploadResponse> {
     const ownerId = this.getUserId(req);
 
     if (!file) {
@@ -290,6 +301,8 @@ export class DocumentController {
     };
   }
 
+  // --- Study Notes (delegated to DocumentNotesService) ---
+
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @Get(':id/notes')
@@ -298,7 +311,7 @@ export class DocumentController {
     @Request() req: ExpressRequest,
   ) {
     const ownerId = this.getUserId(req);
-    const notes = await this.documentService.listStudyNotes(
+    const notes = await this.documentNotesService.listStudyNotes(
       documentId,
       ownerId,
     );
@@ -317,7 +330,7 @@ export class DocumentController {
     @Request() req: ExpressRequest,
   ) {
     const ownerId = this.getUserId(req);
-    const note = await this.documentService.createStudyNote(
+    const note = await this.documentNotesService.createStudyNote(
       documentId,
       ownerId,
       noteDto,
@@ -337,7 +350,7 @@ export class DocumentController {
     @Request() req: ExpressRequest,
   ) {
     const ownerId = this.getUserId(req);
-    const note = await this.documentService.updateStudyNote(
+    const note = await this.documentNotesService.updateStudyNote(
       noteId,
       ownerId,
       noteDto,
@@ -356,12 +369,14 @@ export class DocumentController {
     @Request() req: ExpressRequest,
   ) {
     const ownerId = this.getUserId(req);
-    await this.documentService.deleteStudyNote(noteId, ownerId);
+    await this.documentNotesService.deleteStudyNote(noteId, ownerId);
     return {
       message: 'Study note deleted successfully',
       id: noteId,
     };
   }
+
+  // --- Document details and file serving (delegated to DocumentFileService) ---
 
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
@@ -390,7 +405,7 @@ export class DocumentController {
     @Request() req: ExpressRequest,
   ) {
     const ownerId = this.getUserId(req);
-    const preview = await this.documentService.getDocumentHtmlPreview(
+    const preview = await this.documentFileService.getDocumentHtmlPreview(
       documentId,
       ownerId,
     );
@@ -411,7 +426,7 @@ export class DocumentController {
     @Res() res: Response,
   ) {
     const ownerId = this.getUserId(req);
-    const filePath = await this.documentService.getDocumentFilePath(
+    const filePath = await this.documentFileService.getDocumentFilePath(
       documentId,
       ownerId,
     );

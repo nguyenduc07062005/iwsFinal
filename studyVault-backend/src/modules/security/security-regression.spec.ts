@@ -7,6 +7,7 @@ import { ChunkRepository } from 'src/database/repositories/chunks.repository';
 import { FolderRepository } from 'src/database/repositories/folder.repository';
 import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
 import { DocumentService } from '../document/document.service';
+import { DocumentNotesService } from '../document/document-notes.service';
 import { FolderService } from '../folder/folder.service';
 import { TagService } from '../tag/tag.service';
 
@@ -130,13 +131,8 @@ describe('security regression ownership checks', () => {
         return {};
       }),
     };
-    const service = new DocumentService(
-      {} as never as DocumentRepository,
-      {} as never as ChunkRepository,
-      {} as never as UserDocumentRepository,
-      {} as never as FolderRepository,
-      dataSource as never,
-    );
+    // updateStudyNote now lives in DocumentNotesService (extracted from DocumentService)
+    const service = new DocumentNotesService(dataSource as never);
 
     await expect(
       service.updateStudyNote(NOTE_ID, USER_A_ID, {

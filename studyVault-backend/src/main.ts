@@ -168,20 +168,26 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  app.use(
-    '/api/auth/login',
-    createRateLimitMiddleware({
+  const rateLimitConfigs: {
+    path: string;
+    identityFields?: string[];
+    keyPrefix: string;
+    maxRequests: number;
+    windowMs: number;
+    message: string;
+    methods: string[];
+  }[] = [
+    {
+      path: '/api/auth/login',
       identityFields: ['email'],
       keyPrefix: 'auth-login',
       maxRequests: 8,
       windowMs: 60_000,
       message: 'Too many login attempts. Please wait a minute and try again.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/auth/register',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/auth/register',
       identityFields: ['email'],
       keyPrefix: 'auth-register',
       maxRequests: 6,
@@ -189,11 +195,9 @@ async function bootstrap() {
       message:
         'Too many registration attempts. Please wait a few minutes and try again.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/auth/forgot-password',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/auth/forgot-password',
       identityFields: ['email'],
       keyPrefix: 'auth-forgot-password',
       maxRequests: 4,
@@ -201,11 +205,9 @@ async function bootstrap() {
       message:
         'Too many password reset requests. Please wait before requesting another reset link.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/auth/complete-registration',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/auth/complete-registration',
       identityFields: ['token'],
       keyPrefix: 'auth-complete-registration',
       maxRequests: 12,
@@ -213,11 +215,9 @@ async function bootstrap() {
       message:
         'Too many registration completion attempts. Please request a new link and try again later.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/auth/resend-verification',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/auth/resend-verification',
       identityFields: ['email'],
       keyPrefix: 'auth-resend-verification',
       maxRequests: 4,
@@ -225,11 +225,9 @@ async function bootstrap() {
       message:
         'Too many verification email requests. Please wait before requesting another link.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/auth/reset-password',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/auth/reset-password',
       identityFields: ['token'],
       keyPrefix: 'auth-reset-password',
       maxRequests: 6,
@@ -237,41 +235,39 @@ async function bootstrap() {
       message:
         'Too many password reset attempts. Please request a new link and try again later.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/documents/upload',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/documents/upload',
       keyPrefix: 'documents-upload',
       maxRequests: 12,
       windowMs: 10 * 60_000,
       message:
         'Too many upload requests. Please wait a moment before uploading more files.',
       methods: ['POST'],
-    }),
-  );
-  app.use(
-    '/api/documents',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/documents',
       keyPrefix: 'documents-read',
       maxRequests: 180,
       windowMs: 60_000,
       message:
         'Too many document requests. Please slow down and try again shortly.',
       methods: ['GET'],
-    }),
-  );
-  app.use(
-    '/api/rag/documents',
-    createRateLimitMiddleware({
+    },
+    {
+      path: '/api/rag/documents',
       keyPrefix: 'rag-documents',
       maxRequests: 30,
       windowMs: 60_000,
       message:
         'Too many AI requests. Please wait a moment before asking again.',
       methods: ['POST', 'GET', 'DELETE'],
-    }),
-  );
+    },
+  ];
+
+  rateLimitConfigs.forEach(({ path, ...config }) => {
+    app.use(path, createRateLimitMiddleware(config));
+  });
 
   await app.listen(Number(process.env.PORT ?? 8000));
 }

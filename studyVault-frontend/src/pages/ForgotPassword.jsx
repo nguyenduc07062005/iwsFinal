@@ -33,7 +33,7 @@ const ForgotPassword = () => {
       const response = await requestPasswordReset(email.trim());
       setSuccessMessage(
         response.message ||
-          'Please check your email to reset your password.',
+        'Please check your email to reset your password.',
       );
       toast.success('Please check your email to reset your password.');
     } catch (requestError) {
@@ -68,7 +68,7 @@ const ForgotPassword = () => {
             type="email"
             placeholder="Your email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-sm font-bold text-slate-800 placeholder:font-medium placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all"
           />
         </div>
@@ -94,7 +94,7 @@ const ForgotPassword = () => {
           </div>
         )}
 
-        <button 
+        <button
           disabled={isSubmitting}
           className="group mt-2 flex w-full transform items-center justify-center gap-2 rounded-2xl bg-brand-900 py-4 text-base font-extrabold text-white shadow-lg shadow-brand-500/20 transition-all hover:-translate-y-1 hover:bg-brand-600 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-brand-900"
         >
