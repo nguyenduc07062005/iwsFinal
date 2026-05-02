@@ -51,6 +51,33 @@ npm run build
 npm run preview
 ```
 
+## Responsive QA Notes
+
+StudyVault is designed around these viewport groups:
+
+- Mobile and tablet: below `1024px`.
+- Desktop: `1024px` and wider.
+- Wide document workspace: `1280px` and wider.
+
+Important responsive behavior:
+
+- `ShellHeader` keeps the top bar compact on mobile/tablet and shows the bottom navigation until the `lg` breakpoint. This avoids iPad-width crowding between Workspace, Favorites, Upload, and the account menu.
+- `DetailLayout` and `DocumentViewer` allow normal page scrolling below the `xl` breakpoint. The full-height split viewer is only used on wide desktop screens.
+- Auth screens use `min-h-dvh` on small screens so long forms are scrollable when browser chrome or the software keyboard reduces available height.
+- Workspace document lists and admin tables use responsive cards/grids or horizontal table scroll where dense data cannot fit.
+
+Before demo/submission, manually check:
+
+```text
+375x667   phone portrait
+768x1024  iPad portrait
+1024x768  iPad landscape
+1366x768  laptop
+1440x900  desktop
+```
+
+Routes to verify at each size: `/login`, `/register`, `/app`, `/app/favorites`, `/app/documents/:id`, `/profile`, and `/admin` for an admin account.
+
 ## Main Routes
 
 - `/`

@@ -29,6 +29,16 @@ const DEFAULT_SORT_ORDER = 'desc';
 const VALID_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'docDate', 'fileSize']);
 const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
 const VALID_TYPES = new Set(['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']);
+const VALID_VIEW_MODES = new Set(['grid', 'table']);
+const FAVORITES_PREFERENCES_KEY = 'studyvault.favorites.preferences';
+const FAVORITES_QUERY_PREFERENCE_KEYS = [
+  'keyword',
+  'limit',
+  'page',
+  'sortBy',
+  'sortOrder',
+  'type',
+];
 
 const TYPE_FILTERS = [
   { label: 'All', value: '', description: 'Show all favorite documents' },
@@ -76,14 +86,127 @@ const readPositiveInt = (value, fallback) => {
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
+const canUseLocalStorage = () => {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.localStorage !== 'undefined'
+    );
+  } catch {
+    return false;
+  }
+};
+
+const normalizeStoredFavoritesQuery = (storedQuery = {}) => {
+  if (!storedQuery || typeof storedQuery !== 'object') return {};
+
+  const query = {};
+  const readString = (key) =>
+    typeof storedQuery[key] === 'string' ? storedQuery[key].trim() : '';
+
+  const keyword = readString('keyword');
+  const limit = readPositiveInt(readString('limit'), DEFAULT_LIMIT);
+  const page = readPositiveInt(readString('page'), 1);
+  const sortBy = readString('sortBy');
+  const sortOrder = readString('sortOrder');
+  const type = readString('type');
+
+  if (keyword) query.keyword = keyword;
+  if (limit !== DEFAULT_LIMIT) query.limit = String(limit);
+  if (page > 1) query.page = String(page);
+  if (VALID_SORT_FIELDS.has(sortBy)) query.sortBy = sortBy;
+  if (VALID_SORT_ORDERS.has(sortOrder)) query.sortOrder = sortOrder;
+  if (VALID_TYPES.has(type)) query.type = type;
+
+  return query;
+};
+
+const readFavoritesPreferences = () => {
+  const fallback = { query: {}, viewMode: 'table' };
+  if (!canUseLocalStorage()) return fallback;
+
+  try {
+    const rawValue = window.localStorage.getItem(FAVORITES_PREFERENCES_KEY);
+    if (!rawValue) return fallback;
+
+    const parsedValue = JSON.parse(rawValue);
+    return {
+      query: normalizeStoredFavoritesQuery(parsedValue?.query),
+      viewMode: VALID_VIEW_MODES.has(parsedValue?.viewMode)
+        ? parsedValue.viewMode
+        : fallback.viewMode,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const buildFavoritesQueryPreferences = ({
+  keyword,
+  limit,
+  page,
+  sortBy,
+  sortOrder,
+  type,
+}) => {
+  const query = {};
+
+  if (keyword) query.keyword = keyword;
+  if (limit !== DEFAULT_LIMIT) query.limit = String(limit);
+  if (page > 1) query.page = String(page);
+  if (sortBy !== DEFAULT_SORT_BY) query.sortBy = sortBy;
+  if (sortOrder !== DEFAULT_SORT_ORDER) query.sortOrder = sortOrder;
+  if (type) query.type = type;
+
+  return query;
+};
+
+const writeFavoritesPreferences = ({ query, viewMode }) => {
+  if (!canUseLocalStorage()) return;
+
+  try {
+    window.localStorage.setItem(
+      FAVORITES_PREFERENCES_KEY,
+      JSON.stringify({
+        query: normalizeStoredFavoritesQuery(query),
+        viewMode: VALID_VIEW_MODES.has(viewMode) ? viewMode : 'table',
+      }),
+    );
+  } catch {
+    // Preferences are optional. If storage is blocked, the URL still works.
+  }
+};
+
+const hasFavoritesQueryPreferences = (params) =>
+  FAVORITES_QUERY_PREFERENCE_KEYS.some((key) => params.has(key));
+
+const mergeStoredFavoritesQuery = (params, storedQuery) => {
+  const nextParams = new URLSearchParams(params);
+
+  Object.entries(storedQuery).forEach(([key, value]) => {
+    if (value) {
+      nextParams.set(key, value);
+    }
+  });
+
+  return nextParams;
+};
+
 const Favorites = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialPreferencesRef = useRef(null);
+  const queryPreferencesHydratedRef = useRef(false);
+
+  if (!initialPreferencesRef.current) {
+    initialPreferencesRef.current = readFavoritesPreferences();
+  }
+
   const [documents, setDocuments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [flash, setFlash] = useState(null);
-  const [viewMode, setViewMode] = useState('table');
+  const [viewMode, setViewMode] = useState(initialPreferencesRef.current.viewMode);
   const [searchInput, setSearchInput] = useState(searchParams.get('keyword') || '');
   const requestIdRef = useRef(0);
 
@@ -107,6 +230,42 @@ const Favorites = () => {
     () => TYPE_FILTERS.find((option) => option.value === type) || TYPE_FILTERS[0],
     [type],
   );
+
+  useEffect(() => {
+    if (queryPreferencesHydratedRef.current) return;
+
+    const storedQuery = initialPreferencesRef.current?.query || {};
+    const shouldRestoreStoredQuery =
+      !hasFavoritesQueryPreferences(searchParams) &&
+      Object.keys(storedQuery).length > 0;
+
+    if (shouldRestoreStoredQuery) {
+      const nextParams = mergeStoredFavoritesQuery(searchParams, storedQuery);
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+        return;
+      }
+    }
+
+    queryPreferencesHydratedRef.current = true;
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!queryPreferencesHydratedRef.current) return;
+
+    writeFavoritesPreferences({
+      query: buildFavoritesQueryPreferences({
+        keyword,
+        limit,
+        page,
+        sortBy,
+        sortOrder,
+        type,
+      }),
+      viewMode,
+    });
+  }, [keyword, limit, page, sortBy, sortOrder, type, viewMode]);
 
   useEffect(() => {
     if (!flash) return undefined;
@@ -145,6 +304,8 @@ const Favorites = () => {
   };
 
   useEffect(() => {
+    if (!queryPreferencesHydratedRef.current) return;
+
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 

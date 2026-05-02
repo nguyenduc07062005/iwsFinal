@@ -1,9 +1,7 @@
 import { ArrowRight, Lock } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import toast from "react-hot-toast";
 import { getApiErrorMessage, submitPasswordReset } from "../service/authAPI.js";
-import { setAuthNotice } from "../utils/auth.js";
 import { cn } from "../lib/utils.js";
 import {
   isStrongPassword,
@@ -17,7 +15,6 @@ const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const tokenState = useMemo(() => {
@@ -25,7 +22,7 @@ const ResetPassword = () => {
       return "Missing reset token in the URL. Please request a new reset link.";
     }
 
-    return "Reset link detected. Please set a new password.";
+    return "";
   }, [token]);
 
   const handleSubmit = async (event) => {
@@ -53,19 +50,20 @@ const ResetPassword = () => {
 
     setIsSubmitting(true);
     setError("");
-    setSuccessMessage("");
 
     try {
-      const response = await submitPasswordReset(token, password);
-      setSuccessMessage(response.message || "Password reset successfully.");
-      setAuthNotice({
-        message:
-          "Password reset successfully. Please sign in with your new password.",
-        tone: "success",
-      });
-      toast.success("Password reset successfully.");
+      await submitPasswordReset(token, password);
       setPassword("");
       setConfirmPassword("");
+      navigate("/login", {
+        replace: true,
+        state: {
+          notice: {
+            message: "Password reset successfully.",
+            tone: "success",
+          },
+        },
+      });
     } catch (requestError) {
       setError(
         getApiErrorMessage(
@@ -90,16 +88,16 @@ const ResetPassword = () => {
       </div>
 
       <form className="space-y-4" onSubmit={handleSubmit}>
-        <div
-          className={cn(
-            "rounded-xl border p-4 text-sm font-medium mb-6",
-            token
-              ? "border-sky-200 bg-sky-50 text-sky-600"
-              : "border-red-200 bg-red-50 text-red-600",
-          )}
-        >
-          {tokenState}
-        </div>
+        {!token && (
+          <div
+            className={cn(
+              "mb-6 rounded-xl border p-4 text-sm font-medium",
+              "border-red-200 bg-red-50 text-red-600",
+            )}
+          >
+            {tokenState}
+          </div>
+        )}
 
         <div className="relative">
           <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
@@ -144,12 +142,6 @@ const ResetPassword = () => {
           </div>
         )}
 
-        {successMessage && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-600">
-            {successMessage}
-          </div>
-        )}
-
         <button
           disabled={isSubmitting || !token}
           className="group mt-2 flex w-full transform items-center justify-center gap-2 rounded-2xl bg-brand-900 py-4 text-base font-extrabold text-white shadow-lg shadow-brand-500/20 transition-all hover:-translate-y-1 hover:bg-brand-600 disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:bg-brand-900"
@@ -161,15 +153,6 @@ const ResetPassword = () => {
           />
         </button>
 
-        {successMessage && (
-          <button
-            type="button"
-            onClick={() => navigate("/login")}
-            className="group mt-2 flex w-full transform items-center justify-center gap-2 rounded-2xl border-2 border-brand-200 bg-white py-4 text-base font-extrabold text-brand-700 shadow-sm transition-all hover:-translate-y-1 hover:bg-brand-50"
-          >
-            Back to sign in
-          </button>
-        )}
       </form>
     </>
   );

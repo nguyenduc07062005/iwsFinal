@@ -62,13 +62,13 @@ Bao gồm:
 | `/app/favorites` | Protected | AppShell | Danh sách tài liệu yêu thích |
 | `/app/documents/:documentId` | Protected | DetailLayout | Chi tiết tài liệu + preview + summary |
 | `/profile` | Protected | AppShell | Thông tin người dùng |
+| `/admin` | Protected admin | AppShell | Admin dashboard, user status, audit logs |
 
 ---
 
 ## 5. Route tạm loại bỏ khỏi core
 Các route sau không nằm trong core demo sau refactor:
 
-- `/admin`
 - `/subjects`
 - `/collections`
 - các route AI showcase riêng
@@ -134,12 +134,18 @@ Primary nav:
 - Home / Workspace
 - Favorites
 - Profile
+- Admin, only when the current user has role `admin`
 
 Secondary actions:
 - Upload
 - Create folder
 - Search
 - Filter
+
+Responsive navigation:
+- Below `1024px`, `ShellHeader` keeps a compact top bar and uses bottom navigation for primary routes.
+- From `1024px`, primary navigation is centered in the top header.
+- Detail/document routes stack preview and assistant below `1280px`; split view is only for wide desktop.
 
 ---
 

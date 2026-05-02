@@ -1,112 +1,63 @@
 export const landingHero = {
-  eyebrow: 'AI study workspace for students',
-  title: 'Study smarter with StudyVault',
-  subtitle:
-    'Turn scattered lecture notes, readings, and project files into one calm workspace for organizing, reviewing, summarizing, and asking better questions.',
+  title: 'Your AI-powered study workspace',
+  subtitle: 'Organize, summarize, and master your coursework — all in one beautiful place.',
   primaryCta: {
     href: '/register',
-    label: 'Create account',
-  },
-  secondaryCta: {
-    href: '/login',
-    label: 'Sign in',
+    label: 'Get Started Free',
   },
   authenticatedCta: {
     href: '/app',
-    label: 'Open workspace',
+    label: 'Open Workspace',
   },
-  metrics: [
-    { label: 'Study library', value: 'All materials in one place' },
-    { label: 'Review speed', value: 'Summaries and Q&A on demand' },
-    { label: 'Best for', value: 'Exams, assignments, projects' },
-  ],
 };
 
-export const landingFeatureCards = [
+export const landingFeatures = [
   {
     icon: 'Library',
-    title: 'One study library',
-    description:
-      'Keep lecture slides, readings, notes, and reference files together so study sessions start with the right material.',
-  },
-  {
-    icon: 'FolderTree',
-    title: 'Organize by subject',
-    description:
-      'Group documents into folders by class, topic, purpose, or priority so revision material stays easy to scan before deadlines.',
+    title: 'Smart Library',
+    description: 'All your PDFs, slides, and notes — organized and searchable in one unified hub.',
+    accent: 'brand',
   },
   {
     icon: 'Sparkles',
-    title: 'Review faster with AI',
-    description:
-      'Create summaries, ask questions, surface related material, and turn long documents into practical review notes.',
+    title: 'AI Summaries',
+    description: 'Instantly distill complex documents into clear, actionable summaries.',
+    accent: 'accent',
+  },
+  {
+    icon: 'FolderTree',
+    title: 'Visual Organization',
+    description: 'Subjects, folders, and tags — your way. Find anything in seconds.',
+    accent: 'emerald',
   },
   {
     icon: 'ShieldCheck',
-    title: 'Private study space',
-    description:
-      'Your workspace is tied to your account, with account protection and privacy controls built into the experience.',
+    title: 'Private & Secure',
+    description: 'Your data is encrypted, isolated, and never shared. Period.',
+    accent: 'slate',
   },
 ];
 
-export const landingWorkflowSteps = [
-  {
-    title: 'Collect your materials',
-    description:
-      'Bring together readings, handouts, lecture files, and project references instead of hunting through separate folders.',
-  },
-  {
-    title: 'Shape a study plan',
-    description:
-      'Sort resources by subject, mark important documents, and create notes that match how you actually revise.',
-  },
-  {
-    title: 'Ask and summarize',
-    description:
-      'Use AI to understand dense pages, check key ideas, and turn material into focused questions before exams.',
-  },
-  {
-    title: 'Review with confidence',
-    description:
-      'Return to the same organized workspace for assignments, presentations, group work, and final project preparation.',
-  },
-];
-
-export const landingProofPoints = [
-  {
-    label: 'Less study clutter',
-    value: 'Keep every useful document, note, favorite, and tag in a workspace designed for repeated review.',
-  },
-  {
-    label: 'Faster revision',
-    value: 'Move from long readings to summaries, useful questions, and connected documents in fewer steps.',
-  },
-  {
-    label: 'Coursework ready',
-    value: 'Use the same workspace for exam preparation, assignments, presentations, and semester projects.',
-  },
-];
-
-export const landingSecurityPoints = [
-  'Your documents stay connected to your own account and workspace.',
-  'Sensitive account actions are protected so study data is not exposed casually.',
-  'AI tools only work with documents you are allowed to open and review.',
+export const landingStats = [
+  { value: 'AI', label: 'AI Powered Summaries' },
+  { value: 'Mail', label: 'Secure Email Recovery' },
+  { value: 'Smart', label: 'Optimized Study Hub' },
 ];
 
 export const landingFaq = [
   {
     question: 'Who is StudyVault for?',
     answer:
-      'StudyVault is designed for students who manage many readings, lecture files, assignments, and project references across a semester.',
+      'StudyVault is designed for university students and lifelong learners who deal with heavy coursework, research papers, and exam preparation.',
   },
   {
-    question: 'Do I need to use AI for everything?',
+    question: 'How does the AI work?',
     answer:
-      'No. The workspace still works as an organized document library with folders, tags, favorites, previews, and notes. AI is there when you want help reviewing.',
+      'Our AI reads your uploaded documents and generates concise summaries and answers to your questions — all based on your own material.',
   },
   {
-    question: 'How does StudyVault help before exams?',
+    question: 'Is my data private?',
     answer:
-      'It helps you find the right material quickly, revisit important notes, summarize long readings, and ask targeted questions while revising.',
+      'Absolutely. Every account is fully isolated. Your documents are encrypted at rest and in transit, and we never share or sell your data.',
   },
 ];

@@ -12,7 +12,7 @@ const AuthLayout = () => {
   const location = useLocation();
 
   return (
-    <div className="h-screen flex overflow-hidden bg-slate-50">
+    <div className="flex min-h-dvh overflow-x-hidden bg-slate-50 lg:h-screen lg:overflow-hidden">
       {/* Left Column: Form */}
       <div 
         className="scrollbar-hide relative z-10 flex w-full items-center justify-center overflow-y-auto bg-white p-4 py-8 shadow-2xl sm:p-10 lg:w-1/2 lg:p-16"

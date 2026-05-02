@@ -95,6 +95,14 @@ Các component sau phải được tạo sớm ở Phase 1:
 - không để page tự dựng lại header/sidebar nhiều lần
 - kiểm soát responsive nhất quán
 
+### Responsive layout rules
+
+- `ShellHeader`: compact top bar + bottom navigation below `1024px`; centered desktop navigation from `1024px`.
+- `AuthLayout`: use `min-h-dvh` and a scrollable form column on small screens.
+- `AppShell`: keep enough bottom padding for bottom navigation on mobile/tablet.
+- `DetailLayout`: allow normal page scroll below `1280px`; only lock full-height split layout on wide desktop.
+- `DocumentViewer`: stack preview and assistant below `1280px`; use the wider side-by-side assistant panel from `1280px`.
+
 ---
 
 ## 7. Feature Components

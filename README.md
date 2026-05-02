@@ -1,5 +1,24 @@
 # StudyVault
 
+## Responsive Demo Checklist
+
+Responsive UI is a final-project requirement. Before recording screenshots or presenting the demo, verify the frontend at these sizes:
+
+- `375x667`: phone portrait.
+- `768x1024`: iPad portrait.
+- `1024x768`: iPad landscape.
+- `1366x768`: laptop.
+- `1440x900`: desktop.
+
+Current layout rules:
+
+- Mobile/tablet below `1024px` use a compact top header plus bottom navigation.
+- Desktop from `1024px` shows the centered Workspace/Favorites navigation in the top header.
+- Document viewer stacks preview and AI assistant below `1280px`; wide desktop uses the split preview/assistant layout.
+- Auth forms must scroll on short screens and when the on-screen keyboard is open.
+
+Minimum routes to capture for report evidence: `/login`, `/register`, `/app`, `/app/favorites`, `/app/documents/:id`, `/profile`, and `/admin` when logged in as admin.
+
 StudyVault là final project môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng hỗ trợ đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, upload tài liệu, xem tài liệu, tìm kiếm/lọc/sắp xếp, ghi chú học tập, tóm tắt bằng AI và hỏi đáp theo nội dung tài liệu.
 
 ## Tổng Quan Hệ Thống

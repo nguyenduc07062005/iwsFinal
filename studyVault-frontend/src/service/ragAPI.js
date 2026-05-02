@@ -17,6 +17,13 @@ const clearDocumentAskHistory = async (documentId) => {
   return response.data;
 };
 
+const getCachedDocumentSummary = async (documentId, language = 'en') => {
+  const response = await apiClient.get(`/rag/documents/${documentId}/summary`, {
+    params: { language },
+  });
+  return response.data;
+};
+
 const getDocumentSummary = async (
   documentId,
   language = 'en',
@@ -43,6 +50,7 @@ const getDocumentSummary = async (
 export {
   askDocument,
   clearDocumentAskHistory,
+  getCachedDocumentSummary,
   getDocumentAskHistory,
   getDocumentSummary,
 };

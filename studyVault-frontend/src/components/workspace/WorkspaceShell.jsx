@@ -71,7 +71,7 @@ const WorkspaceShell = () => {
 
   return (
     <main
-      className={`text-slate-900 relative font-sans ${isDocumentViewer ? "h-screen overflow-hidden" : "min-h-screen"}`}
+      className={`text-slate-900 relative font-sans ${isDocumentViewer ? "min-h-dvh overflow-x-hidden xl:h-screen xl:overflow-hidden" : "min-h-screen"}`}
     >
       {/* Dynamic Background Container (fixes horizontal scroll without breaking vertical scrollbars) */}
       <div className="fixed inset-0 -z-10 overflow-hidden bg-slate-50/50">
@@ -118,7 +118,7 @@ const WorkspaceShell = () => {
               </div>
             </button>
 
-            <nav className="hidden items-center gap-8 md:flex ml-4">
+            <nav className="ml-4 hidden items-center gap-8 lg:flex">
               {NAV_ITEMS.map((item) => (
                 <NavLink
                   key={item.to}
@@ -202,7 +202,7 @@ const WorkspaceShell = () => {
       </header>
 
       {isDocumentViewer ? (
-        <section className="relative w-full h-screen pt-16 overflow-hidden">
+        <section className="relative min-h-dvh w-full overflow-x-hidden pt-16 xl:h-screen xl:overflow-hidden">
           <Outlet />
         </section>
       ) : (

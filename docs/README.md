@@ -15,3 +15,9 @@ Supporting documents:
 - [frontend-route-map.md](./frontend-route-map.md) - frontend route overview.
 - [frontend-component-map.md](./frontend-component-map.md) - frontend component overview.
 - [implementation-roadmap.md](./implementation-roadmap.md) - implementation roadmap and remaining work.
+
+Responsive QA references:
+
+- The frontend uses mobile/tablet behavior below `1024px`, desktop navigation from `1024px`, and the wide split document viewer from `1280px`.
+- Required manual viewport checks before submission: `375x667`, `768x1024`, `1024x768`, `1366x768`, and `1440x900`.
+- Capture evidence for `/login`, `/register`, `/app`, `/app/favorites`, `/app/documents/:id`, `/profile`, and `/admin` if admin access is part of the demo.

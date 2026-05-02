@@ -26,6 +26,7 @@ import {
   createDocumentNote,
   deleteDocumentNote,
   fetchDocumentFile,
+  fetchDocumentPreviewHtml,
   getDocumentDetails,
   getDocumentNotes,
   getRelatedDocuments,
@@ -35,6 +36,7 @@ import {
 import {
   askDocument,
   clearDocumentAskHistory,
+  getCachedDocumentSummary,
   getDocumentAskHistory,
   getDocumentSummary,
 } from '../service/ragAPI.js';
@@ -55,6 +57,77 @@ const SUGGESTED_QUESTIONS = [
   'What are the key concepts?',
   'Suggest review questions',
 ];
+
+const SUMMARY_LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'EN', name: 'English' },
+  { value: 'vi', label: 'VI', name: 'Tiếng Việt' },
+];
+
+const DOCX_MIME_TYPE =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+const isDocxPreviewType = (contentType = '', fileExtension = '') => {
+  const normalizedType = contentType.toLowerCase();
+  const normalizedExtension = fileExtension.toLowerCase();
+
+  return (
+    normalizedType.includes(DOCX_MIME_TYPE) ||
+    normalizedType.includes('wordprocessingml') ||
+    normalizedExtension === 'docx'
+  );
+};
+
+const buildDocxPreviewDocument = (bodyHtml) => `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        color: #1f2937;
+        background: #ffffff;
+        font-family: "Plus Jakarta Sans", Arial, sans-serif;
+      }
+      body {
+        margin: 0;
+        padding: 48px;
+        line-height: 1.72;
+        font-size: 15px;
+      }
+      h1, h2, h3 {
+        color: #111827;
+        line-height: 1.22;
+        margin: 1.4em 0 0.6em;
+      }
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+      h3 { font-size: 1.2rem; }
+      p { margin: 0 0 1rem; }
+      ul, ol { padding-left: 1.5rem; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.25rem 0;
+      }
+      td, th {
+        border: 1px solid #e5e7eb;
+        padding: 0.65rem;
+        vertical-align: top;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      a {
+        color: #9b3f36;
+      }
+      @media (max-width: 720px) {
+        body { padding: 28px; }
+      }
+    </style>
+  </head>
+  <body>${bodyHtml}</body>
+</html>`;
 
 const markdownComponents = {
   p: ({ children }) => (
@@ -162,14 +235,17 @@ const DocumentViewer = () => {
   const [relatedDocuments, setRelatedDocuments] = useState([]);
   const [fileUrl, setFileUrl] = useState('');
   const [contentType, setContentType] = useState('');
+  const [docxPreviewHtml, setDocxPreviewHtml] = useState('');
   const [loading, setLoading] = useState(true);
   const [viewerError, setViewerError] = useState('');
   const [previewError, setPreviewError] = useState('');
 
   const [summaryState, setSummaryState] = useState({
     loading: false,
+    generating: false,
     error: '',
     data: null,
+    checked: false,
   });
 
   const [askHistory, setAskHistory] = useState([]);
@@ -198,7 +274,42 @@ const DocumentViewer = () => {
     setFileUrl('');
   }, []);
 
-  const loadSummary = useCallback(
+  const loadCachedSummary = useCallback(
+    async (language) => {
+      if (!documentId) return;
+
+      try {
+        setSummaryState((current) => ({
+          ...current,
+          loading: true,
+          generating: false,
+          error: '',
+        }));
+        const result = await getCachedDocumentSummary(documentId, language);
+        setSummaryState({
+          loading: false,
+          generating: false,
+          error: '',
+          data: result.summary || null,
+          checked: true,
+        });
+      } catch (error) {
+        setSummaryState({
+          loading: false,
+          generating: false,
+          error: getApiErrorMessage(
+            error,
+            'Saved summaries could not be loaded. Please try again.',
+          ),
+          data: null,
+          checked: true,
+        });
+      }
+    },
+    [documentId],
+  );
+
+  const generateSummary = useCallback(
     async (language, options = {}) => {
       if (!documentId) return;
 
@@ -206,22 +317,27 @@ const DocumentViewer = () => {
         setSummaryState((current) => ({
           ...current,
           loading: true,
+          generating: true,
           error: '',
         }));
         const result = await getDocumentSummary(documentId, language, options);
         setSummaryState({
           loading: false,
+          generating: false,
           error: '',
           data: result,
+          checked: true,
         });
       } catch (error) {
         setSummaryState({
           loading: false,
+          generating: false,
           error: getApiErrorMessage(
             error,
             'A summary could not be created for this document. Please try again.',
           ),
           data: null,
+          checked: true,
         });
       }
     },
@@ -277,6 +393,7 @@ const DocumentViewer = () => {
       setLoading(true);
       setViewerError('');
       setPreviewError('');
+      setDocxPreviewHtml('');
       cleanupFileUrl();
 
       const detailResult = await getDocumentDetails(documentId);
@@ -289,9 +406,16 @@ const DocumentViewer = () => {
       try {
         const { blob, contentType: nextContentType } = await fetchDocumentFile(documentId);
         const nextFileUrl = URL.createObjectURL(blob);
+        const file = getFilePresentation(detailResult.document || { title: '', fileRef: '' });
+        const resolvedContentType = nextContentType || blob.type || '';
         fileUrlRef.current = nextFileUrl;
         setFileUrl(nextFileUrl);
-        setContentType(nextContentType || blob.type || '');
+        setContentType(resolvedContentType);
+
+        if (isDocxPreviewType(resolvedContentType, file.extension)) {
+          const preview = await fetchDocumentPreviewHtml(documentId);
+          setDocxPreviewHtml(preview.html || '');
+        }
       } catch (previewRequestError) {
         setPreviewError(
           getApiErrorMessage(
@@ -323,8 +447,8 @@ const DocumentViewer = () => {
   }, [cleanupFileUrl, clearDocViewer, loadNotes, loadViewer]);
 
   useEffect(() => {
-    void loadSummary(selectedLanguage);
-  }, [loadSummary, selectedLanguage]);
+    void loadCachedSummary(selectedLanguage);
+  }, [loadCachedSummary, selectedLanguage]);
 
   useEffect(() => {
     if (activeTab === 'ask' && !askHistoryLoaded && !loading && !viewerError) {
@@ -332,14 +456,19 @@ const DocumentViewer = () => {
     }
   }, [activeTab, askHistoryLoaded, loadAskHistory, loading, viewerError]);
 
-  const canPreview = useMemo(() => {
+  const filePresentation = useMemo(
+    () => getFilePresentation(documentData || { title: '', fileRef: '' }),
+    [documentData],
+  );
+
+  const canNativePreview = useMemo(() => {
     const normalizedType = contentType.toLowerCase();
     return normalizedType.includes('pdf') || normalizedType.startsWith('text/');
   }, [contentType]);
 
-  const filePresentation = useMemo(
-    () => getFilePresentation(documentData || { title: '', fileRef: '' }),
-    [documentData],
+  const canDocxPreview = useMemo(
+    () => isDocxPreviewType(contentType, filePresentation.extension),
+    [contentType, filePresentation.extension],
   );
 
   const summaryVersions = useMemo(
@@ -620,24 +749,70 @@ const DocumentViewer = () => {
   );
 
   const renderSummary = () => {
+    const selectedLanguageOption =
+      SUMMARY_LANGUAGE_OPTIONS.find((option) => option.value === selectedLanguage) ||
+      SUMMARY_LANGUAGE_OPTIONS[0];
+    const renderLanguageSelector = (variant = 'light') => (
+      <div
+        className={cn(
+          'inline-flex shrink-0 items-center gap-1 rounded-full p-1',
+          variant === 'dark'
+            ? 'bg-white/16 ring-1 ring-white/18 backdrop-blur-xl'
+            : 'bg-white/82 shadow-sm ring-1 ring-slate-100',
+        )}
+      >
+        {SUMMARY_LANGUAGE_OPTIONS.map((language) => (
+          <button
+            key={language.value}
+            type="button"
+            onClick={() => setSelectedLanguage(language.value)}
+            title={language.name}
+            className={cn(
+              'rounded-full px-3 py-1.5 text-[11px] font-black uppercase transition-all',
+              selectedLanguage === language.value
+                ? variant === 'dark'
+                  ? 'bg-white text-[#9b3f36] shadow-sm'
+                  : 'bg-[#9b3f36] text-white shadow-sm'
+                : variant === 'dark'
+                  ? 'text-white/62 hover:text-white'
+                  : 'text-slate-500 hover:text-[#9b3f36]',
+            )}
+          >
+            {language.label}
+          </button>
+        ))}
+      </div>
+    );
+
     if (summaryState.loading) {
-      return <LoadingBlock label="AI is reading the document..." />;
+      return (
+        <LoadingBlock
+          label={
+            summaryState.generating
+              ? `Generating ${selectedLanguageOption.name} summary...`
+              : 'Checking saved summary...'
+          }
+        />
+      );
     }
 
     if (summaryState.error) {
       return (
         <EmptyState
           icon={RefreshCcw}
-          title="Summary could not be created"
+          title="Summary could not be loaded"
           description={summaryState.error}
           action={(
-            <button
-              type="button"
-              onClick={() => void loadSummary(selectedLanguage, { forceRefresh: true })}
-              className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
-            >
-              Try again
-            </button>
+            <div className="flex flex-col items-center gap-3">
+              {renderLanguageSelector()}
+              <button
+                type="button"
+                onClick={() => void generateSummary(selectedLanguage)}
+                className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+              >
+                Generate summary
+              </button>
+            </div>
           )}
         />
       );
@@ -648,15 +823,18 @@ const DocumentViewer = () => {
         <EmptyState
           icon={Sparkles}
           title="No summary yet"
-          description="Create the first summary to quickly understand the document."
+          description="Select a language, then generate a saved summary for this document."
           action={(
-            <button
-              type="button"
-              onClick={() => void loadSummary(selectedLanguage, { forceRefresh: true })}
-              className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
-            >
-              Create summary
-            </button>
+            <div className="flex flex-col items-center gap-3">
+              {renderLanguageSelector()}
+              <button
+                type="button"
+                onClick={() => void generateSummary(selectedLanguage)}
+                className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+              >
+                Generate {selectedLanguageOption.label} summary
+              </button>
+            </div>
           )}
         />
       );
@@ -675,28 +853,14 @@ const DocumentViewer = () => {
               </h3>
             </div>
 
-            <div className="flex shrink-0 items-center gap-1 rounded-full bg-white/16 p-1 ring-1 ring-white/18 backdrop-blur-xl">
-              {['en'].map((language) => (
-                <button
-                  key={language}
-                  type="button"
-                  onClick={() => setSelectedLanguage(language)}
-                  className={cn(
-                    'rounded-full px-3 py-1.5 text-[11px] font-black uppercase transition-all',
-                    selectedLanguage === language
-                      ? 'bg-white text-[#9b3f36] shadow-sm'
-                      : 'text-white/62 hover:text-white',
-                  )}
-                >
-                  {language}
-                </button>
-              ))}
+            <div className="flex shrink-0 items-center gap-1">
+              {renderLanguageSelector('dark')}
               <button
                 type="button"
-                aria-label="Refresh summary"
-                title="Refresh summary"
-                onClick={() => void loadSummary(selectedLanguage, { forceRefresh: true })}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/62 transition-colors hover:bg-white hover:text-[#9b3f36]"
+                aria-label="Regenerate summary"
+                title="Regenerate summary"
+                onClick={() => void generateSummary(selectedLanguage, { forceRefresh: true })}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/16 text-white/70 ring-1 ring-white/18 transition-colors hover:bg-white hover:text-[#9b3f36]"
               >
                 <RefreshCcw size={14} />
               </button>
@@ -860,7 +1024,7 @@ const DocumentViewer = () => {
         ) : null}
       </div>
 
-      <div className="mt-2 rounded-[1rem] border border-white/82 bg-white/88 p-2 shadow-sm backdrop-blur-xl">
+      <div className="mt-2 flex items-end gap-2 rounded-[1rem] border border-white/82 bg-white/88 px-3 py-2 shadow-sm backdrop-blur-xl">
         <textarea
           value={askQuestion}
           onChange={(event) => setAskQuestion(event.target.value)}
@@ -870,21 +1034,19 @@ const DocumentViewer = () => {
               void handleAsk();
             }
           }}
-          rows={2}
+          rows={1}
           placeholder="Ask a quick question about this document..."
-          className="w-full resize-none border-none bg-transparent px-2 py-1.5 text-sm font-semibold leading-5 text-slate-700 outline-none placeholder:text-slate-400"
+          className="min-h-9 flex-1 resize-none border-none bg-transparent px-0 py-2 text-sm font-semibold leading-5 text-slate-700 outline-none placeholder:text-slate-400"
         />
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => void handleAsk()}
-            disabled={askState.loading || !askQuestion.trim()}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#9b3f36] px-3.5 py-1.5 text-xs font-black text-white shadow-lg shadow-[#9b3f36]/18 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
-          >
-            <Send size={13} />
-            Send
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => void handleAsk()}
+          disabled={askState.loading || !askQuestion.trim()}
+          className="mb-0.5 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#9b3f36] px-3.5 text-xs font-black text-white shadow-lg shadow-[#9b3f36]/18 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          <Send size={13} />
+          Send
+        </button>
       </div>
     </div>
   );
@@ -933,7 +1095,18 @@ const DocumentViewer = () => {
       );
     }
 
-    if (canPreview && fileUrl) {
+    if (canDocxPreview && docxPreviewHtml) {
+      return (
+        <iframe
+          srcDoc={buildDocxPreviewDocument(docxPreviewHtml)}
+          title="Word document preview"
+          sandbox=""
+          className="h-full w-full border-0 bg-white"
+        />
+      );
+    }
+
+    if (canNativePreview && fileUrl) {
       return (
         <iframe
           src={`${fileUrl}#toolbar=0`}
@@ -971,7 +1144,7 @@ const DocumentViewer = () => {
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="flex h-full min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-white/74 bg-white/30 shadow-[0_30px_90px_-58px_rgba(31,42,68,0.42)] backdrop-blur-xl"
+      className="flex min-h-[calc(100dvh-10.75rem)] flex-col overflow-visible rounded-[1.35rem] border border-white/74 bg-white/30 shadow-[0_30px_90px_-58px_rgba(31,42,68,0.42)] backdrop-blur-xl xl:h-full xl:min-h-0 xl:overflow-hidden"
     >
       <header className="flex min-h-[3.25rem] items-center gap-2 border-b border-white/70 bg-white/42 px-2 py-2 backdrop-blur-2xl sm:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -1015,12 +1188,12 @@ const DocumentViewer = () => {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 overflow-hidden p-2 xl:grid-cols-[minmax(0,1fr)_420px] 2xl:grid-cols-[minmax(0,1fr)_455px]">
-        <section className="relative min-h-0 overflow-hidden rounded-[1.35rem] border border-white/82 bg-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_22px_62px_-58px_rgba(31,42,68,0.48)] backdrop-blur-xl">
+      <div className="grid flex-1 grid-cols-1 gap-2 overflow-visible p-2 xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_520px] xl:overflow-hidden 2xl:grid-cols-[minmax(0,1fr)_580px]">
+        <section className="relative min-h-[42dvh] overflow-hidden rounded-[1.35rem] border border-white/82 bg-white/88 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_22px_62px_-58px_rgba(31,42,68,0.48)] backdrop-blur-xl xl:min-h-0">
           <div className="h-full overflow-hidden">{renderPreview()}</div>
         </section>
 
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-white/82 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_22px_62px_-58px_rgba(31,42,68,0.48)] backdrop-blur-xl">
+        <aside className="flex min-h-[31rem] flex-col overflow-hidden rounded-[1.35rem] border border-white/82 bg-white/72 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_22px_62px_-58px_rgba(31,42,68,0.48)] backdrop-blur-xl xl:min-h-0">
           <div className="border-b border-white/70 px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -1036,7 +1209,7 @@ const DocumentViewer = () => {
               </span>
             </div>
 
-            <div className="mt-2 grid grid-cols-4 gap-1 rounded-xl bg-white/62 p-1 shadow-sm">
+            <div className="mt-2 grid grid-cols-2 gap-1 rounded-xl bg-white/62 p-1 shadow-sm sm:grid-cols-4">
               {AI_TABS.map((tab) => {
                 const Icon = tab.Icon;
                 const active = activeTab === tab.id;

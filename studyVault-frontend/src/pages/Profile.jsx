@@ -90,6 +90,7 @@ const Profile = () => {
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
+  const [pageFeedback, setPageFeedback] = useState(null);
   const [profileFeedback, setProfileFeedback] = useState(null);
   const [passwordFeedback, setPasswordFeedback] = useState(null);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -154,6 +155,7 @@ const Profile = () => {
     const name = profileForm.name.trim();
 
     if (!name) {
+      setPageFeedback(null);
       setProfileFeedback({
         tone: "error",
         message: "Display name cannot be empty.",
@@ -164,11 +166,17 @@ const Profile = () => {
     try {
       setProfileSaving(true);
       setProfileFeedback(null);
+      setPageFeedback(null);
       const result = await updateProfile({ name });
       const nextProfile = result.user || result;
       setProfile(nextProfile);
+      window.dispatchEvent(
+        new CustomEvent("studyvault:profile-updated", {
+          detail: nextProfile,
+        }),
+      );
       setProfileForm({ name: nextProfile.name || "" });
-      setProfileFeedback({ tone: "success", message: "Display name saved." });
+      setPageFeedback({ tone: "success", message: "Display name saved." });
     } catch (requestError) {
       setProfileFeedback({
         tone: "error",
@@ -219,6 +227,7 @@ const Profile = () => {
     try {
       setPasswordSaving(true);
       setPasswordFeedback(null);
+      setPageFeedback(null);
       await changePassword(
         passwordForm.currentPassword,
         passwordForm.newPassword,
@@ -228,7 +237,12 @@ const Profile = () => {
         newPassword: "",
         confirmPassword: "",
       });
-      setPasswordFeedback({ tone: "success", message: "Password updated." });
+      setPasswordOpen(false);
+      setPasswordFeedback(null);
+      setPageFeedback({
+        tone: "success",
+        message: "Password updated successfully. Please sign in again",
+      });
     } catch (requestError) {
       setPasswordFeedback({
         tone: "error",
@@ -245,6 +259,25 @@ const Profile = () => {
   return (
     <div className="relative min-h-screen overflow-x-hidden pb-20">
       <div className="workspace-aurora pointer-events-none inset-0 z-0" />
+
+      <AnimatePresence>
+        {pageFeedback && (
+          <MotionDiv
+            role="status"
+            initial={{ opacity: 0, y: -10, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            className={[
+              "fixed left-4 right-4 top-24 z-[70] mx-auto w-[min(100%,32rem)] rounded-2xl border px-5 py-4 text-center text-sm font-extrabold shadow-2xl backdrop-blur-xl",
+              pageFeedback.tone === "error"
+                ? "border-rose-200 bg-rose-50/95 text-rose-700 shadow-rose-900/10"
+                : "border-emerald-200 bg-emerald-50/95 text-emerald-700 shadow-emerald-900/10",
+            ].join(" ")}
+          >
+            {pageFeedback.message}
+          </MotionDiv>
+        )}
+      </AnimatePresence>
 
       <main className="relative z-10 mx-auto w-full max-w-[1480px] px-4 pt-3 sm:px-6 lg:px-8">
         <MotionDiv

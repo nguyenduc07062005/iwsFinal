@@ -140,6 +140,11 @@ const fetchDocumentFile = async (documentId) => {
   };
 };
 
+const fetchDocumentPreviewHtml = async (documentId) => {
+  const response = await apiClient.get(`/documents/${documentId}/preview-html`);
+  return response.data;
+};
+
 const openDocumentFile = async (documentId) => {
   const popup = window.open('', '_blank');
 
@@ -198,6 +203,7 @@ export {
   updateDocumentNote,
   deleteDocumentNote,
   fetchDocumentFile,
+  fetchDocumentPreviewHtml,
   openDocumentFile,
   downloadDocumentFile,
   updateDocumentName,

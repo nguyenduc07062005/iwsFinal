@@ -255,6 +255,42 @@ export class RagSummaryService {
     return this.buildSummaryResponse(nextSummaryState, targetSlot, false);
   }
 
+  async getCachedSummary(
+    documentId: string,
+    ownerId: string,
+    language: SummaryLanguage = 'en',
+  ): Promise<DocumentSummaryResponse | null> {
+    const document = await this.ragDocumentContextService.ensureOwnedDocument(
+      documentId,
+      ownerId,
+    );
+    const userDocument =
+      await this.userDocumentRepository.findByUserAndDocument(
+        ownerId,
+        documentId,
+      );
+
+    if (!userDocument) {
+      throw new NotFoundException('Document not found or not owned by user');
+    }
+
+    const cachedSummaryState = this.ragArtifactCacheService.getSummaryState(
+      userDocument,
+      language,
+      document,
+    );
+    const cachedSummarySlot = this.resolveSelectedSlot(
+      cachedSummaryState,
+      undefined,
+    );
+
+    if (!cachedSummaryState || !cachedSummarySlot) {
+      return null;
+    }
+
+    return this.buildSummaryResponse(cachedSummaryState, cachedSummarySlot, true);
+  }
+
   toPlainText(summary: StructuredDocumentSummary): string {
     if (
       summary.format === 'narrative' &&

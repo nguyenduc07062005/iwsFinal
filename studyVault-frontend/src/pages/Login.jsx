@@ -21,12 +21,13 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const nextNotice = consumeAuthNotice();
+    const storedNotice = consumeAuthNotice();
+    const nextNotice = location.state?.notice || storedNotice;
 
     if (nextNotice) {
       setNotice(nextNotice);
     }
-  }, []);
+  }, [location.state]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -77,6 +78,20 @@ const Login = () => {
 
   return (
     <>
+      {notice && (
+        <div
+          role="status"
+          className={cn(
+            "fixed left-1/2 top-5 z-[100] w-[min(calc(100%-2rem),28rem)] -translate-x-1/2 rounded-2xl border px-5 py-4 text-center text-sm font-extrabold shadow-2xl backdrop-blur-xl",
+            notice.tone === 'success'
+              ? "border-emerald-200 bg-emerald-50/95 text-emerald-700 shadow-emerald-900/10"
+              : "border-brand-200 bg-brand-50/95 text-brand-700 shadow-brand-900/10"
+          )}
+        >
+          {notice.message}
+        </div>
+      )}
+
       <div className="mb-7">
         <h2 className="text-4xl font-black leading-[1.08] tracking-normal text-slate-950 sm:text-5xl">
           Welcome back!
@@ -125,19 +140,6 @@ const Login = () => {
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-600">
             {error}
-          </div>
-        )}
-
-        {notice && (
-          <div
-            className={cn(
-              "rounded-xl border p-4 text-sm font-medium",
-              notice.tone === 'success' 
-                ? "border-emerald-200 bg-emerald-50 text-emerald-600" 
-                : "border-brand-200 bg-brand-50 text-brand-600"
-            )}
-          >
-            {notice.message}
           </div>
         )}
 

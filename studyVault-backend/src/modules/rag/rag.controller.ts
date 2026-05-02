@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +9,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +20,7 @@ import { GenerateSummaryDto } from './dtos/generate-summary.dto';
 import { RagService } from './rag.service';
 import { RagMindMapService } from './services/rag-mind-map.service';
 import { RagSummaryService } from './services/rag-summary.service';
+import type { SummaryLanguage } from './types/rag.types';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 
 @ApiTags('rag')
@@ -33,6 +36,18 @@ export class RagController {
 
   private getUserId(req: ExpressRequest) {
     return (req as ExpressRequest & { user: { userId: string } }).user.userId;
+  }
+
+  private normalizeSummaryLanguage(language?: string): SummaryLanguage {
+    if (!language) {
+      return 'en';
+    }
+
+    if (language === 'en' || language === 'vi') {
+      return language;
+    }
+
+    throw new BadRequestException('Summary language must be one of: vi, en.');
   }
 
   @HttpCode(HttpStatus.OK)
@@ -111,6 +126,30 @@ export class RagController {
     return {
       message: 'Document summary generated successfully',
       ...result,
+    };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Get('documents/:documentId/summary')
+  async getCachedDocumentSummary(
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+    @Query('language') language: string | undefined,
+    @Request() req: ExpressRequest,
+  ) {
+    const ownerId = this.getUserId(req);
+    const normalizedLanguage = this.normalizeSummaryLanguage(language);
+    const summary = await this.ragSummaryService.getCachedSummary(
+      documentId,
+      ownerId,
+      normalizedLanguage,
+    );
+
+    return {
+      message: summary
+        ? 'Document summary retrieved successfully'
+        : 'No cached document summary found',
+      language: normalizedLanguage,
+      summary,
     };
   }
 

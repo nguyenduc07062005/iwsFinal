@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,900;1,900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,11 +7,12 @@
 @layer base {
   :root {
     color-scheme: light;
-    --color-brand-50: #faebe8;
-    --color-brand-100: #f4d6d0;
-    --color-brand-500: #e2725b;
-    --color-brand-600: #cc6652;
-    --color-brand-900: #8c4238;
+    --font-serif: 'Playfair Display', serif;
+    --color-brand-50: #fff5f2;
+    --color-brand-100: #ffe8e3;
+    --color-brand-500: #f08c7a;
+    --color-brand-600: #e37361;
+    --color-brand-900: #b85a4d;
     --color-accent: #b87333;
     --color-base-50: #faf9f6;
     --color-base-100: #f5f2eb;
@@ -264,6 +265,17 @@
     padding: 1.35rem 0.15rem 7.35rem;
     opacity: 1;
     filter: saturate(1.04) contrast(1.02);
+  }
+
+  @media (max-width: 640px) {
+    .workspace-visual-panel {
+      min-height: 250px;
+      border-radius: 1.35rem;
+    }
+
+    .workspace-visual-image {
+      padding: 0.75rem 0.15rem 6.25rem;
+    }
   }
 
   .workspace-panel-rise {

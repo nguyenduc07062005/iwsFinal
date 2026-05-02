@@ -18,6 +18,7 @@ import {
   Search,
   Sparkles,
   Tag,
+  X,
 } from 'lucide-react';
 import { useDocumentsContext } from '../components/DocumentsContext.jsx';
 import UploadModal from '../components/documents/UploadModal.jsx';
@@ -46,6 +47,19 @@ const DEFAULT_SORT_ORDER = 'desc';
 const VALID_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'docDate', 'fileSize']);
 const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
 const VALID_TYPES = new Set(['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx', 'png', 'jpg', 'jpeg', 'gif']);
+const VALID_VIEW_MODES = new Set(['grid', 'table']);
+const WORKSPACE_DOCUMENTS_PREFERENCES_KEY = 'studyvault.workspace.documents.preferences';
+const WORKSPACE_QUERY_PREFERENCE_KEYS = [
+  'favorite',
+  'folderId',
+  'keyword',
+  'limit',
+  'sortBy',
+  'sortOrder',
+  'subjectId',
+  'tagId',
+  'type',
+];
 
 const TYPE_FILTERS = [
   { label: 'All', value: '', description: 'Show all document types' },
@@ -360,6 +374,126 @@ const readPositiveInt = (value, fallback) => {
   return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : fallback;
 };
 
+const canUseLocalStorage = () => {
+  try {
+    return (
+      typeof window !== 'undefined' &&
+      typeof window.localStorage !== 'undefined'
+    );
+  } catch {
+    return false;
+  }
+};
+
+const normalizeStoredWorkspaceQuery = (storedQuery = {}) => {
+  if (!storedQuery || typeof storedQuery !== 'object') return {};
+
+  const query = {};
+  const readString = (key) =>
+    typeof storedQuery[key] === 'string' ? storedQuery[key].trim() : '';
+
+  const favorite = readString('favorite');
+  const folderId = readString('folderId');
+  const keyword = readString('keyword');
+  const limit = readPositiveInt(readString('limit'), DEFAULT_LIMIT);
+  const sortBy = readString('sortBy');
+  const sortOrder = readString('sortOrder');
+  const subjectId = readString('subjectId');
+  const tagId = readString('tagId');
+  const type = readString('type');
+
+  if (favorite === 'true') query.favorite = favorite;
+  if (folderId) query.folderId = folderId;
+  if (keyword) query.keyword = keyword;
+  if (limit !== DEFAULT_LIMIT) query.limit = String(limit);
+  if (VALID_SORT_FIELDS.has(sortBy)) query.sortBy = sortBy;
+  if (VALID_SORT_ORDERS.has(sortOrder)) query.sortOrder = sortOrder;
+  if (subjectId) query.subjectId = subjectId;
+  if (tagId) query.tagId = tagId;
+  if (VALID_TYPES.has(type)) query.type = type;
+
+  return query;
+};
+
+const readWorkspaceDocumentPreferences = () => {
+  const fallback = { query: {}, viewMode: 'table' };
+  if (!canUseLocalStorage()) return fallback;
+
+  try {
+    const rawValue = window.localStorage.getItem(
+      WORKSPACE_DOCUMENTS_PREFERENCES_KEY,
+    );
+    if (!rawValue) return fallback;
+
+    const parsedValue = JSON.parse(rawValue);
+    return {
+      query: normalizeStoredWorkspaceQuery(parsedValue?.query),
+      viewMode: VALID_VIEW_MODES.has(parsedValue?.viewMode)
+        ? parsedValue.viewMode
+        : fallback.viewMode,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const buildWorkspaceQueryPreferences = ({
+  favorite,
+  folderId,
+  keyword,
+  limit,
+  sortBy,
+  sortOrder,
+  subjectId,
+  tagId,
+  type,
+}) => {
+  const query = {};
+
+  if (favorite) query.favorite = 'true';
+  if (folderId) query.folderId = folderId;
+  if (keyword) query.keyword = keyword;
+  if (limit !== DEFAULT_LIMIT) query.limit = String(limit);
+  if (sortBy !== DEFAULT_SORT_BY) query.sortBy = sortBy;
+  if (sortOrder !== DEFAULT_SORT_ORDER) query.sortOrder = sortOrder;
+  if (subjectId) query.subjectId = subjectId;
+  if (tagId) query.tagId = tagId;
+  if (type) query.type = type;
+
+  return query;
+};
+
+const writeWorkspaceDocumentPreferences = ({ query, viewMode }) => {
+  if (!canUseLocalStorage()) return;
+
+  try {
+    window.localStorage.setItem(
+      WORKSPACE_DOCUMENTS_PREFERENCES_KEY,
+      JSON.stringify({
+        query: normalizeStoredWorkspaceQuery(query),
+        viewMode: VALID_VIEW_MODES.has(viewMode) ? viewMode : 'table',
+      }),
+    );
+  } catch {
+    // Preferences are optional. If storage is blocked, the URL still works.
+  }
+};
+
+const hasWorkspaceQueryPreferences = (params) =>
+  WORKSPACE_QUERY_PREFERENCE_KEYS.some((key) => params.has(key));
+
+const mergeStoredWorkspaceQuery = (params, storedQuery) => {
+  const nextParams = new URLSearchParams(params);
+
+  Object.entries(storedQuery).forEach(([key, value]) => {
+    if (value) {
+      nextParams.set(key, value);
+    }
+  });
+
+  return nextParams;
+};
+
 const getFolderLabel = (folder, rootFolder) => {
   if (!folder) return 'Workspace';
   return folder.id === rootFolder?.id ? 'Workspace' : folder.name || 'Workspace';
@@ -377,10 +511,16 @@ const WorkspacePage = () => {
     selectedFolderId,
     selectFolder,
   } = useDocumentsContext();
+  const initialPreferencesRef = useRef(null);
+  const queryPreferencesHydratedRef = useRef(false);
+
+  if (!initialPreferencesRef.current) {
+    initialPreferencesRef.current = readWorkspaceDocumentPreferences();
+  }
 
   const [flash, setFlash] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(searchParams.get('openUpload') === 'true');
-  const [viewMode, setViewMode] = useState('table');
+  const [viewMode, setViewMode] = useState(initialPreferencesRef.current.viewMode);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
 
   const [renameTarget, setRenameTarget] = useState(null);
@@ -428,6 +568,9 @@ const WorkspacePage = () => {
   const activeFolder = selectedFolder || rootFolder;
   const activeFolderId = activeFolder?.id || null;
   const activeFolderLabel = getFolderLabel(activeFolder, rootFolder);
+  const isGlobalDocumentSearch = Boolean(keyword);
+  const documentQueryFolderId = isGlobalDocumentSearch ? undefined : activeFolderId;
+  const documentScopeLabel = isGlobalDocumentSearch ? 'All documents' : activeFolderLabel;
   const activeTypeOption = TYPE_FILTERS.find((option) => option.value === type) || TYPE_FILTERS[0];
   const subjectOptions = tagOptions.filter((tag) => tag.type === 'SUBJECT');
   const otherTagOptions = tagOptions.filter((tag) => tag.type !== 'SUBJECT');
@@ -493,8 +636,8 @@ const WorkspacePage = () => {
       icon: <FileText size={16} />,
     },
     {
-      label: 'Current folder',
-      value: activeFolderLabel,
+      label: isGlobalDocumentSearch ? 'Search scope' : 'Current folder',
+      value: documentScopeLabel,
       icon: <FolderClosed size={16} />,
     },
     {
@@ -503,6 +646,45 @@ const WorkspacePage = () => {
       icon: <ActiveViewIcon size={16} />,
     },
   ];
+
+  useEffect(() => {
+    if (queryPreferencesHydratedRef.current) return;
+
+    const storedQuery = initialPreferencesRef.current?.query || {};
+    const shouldRestoreStoredQuery =
+      !hasWorkspaceQueryPreferences(searchParams) &&
+      Object.keys(storedQuery).length > 0;
+
+    if (shouldRestoreStoredQuery) {
+      const nextParams = mergeStoredWorkspaceQuery(searchParams, storedQuery);
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+        return;
+      }
+    }
+
+    queryPreferencesHydratedRef.current = true;
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!queryPreferencesHydratedRef.current) return;
+
+    writeWorkspaceDocumentPreferences({
+      query: buildWorkspaceQueryPreferences({
+        favorite,
+        folderId: folderIdParam,
+        keyword,
+        limit,
+        sortBy,
+        sortOrder,
+        subjectId,
+        tagId,
+        type,
+      }),
+      viewMode,
+    });
+  }, [favorite, folderIdParam, keyword, limit, sortBy, sortOrder, subjectId, tagId, type, viewMode]);
 
   useEffect(() => {
     if (!flash) return undefined;
@@ -545,7 +727,7 @@ const WorkspacePage = () => {
   }, [loadTags]);
 
   useEffect(() => {
-    if (!rootFolder) return;
+    if (!queryPreferencesHydratedRef.current || !rootFolder) return;
     const normalizedFolderId = folderIdParam && folderIdParam !== rootFolder.id ? folderIdParam : null;
     if (selectedFolderId !== normalizedFolderId) {
       selectFolder(normalizedFolderId);
@@ -583,7 +765,13 @@ const WorkspacePage = () => {
   const refreshList = () => setReloadKey((current) => current + 1);
 
   useEffect(() => {
-    if (!rootFolder || !activeFolderId) return;
+    if (
+      !queryPreferencesHydratedRef.current ||
+      !rootFolder ||
+      (!isGlobalDocumentSearch && !activeFolderId)
+    ) {
+      return;
+    }
 
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -593,7 +781,7 @@ const WorkspacePage = () => {
         setDocumentsLoading(true);
         const result = await getDocuments({
           favorite: favorite ? true : undefined,
-          folderId: activeFolderId,
+          folderId: documentQueryFolderId,
           keyword: keyword || undefined,
           limit,
           page,
@@ -643,7 +831,7 @@ const WorkspacePage = () => {
     };
 
     void loadDocuments();
-  }, [activeFolderId, favorite, keyword, limit, page, reloadKey, rootFolder, sortBy, sortOrder, subjectId, tagId, type]);
+  }, [activeFolderId, documentQueryFolderId, favorite, isGlobalDocumentSearch, keyword, limit, page, reloadKey, rootFolder, sortBy, sortOrder, subjectId, tagId, type]);
 
   const showSuccess = (message) => setFlash({ tone: 'success', message });
   const showError = (message) => setFlash({ tone: 'error', message });
@@ -654,11 +842,35 @@ const WorkspacePage = () => {
     if (!rootFolder) return;
     const normalizedFolderId = folderId && folderId !== rootFolder.id ? folderId : null;
     selectFolder(normalizedFolderId);
-    updateQuery({ folderId: normalizedFolderId || undefined, favorite: undefined }, { resetPage: true });
+    setSearchInput('');
+    updateQuery(
+      {
+        folderId: normalizedFolderId || undefined,
+        favorite: undefined,
+        keyword: undefined,
+      },
+      { resetPage: true },
+    );
+  };
+
+  const handleSearchInputChange = (event) => {
+    const nextValue = event.target.value;
+    setSearchInput(nextValue);
+
+    if (!nextValue.trim() && keyword) {
+      updateQuery({ keyword: undefined }, { resetPage: true });
+    }
   };
 
   const handleApplySearch = () => {
     updateQuery({ keyword: searchInput.trim() || undefined }, { resetPage: true });
+  };
+
+  const handleClearSearch = () => {
+    setSearchInput('');
+    if (keyword) {
+      updateQuery({ keyword: undefined }, { resetPage: true });
+    }
   };
 
   const handleTagFilterChange = (value) => {
@@ -920,14 +1132,26 @@ const WorkspacePage = () => {
 
               <input
                 type="text"
-                placeholder="Search documents..."
+                placeholder="Search all documents..."
                 value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={handleSearchInputChange}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') handleApplySearch();
                 }}
                 className="min-w-0 flex-1 bg-transparent px-3 py-3 text-left text-sm font-bold text-slate-800 outline-none placeholder:text-slate-500"
               />
+
+              {searchInput || keyword ? (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  title="Clear search"
+                  onClick={handleClearSearch}
+                  className="mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition-all hover:bg-slate-100 hover:text-brand-600"
+                >
+                  <X size={16} />
+                </button>
+              ) : null}
 
               <MotionButton
                 whileHover={{ scale: 1.02 }}
@@ -1044,8 +1268,8 @@ const WorkspacePage = () => {
                   </div>
                   <p className="mt-1 flex flex-wrap items-center gap-2 text-sm font-bold text-slate-500">
                     <FolderClosed size={16} />
-                    {activeFolderLabel}
-                    {keyword ? <span>- "{keyword}"</span> : null}
+                    {documentScopeLabel}
+                    {keyword ? <span>- Search: "{keyword}"</span> : null}
                     {type ? <span>- {activeTypeOption.label}</span> : null}
                     {activeSubjectOption ? <span>- {activeSubjectOption.name}</span> : null}
                     {activeTagOption ? <span>- {activeTagOption.name}</span> : null}

@@ -98,6 +98,11 @@ type DocumentListResult = {
   };
 };
 
+type DocumentHtmlPreviewResult = {
+  html: string;
+  messages: string[];
+};
+
 const MAX_UPLOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 type UploadTypeConfig = {
@@ -933,6 +938,10 @@ export class DocumentService {
     }
   }
 
+  private escapeLikePattern(value: string): string {
+    return value.replace(/[\\%_]/g, '\\$&');
+  }
+
   /**
    * Get all documents for a user with server-side search, filter, sort, and pagination.
    */
@@ -985,16 +994,37 @@ export class DocumentService {
       }
 
       if (query.keyword) {
-        queryBuilder.andWhere(
-          `(
-            LOWER(COALESCE("userDocument"."document_name", "document"."title", '')) LIKE :keyword
-            OR LOWER(COALESCE("document"."metadata"::text, '')) LIKE :keyword
-            OR LOWER(COALESCE("document"."extra_attributes"::text, '')) LIKE :keyword
-          )`,
-          {
-            keyword: `%${query.keyword.trim().toLowerCase()}%`,
-          },
-        );
+        const normalizedKeyword = query.keyword.trim().toLowerCase();
+        const hasSearchableText = /[a-z0-9]/i.test(normalizedKeyword);
+
+        if (!hasSearchableText) {
+          queryBuilder.andWhere('1 = 0');
+        } else {
+          const keywordPattern = `%${this.escapeLikePattern(normalizedKeyword)}%`;
+          const searchableTitleExpression = `
+            LOWER(
+              regexp_replace(
+                COALESCE("userDocument"."document_name", "document"."title", ''),
+                '\\.[^.]*$',
+                ''
+              )
+            )
+          `;
+          const searchClauses = [
+            `${searchableTitleExpression} LIKE :keyword ESCAPE '\\'`,
+          ];
+
+          if (normalizedKeyword.length >= 2 && !normalizedKeyword.startsWith('.')) {
+            searchClauses.push(
+              `LOWER(COALESCE("document"."metadata"::text, '')) LIKE :keyword ESCAPE '\\'`,
+              `LOWER(COALESCE("document"."extra_attributes"::text, '')) LIKE :keyword ESCAPE '\\'`,
+            );
+          }
+
+          queryBuilder.andWhere(`(${searchClauses.join(' OR ')})`, {
+            keyword: keywordPattern,
+          });
+        }
       }
 
       this.applyDocumentSort(queryBuilder, sortBy, sortOrder);
@@ -1512,6 +1542,57 @@ export class DocumentService {
           'The uploaded file is missing from storage. Please upload the document again.',
         );
       }
+    }
+  }
+
+  async getDocumentHtmlPreview(
+    documentId: string,
+    ownerId: string,
+  ): Promise<DocumentHtmlPreviewResult> {
+    const filePath = await this.getDocumentFilePath(documentId, ownerId);
+    const extension = path.extname(filePath).toLowerCase();
+
+    if (extension !== '.docx') {
+      throw new BadRequestException('HTML preview is only available for DOCX files.');
+    }
+
+    try {
+      const result = await mammoth.convertToHtml(
+        { path: filePath },
+        {
+          styleMap: [
+            "p[style-name='Title'] => h1:fresh",
+            "p[style-name='Subtitle'] => h2:fresh",
+            "p[style-name='Heading 1'] => h1:fresh",
+            "p[style-name='Heading 2'] => h2:fresh",
+            "p[style-name='Heading 3'] => h3:fresh",
+          ],
+        },
+      );
+      const html = (result.value || '').trim();
+
+      if (!html) {
+        throw new BadRequestException(
+          'We could not render any previewable content from this DOCX file.',
+        );
+      }
+
+      return {
+        html,
+        messages: (result.messages || []).map((message) => message.message),
+      };
+    } catch (error: unknown) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `DOCX preview failed for document ${documentId}: ${this.getErrorMessage(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        'The Word document preview could not be generated. Please download the file to open it on your device.',
+      );
     }
   }
 

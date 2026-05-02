@@ -382,6 +382,25 @@ export class DocumentController {
     };
   }
 
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/preview-html')
+  async getDocumentHtmlPreview(
+    @Param('id', ParseUUIDPipe) documentId: string,
+    @Request() req: ExpressRequest,
+  ) {
+    const ownerId = this.getUserId(req);
+    const preview = await this.documentService.getDocumentHtmlPreview(
+      documentId,
+      ownerId,
+    );
+
+    return {
+      message: 'Document preview generated successfully',
+      ...preview,
+    };
+  }
+
   // --- Serve document file ---
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)

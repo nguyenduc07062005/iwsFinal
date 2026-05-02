@@ -55,6 +55,23 @@ const ShellHeader = () => {
   }, []);
 
   useEffect(() => {
+    const handleProfileUpdated = (event) => {
+      if (event.detail) {
+        setProfile(event.detail);
+      }
+    };
+
+    window.addEventListener("studyvault:profile-updated", handleProfileUpdated);
+
+    return () => {
+      window.removeEventListener(
+        "studyvault:profile-updated",
+        handleProfileUpdated,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isAccountMenuOpen) return undefined;
 
     const handlePointerDown = (event) => {
@@ -131,7 +148,7 @@ const ShellHeader = () => {
           </span>
         </Link>
 
-        <div className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-1 md:flex">
+        <div className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-1 lg:flex">
           {navLinks.map((link) => {
             const active = isActivePath(
               location.pathname,
@@ -174,7 +191,7 @@ const ShellHeader = () => {
           })}
         </div>
 
-        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-3">
           {showQuickUpload && (
             <>
               <button
@@ -184,12 +201,12 @@ const ShellHeader = () => {
                 className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-900 px-3 text-white shadow-lg shadow-brand-900/10 transition-all hover:-translate-y-0.5 hover:bg-brand-600 active:translate-y-0 active:scale-95 sm:px-4"
               >
                 <Plus size={20} strokeWidth={3} />
-                <span className="hidden text-sm font-bold sm:inline">
+                <span className="hidden text-sm font-bold lg:inline">
                   Upload
                 </span>
               </button>
 
-              <div className="hidden h-6 w-px bg-slate-200/70 sm:block" />
+              <div className="hidden h-6 w-px bg-slate-200/70 lg:block" />
             </>
           )}
 
@@ -282,7 +299,7 @@ const ShellHeader = () => {
         </div>
       </div>
 
-      <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/60 bg-white/90 px-2 shadow-2xl backdrop-blur-xl md:hidden">
+      <nav className="fixed bottom-4 left-4 right-4 z-50 flex h-16 items-center justify-around rounded-2xl border border-white/60 bg-white/90 px-2 shadow-2xl backdrop-blur-xl lg:hidden">
         {navLinks.map((link) => {
           const active = isActivePath(location.pathname, link.path, link.end);
           const Icon = link.icon;

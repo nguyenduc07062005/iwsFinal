@@ -31,8 +31,9 @@ describe('GeminiService', () => {
       get: jest.fn((key: string) => {
         const values: Record<string, string> = {
           GEMINI_API_KEY: 'test-key',
-          GEMINI_TEXT_MODEL: 'gemini-2.5-flash',
-          GEMINI_TEXT_MODEL_FALLBACKS: 'gemini-3-flash,gemini-3.1-flash-lite',
+          GEMINI_TEXT_MODEL: 'gemini-3.1-flash-lite-preview',
+          GEMINI_TEXT_MODEL_FALLBACKS:
+            'gemini-2.5-flash-lite,gemini-3-flash-preview',
           GEMINI_EMBEDDING_MODEL: 'gemini-embedding-001',
         };
 
@@ -55,11 +56,11 @@ describe('GeminiService', () => {
       'Recovered response',
     );
     expect(mockGenerateContent).toHaveBeenNthCalledWith(1, {
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.1-flash-lite-preview',
       contents: 'Explain this document',
     });
     expect(mockGenerateContent).toHaveBeenNthCalledWith(2, {
-      model: 'gemini-3-flash',
+      model: 'gemini-2.5-flash-lite',
       contents: 'Explain this document',
     });
   });
@@ -76,7 +77,7 @@ describe('GeminiService', () => {
 
     expect(mockChatGoogle).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-3-flash',
+        model: 'gemini-2.5-flash-lite',
         apiKey: 'test-key',
         temperature: 0.2,
       }),
