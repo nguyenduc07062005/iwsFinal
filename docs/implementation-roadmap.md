@@ -1,230 +1,120 @@
-# Implementation Roadmap — StudyVault (IWS Final)
+# StudyVault Implementation Status
 
-## Mục tiêu tổng
-Refactor và hoàn thiện dự án theo hướng:
-- đúng rubric IWS
-- UI chuyên nghiệp, đồng bộ, premium
-- backend/frontend tách biệt rõ
-- dễ demo, dễ bảo vệ, ít rủi ro
+Last updated: 2026-05-02.
 
----
+This document replaces the earlier phase-only roadmap. The project has moved from planning into a working final-project system, so this file records what is implemented and what remains as optional hardening.
 
-## Phase 0 — Freeze Architecture & Scope
-### Mục tiêu
-Khóa toàn bộ scope, route map, component map, và nguyên tắc làm việc.
+## Current Status
 
-### Việc làm
-- Chốt scope cuối cùng
-- Chốt route map
-- Chốt component map
-- Chốt tính năng loại bỏ khỏi core demo
-- Chốt phase roadmap
+StudyVault is a full-stack document study workspace with:
 
-### Deliverables
-- `docs/project-scope-final.md`
-- `docs/frontend-route-map.md`
-- `docs/frontend-component-map.md`
-- `docs/implementation-roadmap.md`
+- React + Vite frontend.
+- NestJS REST API backend.
+- PostgreSQL + pgvector storage.
+- Email verification and password recovery.
+- JWT access tokens plus HttpOnly refresh cookies and CSRF protection.
+- Folder, document, tag, favorite, notes, search, filter, sort, and pagination flows.
+- Document viewer with notes, summary, Ask AI, and related documents.
+- Admin dashboard with user management, stats, and audit logs.
+- Docker development and production-like compose files.
 
-### Definition of Done
-- Không thêm tính năng ngoài scope
-- Mọi phase sau bám đúng tài liệu
+## Completed Milestones
 
----
+### Foundation
 
-## Phase 1 — Frontend Foundation
-### Mục tiêu
-Dựng bộ xương UI chuẩn theo `QUY_TAC_FRONTEND.md`.
+- Frontend/backend split is complete.
+- Router is centralized in `src/app/router.jsx`.
+- Layouts are separated into `AuthLayout`, `AppShell`, and `DetailLayout`.
+- Shared frontend services handle auth, bearer tokens, refresh, and CSRF.
+- Backend modules are separated by authentication, documents, folders, tags, RAG, admin, health, and LLM diagnostics.
 
-### Frontend tasks
-- Tạo cấu trúc thư mục chuẩn mới
-- Tạo `cn()` utility
-- Tạo base tokens / constants
-- Tạo UI components nền:
-  - AppButton
-  - AppInput
-  - AppCard
-  - AppModal
-  - AppPagination
-  - AppEmptyState
-  - AppSkeleton
-- Tạo layout nền:
-  - PublicLayout
-  - AuthLayout
-  - AppShell
-  - DetailLayout
+### Authentication And Security
 
-### Output
-- Frontend có design system thật
-- UI không còn lệch style giữa các page
+- Register, verify email, login, refresh, logout, logout-all, forgot password, reset password, change password, and profile update are implemented.
+- Access token is short-lived and held in frontend memory.
+- Refresh token is HttpOnly and server-side sessions are revocable.
+- Refresh/logout cookie actions require `X-CSRF-Token`.
+- Production validation blocks unsafe `JWT_SECRET`, wildcard CORS, `AUTH_RETURN_RESET_TOKEN=true`, and `DATABASE_SYNC=true`.
 
-### Definition of Done
-- Có thể dựng page mới chỉ bằng layout + base components
+### Workspace
 
----
+- Users can create, rename, move, and delete folders.
+- Folder move/update prevents invalid ownership and cyclic folder nesting.
+- Users can upload PDF, DOCX, and TXT files.
+- File validation checks type, extension, content signature, size, filename, and readable text.
+- Uploads are saved even if AI indexing fails.
+- The same file can exist in different folders for the same user, but the same file cannot be uploaded twice into the same folder.
+- Opening documents uses document ids, so per-folder copies remain unambiguous for the current frontend/API contract.
 
-## Phase 2 — Router & Layout Refactor
-### Mục tiêu
-Chuẩn hóa định tuyến toàn frontend.
+### Document Library
 
-### Tasks
-- Refactor `App.tsx`
-- Tách router ra `app/router`
-- Gắn các route theo route map
-- Tạo protected route guard
-- Tạo redirect rules
+- Document lists support server-side pagination, filtering, sorting, search, folder selection, favorite state, and tag filtering.
+- Favorites page has its own paginated/filterable list.
+- User-owned resources are scoped by authenticated `ownerId` or `userId`.
+- Admin role does not bypass private workspace ownership.
 
-### Output
-- Route rõ ràng, sạch, dễ demo
+### AI / RAG
 
----
+- Background indexing creates chunks and embeddings when provider quota/configuration allows.
+- Ask document, ask history, summary, mind map, and diagram backend endpoints exist.
+- Current frontend detail assistant exposes Study notes, Summary, Ask AI, and Related tabs.
+- Summary, diagram, and mind-map caches are user-document scoped where user-specific input can affect output.
 
-## Phase 3 — Authentication Full Flow
-### Mục tiêu
-Đạt trọn yêu cầu Merit về authentication.
+### Admin
 
-### Backend tasks
-- Register
-- Login
-- Get Profile
-- Forgot Password
-- Reset Password
-- JWT protected routes
-- Password hashing
-- Reset token expiry
+- Admin accounts are bootstrapped via `ADMIN_EMAILS` and `ADMIN_BOOTSTRAP_PASSWORD`.
+- Admin can list users, filter/paginate users, lock/unlock normal users, view stats, and inspect audit logs.
+- Admin cannot lock self or another admin account.
 
-### Frontend tasks
-- Login page
-- Register page
-- Forgot Password page
-- Reset Password page
-- Error/loading/success states
+### UX Refresh
 
-### Output
-- Full auth flow hoàn chỉnh
+- Landing page has been rebuilt as a clearer public product page.
+- Navbar contrast has been improved for the transparent/hero area.
+- Workspace theme has stronger contrast and a clearer visual hierarchy.
+- Workspace hero keeps "Study smarter" and uses rotating horizontal images.
+- Folder navigation/back behavior has smoother loading and safer text truncation.
+- Login/logout success feedback is shown in a toast and auto-dismisses.
+- Profile no longer shows duplicate change-password controls.
 
----
+## Current Verification Commands
 
-## Phase 4 — Workspace CRUD
-### Mục tiêu
-Hoàn thiện CRUD thật sự cho folder và document.
+Backend:
 
-### Backend tasks
-- Folder CRUD + move
-- Document upload/list/detail/update/delete
-- Favorite toggle
+```powershell
+cd studyVault-backend
+npm run lint
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+npm run build
+```
 
-### Frontend tasks
-- Workspace page
-- Folder tree / panel
-- Document list
-- Upload modal
-- Rename modal
-- Delete dialog
-- Favorite actions
+Frontend:
 
-### Output
-- App có flow quản lý tài liệu hoàn chỉnh
+```powershell
+cd studyVault-frontend
+npm run lint
+npm test
+npm run build
+```
 
----
+Docker:
 
-## Phase 5 — Sorting / Pagination / Filtering
-### Mục tiêu
-Tăng điểm kỹ thuật theo rubric.
+```powershell
+docker compose config --quiet
+docker compose -f docker-compose.prod.yml config --quiet
+```
 
-### Backend tasks
-- Server-side pagination
-- Server-side sorting
-- Dynamic filtering
+## Remaining Optional Work
 
-### Frontend tasks
-- SearchBar
-- SortControl
-- FilterBar
-- Pagination bar
+These are not blockers for the current final-project scope:
 
-### Output
-- Danh sách tài liệu đủ chuẩn chấm điểm cao
+- Add OCR for scanned/image-only PDFs.
+- Move rate limiting to Redis for multi-instance deployment.
+- Add malware scanning for uploaded files before a real production launch.
+- Add richer frontend controls for mind map and diagram if they become part of the main UX.
+- Add end-to-end browser automation for the most important user journeys.
+- Replace local upload storage with object storage for production hosting.
 
----
+## Scope Rule Going Forward
 
-## Phase 6 — Document Detail + Summary
-### Mục tiêu
-Giữ 1 AI feature mạnh, ít rủi ro.
-
-### Tasks
-- Refactor detail page
-- File preview
-- Metadata section
-- Summary panel
-- Summary loading/error/retry states
-
-### Output
-- AI Summary trở thành điểm cộng của dự án
-
----
-
-## Phase 7 — Security & Quality Polish
-### Mục tiêu
-Đẩy dự án lên mức Excellent.
-
-### Backend tasks
-- Strict CORS
-- Rate limiting
-- Ownership check toàn bộ
-- DTO validation hoàn chỉnh
-- Upload hardening
-
-### Frontend tasks
-- Session expiry UX
-- Unauthorized redirect
-- Consistent error feedback
-- Form validation polish
-
-### Output
-- Có thể giải thích rõ security khi defense
-
----
-
-## Phase 8 — Testing, Deploy, Docs, Defense
-### Mục tiêu
-Khóa điểm bằng tính chuyên nghiệp.
-
-### Tasks
-- Backend tests cho auth / CRUD / protected routes
-- Frontend smoke checklist
-- README final
-- Postman collection
-- `.env.example`
-- Docker compose nếu kịp
-- Screenshot evidence cho personal report
-- Demo script / defense notes
-
-### Output
-- Project dễ chạy, dễ nộp, dễ thuyết trình
-
----
-
-## Ưu tiên tuyệt đối
-### Bắt buộc xong
-1. Phase 0
-2. Phase 1
-3. Phase 2
-4. Phase 3
-5. Phase 4
-6. Phase 5
-
-### Rất nên xong
-7. Phase 6
-8. Phase 7
-
-### Khóa điểm
-9. Phase 8
-
----
-
-## Chốt hướng triển khai
-- Ít tính năng hơn nhưng đúng rubric hơn
-- Giữ Summary, loại Mindmap khỏi core
-- Tập trung vào auth + CRUD + sorting/pagination/filtering + security + responsive UI
-- Code theo rule, không code tự do
+New work should preserve the current core: authentication, secure workspace ownership, document/folder/tag CRUD, document preview, server-side list controls, study notes, summary/Ask AI, and admin. Optional AI visualizations should not destabilize the main upload/view/search flow.

@@ -5,6 +5,8 @@ documented in `docs/security-architecture-and-demo.md`. Use that document as
 the primary final-report security reference, and use this checklist as the
 OWASP-style supporting checklist.
 
+Cập nhật lần cuối: 2026-05-02.
+
 Tài liệu này dùng để chứng minh phần security khi defense môn Internet and Web Services. Mục tiêu là trình bày rõ hệ thống đã có cơ chế bảo vệ nền tảng, không phải khẳng định đây là cấu hình production hoàn hảo.
 
 ## 1. Security Headers
@@ -48,6 +50,7 @@ Defense note:
 - Khi demo/defense không nên để `CORS_ORIGIN=*`.
 - Chỉ domain frontend hợp lệ mới được gọi API.
 - `Authorization` được whitelist trong `allowedHeaders` để frontend gửi JWT.
+- `X-CSRF-Token` được whitelist để refresh/logout cookie flow hoạt động trong browser thật.
 
 ## 3. Authentication And Authorization
 
@@ -258,8 +261,11 @@ Trạng thái: Đã có E2E backend.
 Lệnh:
 
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-backend
+cd studyVault-backend
+npm run lint
+npm test -- --runInBand
 npm run test:e2e -- --runInBand
+npm run build
 ```
 
 Đang cover:
@@ -284,6 +290,7 @@ Các điểm chưa nên giấu khi defense nếu bị hỏi sâu:
 - Rate limit hiện là in-memory, phù hợp local/demo; nếu deploy nhiều instance nên dùng Redis.
 - Email verification và forgot password phụ thuộc Gmail SMTP App Password; nếu chưa cấu hình `SMTP_USER`/`SMTP_PASS`, email xác thực/reset cho tài khoản thật sẽ không gửi được.
 - Refresh token rotation đã có: refresh session được lưu server-side, rotate khi refresh, revoke khi logout/logout-all/reset/change password/admin lock, và có reuse detection.
+- Production safety validation chặn `DATABASE_SYNC=true`, wildcard CORS, development JWT secret, và `AUTH_RETURN_RESET_TOKEN=true`.
 
 ## 14. Defense Talking Points
 

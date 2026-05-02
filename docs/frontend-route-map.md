@@ -1,156 +1,107 @@
-# Frontend Route Map — StudyVault
+# StudyVault Frontend Route Map
 
-## 1. Mục tiêu
-Tài liệu này chốt toàn bộ route frontend sau refactor. Mọi page mới phải bám đúng route map này.
+Last updated: 2026-05-02.
 
----
+This document reflects `studyVault-frontend/src/app/router.jsx` after the latest UI/UX refresh.
 
-## 2. Nguyên tắc định tuyến
-- Route rõ ràng, dễ demo
-- Tách route public và protected
-- Không để route marketing / AI showcase lấn át route nghiệp vụ
-- Dùng layout riêng cho từng nhóm route
+## Routing Principles
 
----
+- Public, auth-only, protected app, and protected detail routes are separated.
+- `/` is a public product landing page. It is not a protected workspace route.
+- Auth pages use `GuestOnlyRoute`; logged-in users are redirected back to `/app`.
+- Workspace and favorites share `AppShell`.
+- Document detail uses `DetailLayout` so the preview and assistant can use a wider layout.
+- Unknown routes redirect to `/app` when authenticated, otherwise to `/`.
 
-## 3. Layout chuẩn
+## Layout Groups
 
-## 3.1. Public Layout
-Dùng cho các route công khai:
-- `/`
+| Layout | Routes | Purpose |
+| --- | --- | --- |
+| Public page | `/` | Landing page with product story and call-to-action |
+| `AuthLayout` | `/login`, `/register`, `/verify-email`, `/complete-registration`, `/forgot-password`, `/reset-password` | Account access flows |
+| `AppShell` | `/app`, `/app/favorites`, `/profile`, `/admin` | Main authenticated application shell |
+| `DetailLayout` | `/app/documents/:id` | Document preview and document assistant |
 
-## 3.2. Auth Layout
-Dùng cho:
-- `/login`
-- `/register`
-- `/forgot-password`
-- `/reset-password`
+## Current Route Map
 
-## 3.3. App Shell Layout
-Dùng cho route protected chính:
-- `/app`
-- `/app/favorites`
-- `/profile`
+| Route | Access | Component | Notes |
+| --- | --- | --- | --- |
+| `/` | Public | `Landing` | Product landing page, navbar, hero, features, FAQ, CTA |
+| `/login` | Guest-only | `Login` | Sign in, forgot-password link, logout success toast support |
+| `/register` | Guest-only | `Register` | Starts email verification registration |
+| `/verify-email` | Guest-only | `CompleteRegistration` | Compatibility route for email verification links |
+| `/complete-registration` | Guest-only | `CompleteRegistration` | Sets password from verification token |
+| `/forgot-password` | Guest-only | `ForgotPassword` | Requests reset email with neutral response |
+| `/reset-password` | Guest-only | `ResetPassword` | Sets a new password from reset token |
+| `/app` | Protected | `WorkspacePage` | Folder panel, document list, upload, filter, sort, pagination |
+| `/app/favorites` | Protected | `Favorites` | Favorite documents with search/filter/sort/pagination |
+| `/app/documents/:id` | Protected | `DocumentViewer` | File preview, notes, summary, Ask AI, related documents |
+| `/profile` | Protected | `Profile` | Profile information, change password, logout-all |
+| `/admin` | Protected admin | `Admin` | Stats, user management, audit logs |
+| `*` | Conditional | `Navigate` | Redirects to `/app` or `/` based on auth state |
 
-Bao gồm:
-- top navigation / header
-- workspace container
-- sidebar hoặc secondary panel nếu cần
+## Route Responsibilities
 
-## 3.4. Detail Layout
-Dùng cho:
-- `/app/documents/:documentId`
+### `/`
 
-Bao gồm:
-- document toolbar
-- preview area
-- summary panel
-- responsive behavior cho màn hẹp
+- Presents StudyVault as a focused study workspace.
+- Keeps the headline "Study smarter".
+- Uses a high-contrast sticky navbar so links remain readable at the top of the hero.
+- Links visitors to sign up, sign in, or start the workspace flow.
 
----
+### Auth Routes
 
-## 4. Route map cuối cùng
+- Login/register/verification/recovery flows live under `AuthLayout`.
+- Access tokens stay in memory; refresh continuity comes from the HttpOnly refresh cookie plus CSRF token.
+- `GuestOnlyRoute` respects refresh-session hints so users with a valid refresh cookie are routed back into the app instead of being stuck on auth screens.
+- Logout success feedback is shown as a toast and auto-dismisses.
 
-| Route | Access | Layout | Mục đích |
-|------|--------|--------|---------|
-| `/` | Public | PublicLayout | Landing / giới thiệu ngắn gọn hệ thống |
-| `/login` | Public | AuthLayout | Đăng nhập |
-| `/register` | Public | AuthLayout | Đăng ký |
-| `/forgot-password` | Public | AuthLayout | Gửi yêu cầu quên mật khẩu |
-| `/reset-password` | Public | AuthLayout | Đặt lại mật khẩu |
-| `/app` | Protected | AppShell | Workspace dashboard / document library |
-| `/app/favorites` | Protected | AppShell | Danh sách tài liệu yêu thích |
-| `/app/documents/:documentId` | Protected | DetailLayout | Chi tiết tài liệu + preview + summary |
-| `/profile` | Protected | AppShell | Thông tin người dùng |
-| `/admin` | Protected admin | AppShell | Admin dashboard, user status, audit logs |
+### `/app`
 
----
+- Primary workspace for folders and documents.
+- Supports folder navigation, back behavior, upload modal, grid/list view, search, type/tag filters, sorting, and server pagination.
+- The workspace hero has a clearer theme and a rotating horizontal study-workspace image panel.
 
-## 5. Route tạm loại bỏ khỏi core
-Các route sau không nằm trong core demo sau refactor:
+### `/app/favorites`
+
+- Lists only favorited user documents.
+- Supports URL-backed search/filter/sort/page state.
+- Uses the same ownership-protected document APIs.
+
+### `/app/documents/:id`
+
+- Opens the current document by document id.
+- Shows protected file preview and toolbar actions.
+- Includes the document assistant tabs: Study notes, Summary, Ask AI, and Related.
+- Uses stale async guards while loading files so fast document switching cannot overwrite the active preview with an old response.
+
+### `/profile`
+
+- Shows account information.
+- Lets the user change password.
+- Provides session cleanup/logout-all behavior without duplicate change-password controls.
+
+### `/admin`
+
+- Requires authenticated admin role.
+- Shows user stats, user management, pagination, filtering, and audit logs.
+- Normal users receive an access-denied state.
+
+## Responsive Rules
+
+- Below `1024px`, `ShellHeader` uses a compact header and bottom navigation.
+- From `1024px`, primary Workspace/Favorites navigation is centered in the top header.
+- Below `1280px`, document preview and assistant stack vertically.
+- From `1280px`, document detail uses the split preview/assistant layout.
+- Auth forms use viewport-safe scrolling so small screens and software keyboards do not hide fields.
+
+## Removed From Main Routing
+
+These routes are not part of the current router:
 
 - `/subjects`
 - `/collections`
-- các route AI showcase riêng
-- route mindmap riêng
+- standalone AI showcase pages
+- standalone mind-map page
 
-> Nếu cần giữ code cũ để tham khảo, phải tách khỏi luồng routing chính.
-
----
-
-## 6. Redirect rules
-- Nếu user chưa đăng nhập mà vào route protected → redirect `/login`
-- Nếu user đã đăng nhập và vào `/login` hoặc `/register` → có thể redirect `/app`
-- Route không hợp lệ → redirect về `/` hoặc `/app` tùy trạng thái auth
-
----
-
-## 7. Route-level responsibilities
-
-### `/`
-- chỉ giới thiệu ngắn, không quá nặng animation
-- CTA rõ ràng vào login / workspace
-
-### `/login`
-- form login
-- link sang register / forgot password
-
-### `/register`
-- form register
-- link sang login
-
-### `/forgot-password`
-- email form
-- success state rõ ràng
-
-### `/reset-password`
-- token validation state
-- new password + confirm password
-
-### `/app`
-- folder tree / sidebar
-- document list
-- upload action
-- sort / filter / search / pagination
-
-### `/app/favorites`
-- list favorite documents
-- same controls as list page nếu cần
-
-### `/app/documents/:documentId`
-- preview file
-- metadata
-- summary panel
-- rename/favorite/download/open actions
-
-### `/profile`
-- profile info cơ bản
-- logout action
-
----
-
-## 8. Navigation chuẩn
-Primary nav:
-- Home / Workspace
-- Favorites
-- Profile
-- Admin, only when the current user has role `admin`
-
-Secondary actions:
-- Upload
-- Create folder
-- Search
-- Filter
-
-Responsive navigation:
-- Below `1024px`, `ShellHeader` keeps a compact top bar and uses bottom navigation for primary routes.
-- From `1024px`, primary navigation is centered in the top header.
-- Detail/document routes stack preview and assistant below `1280px`; split view is only for wide desktop.
-
----
-
-## 9. Định nghĩa “xong” cho route map
-Route map được coi là khóa khi:
-- frontend router bám đúng tài liệu này
-- không phát sinh route ngoài scope nếu chưa được bổ sung bằng docs
-- toàn bộ page refactor đều map được vào route tương ứng
+Mind map and diagram remain backend capabilities, but they are not separate frontend routes in the current app.

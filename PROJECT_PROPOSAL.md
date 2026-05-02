@@ -6,6 +6,8 @@
 
 **Loại sản phẩm:** Web application quản lý tài liệu học tập cho sinh viên
 
+**Cập nhật lần cuối:** 2026-05-02, đồng bộ với codebase mới nhất sau đợt sửa bug backend/frontend và refresh UI/UX.
+
 **Bối cảnh:** Trong quá trình học, sinh viên thường phải lưu nhiều loại tài liệu như slide, đề cương, tài liệu tham khảo, báo cáo, bài tập lớn, và ghi chú môn học. Nếu chỉ lưu file rời rạc trong máy tính hoặc Google Drive, việc tìm lại tài liệu, tổ chức theo môn học, và trích xuất nội dung học tập sẽ rất mất thời gian.
 
 StudyVault được xây dựng để giải quyết bài toán đó bằng cách kết hợp:
@@ -16,7 +18,7 @@ StudyVault được xây dựng để giải quyết bài toán đó bằng các
 - AI summary
 - AI hỏi đáp trên nội dung tài liệu
 
-Mục tiêu của dự án không phải là một landing page giới thiệu công nghệ, mà là một **sản phẩm web thật** mà sinh viên có thể đăng nhập và sử dụng trực tiếp để quản lý tài nguyên học tập.
+Mục tiêu của dự án là một **sản phẩm web thật** mà sinh viên có thể đăng nhập và sử dụng trực tiếp để quản lý tài nguyên học tập. Landing page hiện tại được giữ lại như màn hình giới thiệu sản phẩm công khai, còn luồng chính để chấm điểm và demo vẫn là workspace sau đăng nhập.
 
 ## 2. Mục Tiêu Dự Án
 
@@ -49,15 +51,20 @@ Mục tiêu của dự án không phải là một landing page giới thiệu c
 ### Authentication
 
 - Đăng ký tài khoản
+- Xác thực email và hoàn tất đăng ký bằng verification token
 - Đăng nhập
 - Xem thông tin cá nhân
 - Quên mật khẩu
 - Đặt lại mật khẩu bằng token có hạn dùng
+- Đổi mật khẩu trong profile
+- Logout phiên hiện tại và logout tất cả phiên
 - Route bảo vệ bằng JWT
+- Refresh session bằng HttpOnly cookie và CSRF token
 - Xử lý session hết hạn và redirect lịch sự
 
 ### Workspace
 
+- Landing page công khai tại `/`
 - Vào màn hình chính tại `/app`
 - Chọn thư mục hiện hành
 - Xem danh sách tài liệu trong thư mục
@@ -84,6 +91,9 @@ Mục tiêu của dự án không phải là một landing page giới thiệu c
 ### Document Management
 
 - Upload tài liệu
+- Upload cùng file ở nhiều folder khác nhau
+- Chặn upload cùng một file hai lần trong cùng một folder
+- Cho phép upload lại file vào folder cũ sau khi bản trong folder đó đã bị xóa
 - Đổi tên tài liệu
 - Di chuyển tài liệu sang thư mục khác
 - Xóa tài liệu
@@ -96,18 +106,21 @@ Mục tiêu của dự án không phải là một landing page giới thiệu c
 - Xem preview tài liệu nếu có thể render
 - Có fallback khi preview không khả dụng
 - Hiển thị metadata
+- Ghi chú học tập theo từng tài liệu
 - Sinh tóm tắt AI
 - Hỏi đáp theo tài liệu
+- Xem tài liệu liên quan
 
 ### Favorites
 
 - Trang riêng để xem tài liệu yêu thích
 - Có tìm kiếm, lọc, sắp xếp, phân trang tương tự workspace chính
 
-## 4.2. Chức năng không còn nằm trong production flow
+## 4.2. Chức năng không còn là luồng frontend trọng tâm
 
-- Mindmap frontend đã bị loại khỏi luồng sử dụng thật
-- Landing page marketing không còn là trang chính của sản phẩm
+- Mindmap frontend route riêng không nằm trong luồng sử dụng chính
+- Diagram/mindmap hiện được xem là backend capability hoặc bonus, không phải phần bắt buộc để demo workspace
+- Các trang AI showcase riêng không nằm trong router chính
 
 Lý do:
 
@@ -115,6 +128,8 @@ Lý do:
 - làm tăng độ phức tạp giao diện
 - tăng rủi ro demo
 - làm bundle frontend nặng không cần thiết
+
+Landing page không bị loại bỏ. Route `/` hiện là landing page công khai, được thiết kế lại để có tương phản tốt hơn và điều hướng rõ vào sign in/sign up/workspace.
 
 ## 5. Kiến Trúc Hệ Thống
 
@@ -134,10 +149,13 @@ Backend NestJS (studyVault-backend)
 PostgreSQL
         |
         +-- bảng user
+        +-- bảng user_session
         +-- bảng folder
         +-- bảng document
-        +-- bảng ownership/favorite
-        +-- bảng chunk / history / artifact
+        +-- bảng user_document / favorite / folder relation
+        +-- bảng tag / note
+        +-- bảng chunk / ask history / artifact cache
+        +-- bảng admin audit log
 ```
 
 ## 5.2. Frontend
@@ -158,6 +176,8 @@ Frontend được viết bằng:
 - Tailwind CSS
 - Axios
 - Motion
+- React Hot Toast
+- React Markdown
 
 ## 5.3. Backend
 
@@ -179,6 +199,9 @@ Backend được viết bằng:
 - PostgreSQL
 - JWT
 - class-validator
+- HttpOnly refresh cookie và CSRF token
+- Nodemailer
+- Google Gemini
 
 ## 6. Cấu Trúc Repo
 
@@ -190,8 +213,10 @@ projectfinal/
 │   │   ├── database/
 │   │   ├── modules/
 │   │   │   ├── authentication/
+│   │   │   ├── admin/
 │   │   │   ├── document/
 │   │   │   ├── folder/
+│   │   │   ├── tag/
 │   │   │   └── rag/
 │   │   └── main.ts
 │   ├── test/
@@ -203,12 +228,11 @@ projectfinal/
 │   │   ├── layouts/
 │   │   ├── pages/
 │   │   ├── routes/
-│   │   ├── service/
 │   │   ├── services/
 │   │   ├── utils/
 │   │   └── main.jsx
 │   └── README.md
-├── QUY_TAC_FRONTEND.md
+├── docs/
 ├── PROJECT_PROPOSAL.md
 └── README.md
 ```
@@ -220,16 +244,25 @@ projectfinal/
 Module này xử lý:
 
 - `POST /auth/register`
+- `POST /auth/complete-registration`
+- `POST /auth/resend-verification`
 - `POST /auth/login`
-- `GET /auth/profile`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- `POST /auth/logout-all`
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
+- `GET /auth/profile`
+- `PATCH /auth/profile`
+- `PATCH /auth/password`
 
 Các điểm chính:
 
 - dùng JWT cho access token
 - reset password có token riêng với TTL
-- backend có thể trả token reset trong mode demo local để test nhanh
+- refresh token lưu trong HttpOnly cookie
+- refresh/logout dùng CSRF token qua `X-CSRF-Token`
+- backend có thể trả token reset trong mode test/local nếu bật `AUTH_RETURN_RESET_TOKEN`, nhưng production không cho bật biến này
 
 ## 7.2. Folder Module
 
@@ -271,6 +304,9 @@ Module này đang phục vụ production flow cho:
 
 - `summary`
 - `ask document`
+- `related document` thông qua document module
+- backend endpoint `mindmap`
+- backend endpoint `diagram`
 
 Flow AI hiện tại:
 
@@ -289,19 +325,21 @@ Các route chính:
 - `/`
 - `/login`
 - `/register`
+- `/verify-email`
+- `/complete-registration`
 - `/forgot-password`
 - `/reset-password`
 - `/app`
 - `/app/favorites`
 - `/app/documents/:id`
 - `/profile`
+- `/admin`
 
 Lưu ý:
 
-- `/` không còn là landing page
-- `/` chỉ redirect:
-  - đã đăng nhập -> `/app`
-  - chưa đăng nhập -> `/login`
+- `/` là landing page công khai.
+- Auth routes là guest-only; user đã có session hợp lệ sẽ được đưa về `/app`.
+- Route không hợp lệ sẽ redirect về `/app` nếu đã đăng nhập, hoặc `/` nếu chưa đăng nhập.
 
 ## 8.2. Layouts
 
@@ -419,6 +457,8 @@ Các nhóm dữ liệu chính:
 - document detail
 - AI summary
 - ask document
+- admin dashboard
+- landing page công khai đã được refresh
 - build frontend pass
 - build backend pass
 - e2e test backend cho flow quan trọng
@@ -435,13 +475,13 @@ Các nhóm dữ liệu chính:
 
 ## 14. Các Quyết Định Scope Quan Trọng
 
-### Quyết định 1: bỏ landing page marketing
+### Quyết định 1: giữ landing page nhưng không để nó lấn át workspace
 
 Lý do:
 
-- không phục vụ use case chính của sản phẩm
-- gây loãng focus của demo
-- không giúp tăng điểm rubric bằng việc quản trị dữ liệu
+- landing page giúp user hiểu StudyVault trước khi đăng nhập
+- workspace vẫn là trọng tâm demo vì thể hiện CRUD, auth, ownership, search/filter/sort/pagination
+- landing page được giữ gọn, rõ tương phản, có CTA trực tiếp vào auth/workspace
 
 ### Quyết định 2: bỏ mindmap khỏi production frontend
 
@@ -464,7 +504,7 @@ Lý do:
 ## 15.1. Chạy backend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-backend
+cd studyVault-backend
 npm install
 copy .env.example .env
 npm run migration:run
@@ -478,9 +518,9 @@ Backend chạy mặc định tại:
 ## 15.2. Chạy frontend
 
 ```powershell
-cd D:\S2026\iws\projectfinal\studyVault-frontend
+cd studyVault-frontend
 npm install
-copy .env.example .env
+copy .env.local.example .env
 npm run dev
 ```
 

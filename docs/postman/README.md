@@ -2,6 +2,8 @@
 
 Thu muc nay chua bo test API day du cho StudyVault hien tai.
 
+Last updated: 2026-05-02.
+
 ## Files
 
 - `StudyVault_API_Full.postman_collection.json`: Postman collection chay full luong API.
@@ -45,6 +47,7 @@ Copy-Item docs/postman/StudyVault_Local.postman_environment.json docs/postman/St
 - Folder: list/create/get/update/move/legacy update/invalid UUID/missing name/invalid parent.
 - Tag: list/create/update/filter/invalid color/invalid type/invalid UUID.
 - Document: list/upload/upload fake file/upload thieu file/upload invalid folderId-tagIds/query validation/get/file/update name/update tags/favorite/search/related/delete.
+- Document duplicate policy: same file in another folder is valid; same file in the same folder is rejected.
 - Note: list/create/update/delete/empty content.
 - RAG: ask/history/summary/mindmap/diagram/clear history/question too short/invalid language/invalid slot.
 - Authorization: unauthenticated bi chan, User B khong doc/download/favorite/delete/RAG/sua data cua User A, user thuong khong goi admin.

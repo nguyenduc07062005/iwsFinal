@@ -1,5 +1,7 @@
 # StudyVault
 
+Last updated: 2026-05-02. This README reflects the current codebase after the backend bug fixes, frontend bug fixes, and UI/UX refresh.
+
 ## Responsive Demo Checklist
 
 Responsive UI is a final-project requirement. Before recording screenshots or presenting the demo, verify the frontend at these sizes:
@@ -17,9 +19,9 @@ Current layout rules:
 - Document viewer stacks preview and AI assistant below `1280px`; wide desktop uses the split preview/assistant layout.
 - Auth forms must scroll on short screens and when the on-screen keyboard is open.
 
-Minimum routes to capture for report evidence: `/login`, `/register`, `/app`, `/app/favorites`, `/app/documents/:id`, `/profile`, and `/admin` when logged in as admin.
+Minimum routes to capture for report evidence: `/`, `/login`, `/register`, `/verify-email` or `/complete-registration`, `/app`, `/app/favorites`, `/app/documents/:id`, `/profile`, and `/admin` when logged in as admin.
 
-StudyVault là final project môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng hỗ trợ đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, upload tài liệu, xem tài liệu, tìm kiếm/lọc/sắp xếp, ghi chú học tập, tóm tắt bằng AI và hỏi đáp theo nội dung tài liệu.
+StudyVault là final project môn IWS, được xây dựng như một hệ thống quản lý tài liệu học tập cho sinh viên. Ứng dụng có landing page công khai tại `/`, hỗ trợ đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, upload tài liệu, xem tài liệu, tìm kiếm/lọc/sắp xếp, ghi chú học tập, tóm tắt bằng AI và hỏi đáp theo nội dung tài liệu.
 
 ## Tổng Quan Hệ Thống
 
@@ -66,6 +68,9 @@ Các tài liệu nộp final project nằm trong thư mục `docs/`. Bản chín
 - Danh sách document có pagination/filter/sort.
 - Xem chi tiết document và protected file preview.
 - Đổi tên, xóa, đánh dấu yêu thích.
+- Cho phép upload cùng file vào nhiều folder khác nhau.
+- Chặn upload cùng một file hai lần trong cùng một folder.
+- Nếu đã xóa file khỏi một folder, user có thể upload lại file đó vào folder đó.
 - Folder CRUD và move folder.
 - Tag CRUD và gán tag cho document.
 - Study notes theo từng document.
@@ -312,17 +317,19 @@ powershell -ExecutionPolicy Bypass -File .\scripts\demo-readiness.ps1 -SkipDocke
 ## Luồng Demo Khuyến Nghị
 
 1. Mở `http://localhost:3000`.
-2. Register user mới bằng tên và email.
-3. Mở email verification và hoàn tất đặt mật khẩu.
-4. Login.
-5. Upload file `PDF`, `DOCX`, hoặc `TXT`.
-6. Mở document viewer để xem file.
-7. Demo filter/sort/tag/folder/favorite/download.
-8. Demo summary hoặc Q&A nếu `GEMINI_API_KEY` còn quota.
-9. Giải thích rằng upload/view vẫn hoạt động nếu AI quota hết.
-10. Login bằng admin account.
-11. Xem users, lock/unlock user thường, và audit logs.
-12. Logout và refresh page để chứng minh session được xóa.
+2. Giới thiệu landing page và CTA vào auth/workspace.
+3. Register user mới bằng tên và email.
+4. Mở email verification và hoàn tất đặt mật khẩu.
+5. Login.
+6. Upload file `PDF`, `DOCX`, hoặc `TXT`.
+7. Mở document viewer để xem file.
+8. Demo filter/sort/tag/folder/favorite/download.
+9. Demo upload cùng file vào folder khác và chặn upload trùng trong cùng folder.
+10. Demo summary hoặc Q&A nếu `GEMINI_API_KEY` còn quota.
+11. Giải thích rằng upload/view vẫn hoạt động nếu AI quota hết.
+12. Login bằng admin account.
+13. Xem users, lock/unlock user thường, và audit logs.
+14. Logout và refresh page để chứng minh session được xóa.
 
 Runbook chi tiết:
 
@@ -402,7 +409,10 @@ docker compose config --quiet
 ## Ghi Chú Trạng Thái Hiện Tại
 
 - CORS đã allow `X-CSRF-Token`, nên refresh/logout dùng CSRF hoạt động với browser thật.
+- `/` hiện là landing page công khai; workspace thật nằm ở `/app`.
 - Upload document đã validate folder/tag trước side effect và dùng transaction/cleanup để tránh dữ liệu mồ côi.
+- Upload duplicate hiện theo rule per-folder: cùng file được phép ở nhiều folder, nhưng không được trùng trong cùng folder.
 - Admin bootstrap đã có cơ chế sạch, không cần thao tác database thủ công.
 - Swagger/API docs không còn bật vô điều kiện trong production-like; dùng `SWAGGER_ENABLED`.
+- `DATABASE_SYNC=true` bị chặn khi `NODE_ENV=production`.
 - Dependency audit backend còn cảnh báo transitive `typeorm -> uuid`. Không dùng `npm audit fix --force` vì sẽ kéo TypeORM xuống nhánh cũ không phù hợp.

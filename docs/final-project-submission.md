@@ -2,9 +2,11 @@
 
 This document is the main submission packet for the IWS final project. It summarizes the system, implemented features, authentication and authorization design, database schema, API surface, and demo script.
 
+Last updated: 2026-05-02.
+
 ## 1. System Overview
 
-StudyVault is a study document management system for students. The application lets users register, verify their email, log in, organize files into folders and tags, upload study documents, preview documents, search their library, save study notes, and use AI-assisted document features such as summary and question answering.
+StudyVault is a study document management system for students. The application includes a public landing page, then lets users register, verify their email, log in, organize files into folders and tags, upload study documents, preview documents, search their library, save study notes, and use AI-assisted document features such as summary and question answering.
 
 ### Architecture
 
@@ -72,6 +74,9 @@ flowchart LR
 | Delete document | Complete | Owner-only |
 | Toggle favorite | Complete | Owner-only |
 | Related documents | Complete | Owner-only |
+| Same file in multiple folders | Complete | Allowed across different folders for the same user |
+| Duplicate file in the same folder | Complete | Rejected with a clear validation error |
+| Re-upload after deletion | Complete | Allowed after the document entry is deleted from that folder |
 
 ### Folder, Tag, and Notes
 
@@ -91,8 +96,9 @@ flowchart LR
 | Background document indexing | Complete | Upload succeeds even if AI indexing fails |
 | Ask document | Complete | Uses owner-scoped document context |
 | Ask history | Complete | User-specific history |
-| Summary generation | Complete | Per document and owner |
-| Mind map / diagram endpoints | Complete | AI-assisted document understanding |
+| Summary generation | Complete | User-document scoped when user-specific input can affect output |
+| Mind map / diagram endpoints | Complete | Backend AI-assisted document understanding endpoints |
+| Document assistant UI | Complete | Study notes, Summary, Ask AI, and Related tabs |
 
 ### Admin Features
 
@@ -238,6 +244,7 @@ erDiagram
 ### Important Relationships
 
 - `users -> user_documents -> document`: separates document content from each user's library entry.
+- Same-file uploads are checked per folder: a user may keep the same file in different folders, but cannot upload that file twice into the same folder.
 - `users -> folder`: folders are private to the owner.
 - `users -> tags`: tags are private to the owner.
 - `user_documents -> study_notes`: notes belong to the user's relation to a document.
@@ -324,6 +331,7 @@ Base URL for local Docker demo: `http://localhost:8000/api`
 | `GET` | `/rag/documents/:documentId/ask/history` | JWT | Get ask history |
 | `DELETE` | `/rag/documents/:documentId/ask/history` | JWT | Clear ask history |
 | `POST` | `/rag/documents/:documentId/summary` | JWT | Generate summary |
+| `GET` | `/rag/documents/:documentId/summary` | JWT | Get cached summary state |
 | `POST` | `/rag/documents/:documentId/mindmap` | JWT | Generate mind map |
 | `POST` | `/rag/documents/:documentId/diagram` | JWT | Generate diagram |
 
@@ -375,18 +383,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\demo-readiness.ps1
 ### Live Demo Flow
 
 1. Open `http://localhost:3000`.
-2. Register a new user with name and email.
-3. Open the verification email and complete registration with a strong password.
-4. Log in.
-5. Show workspace and empty state or current document list.
-6. Upload a PDF, DOCX, or TXT document.
-7. Open the uploaded document viewer.
-8. Show document preview, metadata, favorite toggle, download, filters, tags, and folders.
-9. Run summary or Q&A if `GEMINI_API_KEY` has quota.
-10. Explain that upload/view still works if AI quota is exhausted because AI indexing is background processing.
-11. Log in as admin.
-12. Show user management, lock/unlock normal user, and audit logs.
-13. Log out and refresh page to show session cleanup.
+2. Show the public landing page and the call to action.
+3. Register a new user with name and email.
+4. Open the verification email and complete registration with a strong password.
+5. Log in.
+6. Show workspace and empty state or current document list.
+7. Upload a PDF, DOCX, or TXT document.
+8. Open the uploaded document viewer.
+9. Show document preview, study notes, summary, Ask AI, related documents, favorite toggle, download, filters, tags, and folders.
+10. Show the per-folder duplicate rule by uploading the same file into another folder and explaining same-folder duplicate rejection.
+11. Run summary or Q&A if `GEMINI_API_KEY` has quota.
+12. Explain that upload/view still works if AI quota is exhausted because AI indexing is background processing.
+13. Log in as admin.
+14. Show user management, lock/unlock normal user, and audit logs.
+15. Log out and refresh page to show session cleanup.
 
 ### Demo Talking Points
 

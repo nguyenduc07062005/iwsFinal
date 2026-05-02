@@ -2,6 +2,8 @@
 
 Tai lieu nay dung de chay demo final project mot cach on dinh, khong them yeu cau production nang nhu Redis hay multi-instance.
 
+Last updated: 2026-05-02.
+
 ## 1. Chuan Bi Truoc Khi Demo
 
 Tu thu muc root cua project:
@@ -77,16 +79,18 @@ docker compose logs -f backend
 
 ## 3. Demo Flow De Cham Diem
 
-1. Mo `http://localhost:3000`.
+1. Mo `http://localhost:3000` va gioi thieu landing page cong khai.
 2. Register user moi bang ten va email.
 3. Mo email verification, dat password manh.
-4. Login vao workspace.
+4. Login vao workspace tai `/app`.
 5. Upload mot file `PDF`, `DOCX`, hoac `TXT`.
 6. Mo document viewer de chung minh file da xem duoc.
 7. Dung filter type/tag/sort, favorite, download.
-8. Demo summary hoac Q&A neu AI key con quota.
-9. Login bang admin account, mo user management va audit logs.
-10. Logout, refresh page, chung minh session da bi xoa.
+8. Demo upload cung file vao folder khac, va giai thich backend chan upload cung file lan hai trong cung folder.
+9. Neu da xoa file khoi folder, upload lai file do vao folder do de chung minh flow hop le.
+10. Demo study notes, summary hoac Q&A neu AI key con quota.
+11. Login bang admin account, mo user management va audit logs.
+12. Logout, refresh page, chung minh session da bi xoa.
 
 ## 4. Cac Diem Can Noi Khi Bi Hoi Ve Security
 
@@ -109,6 +113,7 @@ docker compose logs -f backend
 | Backend health degraded | Kiem tra database container health va migration log. |
 | Frontend khong goi duoc API | Kiem tra `VITE_API_BASE_URL` va `CORS_ORIGIN` trong `.env`. |
 | Admin khong login duoc | Kiem tra `ADMIN_EMAILS` va `ADMIN_BOOTSTRAP_PASSWORD`, sau do restart backend. |
+| Upload cung file bi tu choi | Neu file da ton tai trong dung folder do thi day la hanh vi dung. Upload sang folder khac hoac xoa ban trong folder roi upload lai. |
 
 ## 6. Lenh Verify Truoc Khi Nop
 

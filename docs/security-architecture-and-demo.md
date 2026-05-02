@@ -4,6 +4,8 @@ This document is the security narrative for the IWS final project. It explains
 what the system protects, how the protection is implemented, and which automated
 tests prove that the behavior does not regress.
 
+Last updated: 2026-05-02.
+
 ## Security Goals
 
 StudyVault protects three main things:
@@ -61,6 +63,8 @@ Key implementation points:
   is not granted through the public registration flow.
 - Password policy requires at least 12 characters, at most 128 characters, and
   uppercase, lowercase, number, and symbol.
+- Production config validation rejects unsafe `JWT_SECRET`, wildcard CORS,
+  `AUTH_RETURN_RESET_TOKEN=true`, and `DATABASE_SYNC=true`.
 
 Relevant files:
 
@@ -306,6 +310,15 @@ AI fail-safe:
   - `ready`: document exists and is readable.
   - `indexing`: embedding generation is running.
   - `ai_failed`: AI indexing failed, but the document remains available.
+
+Duplicate upload behavior:
+
+- Same file content may be uploaded by the same user into different folders.
+- Same file content is rejected when uploaded again into the same folder.
+- After a document entry is deleted from a folder, the same file can be uploaded
+  into that folder again.
+- This keeps the current frontend/API contract clear because document detail
+  opens by `document.id`.
 
 Relevant files:
 

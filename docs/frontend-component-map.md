@@ -1,197 +1,142 @@
-# Frontend Component Map — StudyVault
+# StudyVault Frontend Component Map
 
-## 1. Mục tiêu
-Tài liệu này chốt bản đồ component để refactor frontend theo hướng chuyên nghiệp, dễ maintain, và đồng bộ UI.
+Last updated: 2026-05-02.
 
----
+This document describes the component structure that exists in `studyVault-frontend/src` today. It is no longer a future-only refactor target.
 
-## 2. Nguyên tắc tổ chức component
-- Component tái sử dụng >= 2 lần phải tách riêng
-- `pages/` chỉ chứa logic page-level và composition
-- `components/ui/` chỉ chứa component nguyên tử và tái sử dụng rộng
-- `components/common/` chứa component dùng ở nhiều feature nhưng không hoàn toàn nguyên tử
-- `features/` chứa UI gắn với nghiệp vụ cụ thể
-- Dùng `cn()` utility để nối class
-- Không lặp class dài ở nhiều nơi nếu có thể trừu tượng hóa
-
----
-
-## 3. Cấu trúc mục tiêu
+## Current Source Layout
 
 ```text
 src/
   app/
-    router/
-    providers/
+    router.jsx
+  assets/
+    workspace-hero-ai.png
+    workspace-hero-flow.png
+    workspace-hero-library.png
+    workspace-hero-overview.png
   components/
-    ui/
-    common/
-  layouts/
-  features/
     auth/
+    common/
     documents/
     folders/
-    favorites/
-    summary/
+    navigation/
+    system/
+    ui/
+    workspace/
+    DocumentsContext.jsx
+    ToastProvider.jsx
+  layouts/
+    AppShell.jsx
+    AuthLayout.jsx
+    DetailLayout.jsx
   pages/
-  lib/
-  hooks/
-  types/
+    Admin.jsx
+    CompleteRegistration.jsx
+    DocumentViewer.jsx
+    Favorites.jsx
+    ForgotPassword.jsx
+    Landing.jsx
+    Login.jsx
+    Profile.jsx
+    Register.jsx
+    ResetPassword.jsx
+    WorkspacePage.jsx
+    landingContent.js
+  routes/
+    GuestOnlyRoute.jsx
+    ProtectedRoute.jsx
+  services/
+    apiClient.js
+    authApi.js
+  utils/
 ```
 
----
+## Layout Components
 
-## 4. UI Components nền bắt buộc
-Các component sau phải được tạo sớm ở Phase 1:
+| File | Role |
+| --- | --- |
+| `layouts/AuthLayout.jsx` | Shared shell for login, register, verification, forgot password, and reset password pages |
+| `layouts/AppShell.jsx` | Authenticated shell with header, navigation, account menu, and responsive app chrome |
+| `layouts/DetailLayout.jsx` | Wide document-detail shell for preview plus assistant |
 
-### `components/ui/`
-- `AppButton`
-- `AppInput`
-- `AppTextarea`
-- `AppSelect`
-- `AppCard`
-- `AppModal`
-- `AppBadge`
-- `AppPagination`
-- `AppEmptyState`
-- `AppSkeleton`
-- `AppLoader`
-- `AppFieldError`
-- `AppSection`
+## Page Components
 
-### Vai trò
-- thống nhất button style
-- thống nhất input/form style
-- thống nhất card nền glass/premium
-- thống nhất empty/loading state
-- thống nhất modal xác nhận hành động
+| Page | Responsibility |
+| --- | --- |
+| `Landing.jsx` | Public landing page, product hero, feature sections, FAQ, CTA |
+| `Login.jsx` | Sign-in flow and logout-success toast handling |
+| `Register.jsx` | Start registration and email verification flow |
+| `CompleteRegistration.jsx` | Complete verification and set password |
+| `ForgotPassword.jsx` | Request reset email |
+| `ResetPassword.jsx` | Reset password from token |
+| `WorkspacePage.jsx` | Main folder/document workspace |
+| `Favorites.jsx` | Favorite document list with URL-backed filters |
+| `DocumentViewer.jsx` | Protected file preview, study notes, summary, Ask AI, related documents |
+| `Profile.jsx` | Profile information, change password, session cleanup |
+| `Admin.jsx` | Admin stats, user management, audit log |
 
----
+## Component Groups
 
-## 5. Common Components
-### `components/common/`
-- `PageHeader`
-- `SectionHeader`
-- `ConfirmDialog`
-- `SearchBar`
-- `SortControl`
-- `FilterBar`
-- `UserMenu`
-- `TopNavbar`
-- `SidebarShell`
-- `DocumentToolbar`
+### `components/ui`
 
----
+Small reusable UI primitives and utility components. These are used across pages and should stay feature-agnostic.
 
-## 6. Layout Components
-### `layouts/`
-- `PublicLayout`
-- `AuthLayout`
-- `AppShell`
-- `DetailLayout`
+### `components/common`
 
-### Nhiệm vụ
-- chia khung trang rõ ràng
-- không để page tự dựng lại header/sidebar nhiều lần
-- kiểm soát responsive nhất quán
+Shared app elements such as reusable buttons, empty/loading/error patterns, and layout helpers that are not tied to one feature.
 
-### Responsive layout rules
+### `components/navigation`
 
-- `ShellHeader`: compact top bar + bottom navigation below `1024px`; centered desktop navigation from `1024px`.
-- `AuthLayout`: use `min-h-dvh` and a scrollable form column on small screens.
-- `AppShell`: keep enough bottom padding for bottom navigation on mobile/tablet.
-- `DetailLayout`: allow normal page scroll below `1280px`; only lock full-height split layout on wide desktop.
-- `DocumentViewer`: stack preview and assistant below `1280px`; use the wider side-by-side assistant panel from `1280px`.
+Header, primary navigation, account menu, and responsive navigation behaviors.
 
----
+### `components/workspace`
 
-## 7. Feature Components
+Workspace-specific document list controls, upload flow, filter controls, and list/grid presentation pieces.
 
-## 7.1. Auth Feature
-### `features/auth/`
-- `LoginForm`
-- `RegisterForm`
-- `ForgotPasswordForm`
-- `ResetPasswordForm`
-- `AuthHeroPanel` (nếu cần)
+### `components/folders`
 
-## 7.2. Document Feature
-### `features/documents/`
-- `DocumentList`
-- `DocumentCard`
-- `DocumentTable`
-- `DocumentUploadModal`
-- `RenameDocumentModal`
-- `DeleteDocumentDialog`
-- `DocumentFilters`
-- `DocumentPaginationBar`
+Folder panel, folder tree/list interactions, folder create/update/delete controls, and breadcrumb/back behavior.
 
-## 7.3. Folder Feature
-### `features/folders/`
-- `FolderTree`
-- `FolderItem`
-- `CreateFolderModal`
-- `RenameFolderModal`
-- `MoveFolderModal`
-- `DeleteFolderDialog`
+### `components/documents`
 
-## 7.4. Favorites Feature
-### `features/favorites/`
-- `FavoriteDocumentList`
+Document-facing UI pieces such as document cards, metadata surfaces, preview support, and document action controls.
 
-## 7.5. Summary Feature
-### `features/summary/`
-- `SummaryPanel`
-- `SummaryCard`
-- `SummaryActionBar`
-- `SummaryErrorState`
-- `SummaryLoadingState`
+### `components/auth`
 
----
+Auth-specific form helpers and account-flow presentation components.
 
-## 8. Page responsibilities
-### `pages/`
-- `HomePage`
-- `LoginPage`
-- `RegisterPage`
-- `ForgotPasswordPage`
-- `ResetPasswordPage`
-- `WorkspacePage`
-- `FavoritesPage`
-- `DocumentDetailPage`
-- `ProfilePage`
+### `components/system`
 
-> Mỗi page chỉ nên ghép layout + feature components + gọi hooks cần thiết.
+Route fallback, error boundary, and system-level state components.
 
----
+## Shared State
 
-## 9. Hooks và utilities cần có
-### `hooks/`
-- `useAuth`
-- `useDocuments`
-- `useFolders`
-- `useSummary`
-- `usePaginationState`
-- `useQueryFilters`
+| File | Purpose |
+| --- | --- |
+| `components/DocumentsContext.jsx` | Workspace document/folder state, active folder, pagination, refresh and page navigation |
+| `components/ToastProvider.jsx` | Shared toast configuration |
 
-### `lib/`
-- `utils.ts` chứa `cn()`
-- formatter cho date/file size
-- constants cho sort/filter options
+## Services
 
----
+| File | Purpose |
+| --- | --- |
+| `services/apiClient.js` | Axios client, bearer token attachment, refresh handling, CSRF-aware auth requests |
+| `services/authApi.js` | Auth API helpers and session state helpers |
 
-## 10. Những file cần refactor mạnh
-Các file monolithic hiện có không được tiếp tục phình to.
-Ưu tiên refactor:
-- `App.tsx`
-- các page auth gộp nhiều nhiệm vụ
-- các page document/detail nếu đang ôm cả toolbar + content + summary + state trong một file
+## Current UX Decisions
 
----
+- The theme now uses stronger contrast and a clearer StudyVault visual direction.
+- The landing page is intentionally kept as the public first screen.
+- Workspace hero keeps the "Study smarter" headline and uses a rotating horizontal image panel.
+- Folder names are constrained so long names do not visually cut off the folder header.
+- Folder navigation/back uses smoother loading and skeleton states.
+- Document detail prevents stale async file loads from replacing the current preview.
 
-## 11. Definition of Done
-Component map được coi là khóa khi:
-- đã có danh mục component nền
-- page nào cũng biết phải dùng layout nào và feature component nào
-- việc code phase sau không còn làm theo kiểu “tự nghĩ ra component tại chỗ” nữa
+## Maintenance Rules
+
+- Page files can compose behavior but should not duplicate shared primitives.
+- New cross-feature UI should go into `components/ui` or `components/common`.
+- New workspace-only UI should stay under `components/workspace`, `components/folders`, or `components/documents`.
+- Avoid creating a `features/` tree unless the codebase is intentionally migrated in one coordinated refactor.
+- Keep route changes synchronized with `docs/frontend-route-map.md`.

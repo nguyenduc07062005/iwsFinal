@@ -1,177 +1,175 @@
-# Project Scope Final — IWS Final Project
+# StudyVault Final Project Scope
 
-## 1. Tên dự án
-**StudyVault / Smart Knowledge System (IWS Final)**
+Last updated: 2026-05-02.
 
-Một hệ thống quản lý tài liệu học tập và nghiên cứu theo kiến trúc **RESTful API + frontend web tách biệt**, cho phép người dùng đăng ký tài khoản, quản lý thư mục và tài liệu, tìm kiếm tài liệu, đánh dấu yêu thích, xem chi tiết tài liệu, và tạo **AI Summary** cho tài liệu.
+## Project Name
 
----
+StudyVault
 
-## 2. Mục tiêu học phần
-Dự án phải đạt các tiêu chí chấm điểm cao nhất của môn IWS:
+## Product Definition
 
-- Backend tách biệt, tuân thủ RESTful API
-- Frontend tiêu thụ API độc lập
-- CRUD đầy đủ cho entity chính
-- Authentication hoàn chỉnh gồm:
-  - Register
-  - Login
-  - Forgot Password
-  - Reset Password
-- Sorting + Pagination + Filtering phía server
-- UI responsive, đồng bộ, chuyên nghiệp
-- Security rõ ràng: validation, ownership check, rate limiting, strict CORS
-- 1 tính năng nâng cao có giá trị thực tế: **AI Summary**
+StudyVault is a web application for managing study documents. It gives students a focused workspace to upload files, organize them into folders and tags, preview documents, search and filter their library, save study notes, and use AI-assisted document review.
 
----
+The system is implemented as a separated React frontend and NestJS REST API backend.
 
-## 3. Scope cuối cùng được giữ
+## Core Scope
 
-## 3.1. Core Features
+### Public Entry
+
+- Public landing page at `/`.
+- Clear product story, sign-in/sign-up calls to action, feature overview, FAQ, and responsive navbar.
+- The landing page is part of the current product, but the main grading/demo flow still centers on the authenticated workspace.
+
 ### Authentication
-- Register
-- Login
-- Logout
-- Get Profile
-- Forgot Password
-- Reset Password
 
-### Folder Management
-- Create folder
-- Read folder list/tree
-- Update folder name
-- Move folder
-- Delete folder
+- Register with name and email.
+- Email verification and password setup.
+- Login.
+- Refresh session with HttpOnly cookie and CSRF token.
+- Logout and logout-all.
+- Forgot password and reset password.
+- Change password from profile.
+- Profile read/update.
+
+### Workspace And Folder Management
+
+- Workspace route at `/app`.
+- Folder create, read, update, move, and delete.
+- Folder tree and breadcrumb/back behavior.
+- Folder ownership checks.
+- Folder move/update guards against invalid parent selections and folder cycles.
 
 ### Document Management
-- Upload document
-- List documents
-- View document detail
-- Rename document
-- Delete document
-- Favorite / unfavorite
-- Open / download document
-- Assign document to folder
 
-### Search / Retrieval
-- Keyword search
-- Semantic search (nếu backend hiện có ổn định)
-- Related documents (nếu ổn định)
+- Upload PDF, DOCX, and TXT.
+- Validate size, MIME type, extension, filename, file signature, and readable content.
+- List documents with pagination metadata.
+- Search, filter, and sort documents.
+- Open protected document preview.
+- Rename and delete documents.
+- Toggle favorite.
+- Download protected file.
+- Assign tags.
+- Store study notes per user-document relation.
+- Show related documents.
 
-### AI Feature
-- Generate document summary
-- Refresh summary
-- View summary in detail page
+### Upload Duplicate Rule
 
-### Frontend UX
-- Responsive layout
-- Empty / loading / error states
-- Confirm dialogs
-- Toast / success feedback
-- Search, filter, sort, pagination controls
+- A user may upload the same file into different folders.
+- A user may not upload the same file twice into the same folder.
+- If a file is deleted from a folder, the user can upload that same file into that folder again.
+- Per-folder copies keep document-id based frontend routes unambiguous.
 
----
+### AI / RAG
 
-## 4. Scope bị loại khỏi core demo
-Các mục sau **không còn là tính năng trọng tâm** để tránh phân tán công sức và giảm rủi ro demo:
+- Background indexing after upload.
+- Upload/view remains usable if AI quota or provider configuration fails.
+- Ask AI against a document.
+- Ask history.
+- Generate and refresh document summary.
+- Backend mind-map and diagram endpoints exist as supporting AI capabilities.
+- The current frontend document assistant exposes Study notes, Summary, Ask AI, and Related tabs.
 
-- Mindmap
-- Diagram generation
-- AI chat nhiều mode
-- Các trang AI showcase quá nặng về hiệu ứng
-- Landing page marketing quá cầu kỳ không phục vụ rubric
+### Favorites
 
-> Nếu các phần này còn tồn tại trong codebase, chúng chỉ được coi là **bonus / legacy / optional**, không được làm chậm tiến độ của core scope.
+- Route `/app/favorites`.
+- Search/filter/sort/pagination for favorite documents.
+- Same owner-protected document actions as the workspace list.
 
----
+### Admin
 
-## 5. Entity chính của hệ thống
-- User
-- PasswordResetToken (hoặc entity tương đương)
-- Folder
-- Document
-- UserDocument / ownership relation
-- Summary artifact / summary cache (nếu dùng)
+- Admin bootstrap via environment variables.
+- Admin route `/admin`.
+- User list with pagination/filtering.
+- Lock/unlock normal users.
+- Audit logs.
+- Stats dashboard.
+- Admin-only LLM diagnostics.
 
----
+## Non-Goals For The Current Submission
 
-## 6. User flows chính phải demo được
+- Realtime collaboration.
+- Native mobile app.
+- Multi-tenant organization management.
+- Social document sharing.
+- OCR for scanned PDFs.
+- Full browser-based document editor.
+- Production-grade object storage.
+- Multi-instance rate limiting with Redis.
 
-### Flow A — Authentication
-1. User đăng ký
-2. User đăng nhập
-3. User vào workspace
-4. User quên mật khẩu
-5. User nhận reset token / link
-6. User đặt lại mật khẩu thành công
-
-### Flow B — Workspace CRUD
-1. User tạo folder
-2. User upload tài liệu
-3. User xem danh sách tài liệu
-4. User đổi tên tài liệu
-5. User di chuyển tài liệu vào folder
-6. User xóa tài liệu hoặc folder
-
-### Flow C — Retrieval
-1. User tìm kiếm tài liệu
-2. User dùng sort / filter / pagination
-3. User mở document detail
-4. User đánh dấu favorite
-
-### Flow D — AI Summary
-1. User mở detail tài liệu
-2. User bấm generate summary
-3. Hệ thống trả về summary
-4. User refresh summary nếu cần
-
----
-
-## 7. Chỉ tiêu chất lượng bắt buộc
-
-### Backend
-- RESTful API rõ ràng, đúng HTTP methods
-- DTO validation đầy đủ
-- Protected routes bằng JWT
-- Ownership check cho tài nguyên riêng tư
-- Pagination + sorting ở các endpoint trả danh sách
-- Filtering động ở document list
-- Rate limiting cho các endpoint nhạy cảm
-- Strict CORS cấu hình theo môi trường
+## Technology Scope
 
 ### Frontend
-- React + TypeScript + Tailwind + motion + lucide-react
-- Tách component hợp lý
-- Không hard-code UI ngẫu hứng ngoài rule
-- Đồng bộ design system
-- Mobile-first
-- Không để page file quá phình to
 
----
+- React 19.
+- Vite.
+- React Router DOM.
+- Tailwind CSS.
+- Axios.
+- Motion.
+- Lucide icons.
+- React Hot Toast.
+- React Markdown.
 
-## 8. Non-goals
-Các mục sau **không phải mục tiêu bắt buộc** của bản final:
+The current frontend is JavaScript/JSX, not TypeScript.
 
-- Mô phỏng mạng xã hội tài liệu
-- Realtime collaboration
-- AI đa agent
-- OCR nâng cao
-- Full text editor trong trình duyệt
-- Mobile app native
+### Backend
 
----
+- NestJS 11.
+- TypeORM.
+- PostgreSQL + pgvector.
+- JWT authentication.
+- HttpOnly refresh cookie and CSRF token.
+- class-validator and class-transformer.
+- Nodemailer.
+- Google Gemini.
+- Jest and Supertest.
 
-## 9. Định nghĩa “xong” cho toàn project
-Project được coi là khóa scope thành công khi:
+## Main Demo Flows
 
-- Tất cả thành viên chỉ bám core scope này
-- Không thêm tính năng ngoài danh sách đã chốt
-- Mọi phase code về sau phải đối chiếu tài liệu này
-- Frontend refactor chỉ phục vụ hệ thống trong scope này
+### Flow A: Public Entry And Auth
 
----
+1. Open `http://localhost:3000`.
+2. Show the landing page.
+3. Register with name and email.
+4. Complete email verification and password setup.
+5. Login and enter `/app`.
+6. Demonstrate logout and session cleanup.
 
-## 10. Chốt cuối
-Từ thời điểm này, hệ thống sẽ được triển khai theo hướng:
+### Flow B: Workspace CRUD
 
-**Ít tính năng hơn, nhưng đúng rubric hơn, sạch hơn, ổn định hơn, dễ bảo vệ hơn, và chuyên nghiệp hơn.**
+1. Create folders.
+2. Upload a PDF, DOCX, or TXT file.
+3. Show document list, filters, sorting, and pagination.
+4. Open a document.
+5. Rename, favorite, tag, download, and delete as needed.
+6. Upload the same file to a different folder.
+7. Show that uploading the same file twice into one folder is rejected.
+
+### Flow C: Document Detail
+
+1. Open `/app/documents/:id`.
+2. Show protected preview.
+3. Save study notes.
+4. Generate summary if AI quota is available.
+5. Ask a question about the document.
+6. Show related documents.
+
+### Flow D: Admin
+
+1. Login as an admin account.
+2. Open `/admin`.
+3. Show stats, users, filters, pagination, and audit logs.
+4. Lock/unlock a normal user.
+5. Explain that admin does not bypass private document ownership.
+
+## Definition Of Done
+
+The project is considered in-scope and ready for final submission when:
+
+- Frontend and backend can run locally with Docker or local dev setup.
+- Core auth, workspace, document, AI assistant, and admin flows work.
+- Backend ownership checks prevent cross-user access.
+- Upload/view does not depend on AI provider availability.
+- Main verification commands pass before demo.
+- Documentation matches the current router, API surface, security model, and UX.

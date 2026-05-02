@@ -2,6 +2,8 @@
 
 This project keeps development Docker and production-like Docker separate.
 
+Last updated: 2026-05-02.
+
 ## Development
 
 Use the existing compose file when editing code locally:
@@ -55,7 +57,7 @@ Services:
 - Backend is reachable through the frontend reverse proxy at `http://localhost:8080/api`
 - API docs are disabled by default for production-like runs. Set `SWAGGER_ENABLED=true` only for a private demo environment.
 - Backend health check: `http://localhost:8080/api/health`
-- Database: `localhost:15433`
+- Database host port: `127.0.0.1:15433` by default. The production-like compose file binds PostgreSQL to localhost instead of all network interfaces.
 
 ## Production Safeguards
 
@@ -64,6 +66,14 @@ When `NODE_ENV=production`, the backend refuses unsafe configuration:
 - `JWT_SECRET` cannot be missing, short, or a known development default.
 - `CORS_ORIGIN` cannot be `*`.
 - `AUTH_RETURN_RESET_TOKEN` cannot be `true`.
+- `DATABASE_SYNC` cannot be `true`.
+
+The production-like compose file also sets:
+
+- `DATABASE_SYNC=false`
+- `AUTH_RETURN_RESET_TOKEN=false`
+- `SWAGGER_ENABLED=false` by default
+- PostgreSQL published only on `127.0.0.1`
 
 ## Upload and AI Indexing
 

@@ -2,9 +2,11 @@
 
 Tài liệu này là bản nộp chính cho final project môn IWS. Nội dung tổng hợp các phần: tổng quan hệ thống, danh sách chức năng, luồng xác thực, ma trận phân quyền, thiết kế cơ sở dữ liệu, tóm tắt API, và kịch bản demo.
 
+Cập nhật lần cuối: 2026-05-02.
+
 ## 1. Tổng Quan Hệ Thống
 
-StudyVault là hệ thống quản lý tài liệu học tập dành cho sinh viên. Ứng dụng cho phép người dùng đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, tải tài liệu học tập lên, xem trước tài liệu, tìm kiếm trong thư viện cá nhân, ghi chú học tập, và sử dụng các chức năng AI như tóm tắt tài liệu hoặc hỏi đáp theo nội dung tài liệu.
+StudyVault là hệ thống quản lý tài liệu học tập dành cho sinh viên. Ứng dụng có landing page công khai, sau đó cho phép người dùng đăng ký tài khoản, xác thực email, đăng nhập, tổ chức tài liệu theo thư mục và tag, tải tài liệu học tập lên, xem trước tài liệu, tìm kiếm trong thư viện cá nhân, ghi chú học tập, và sử dụng các chức năng AI như tóm tắt tài liệu hoặc hỏi đáp theo nội dung tài liệu.
 
 ### Kiến Trúc Tổng Thể
 
@@ -72,6 +74,9 @@ flowchart LR
 | Xóa tài liệu | Hoàn thành | Owner-only |
 | Đánh dấu yêu thích | Hoàn thành | Owner-only |
 | Tài liệu liên quan | Hoàn thành | Owner-only |
+| Cùng file ở nhiều folder | Hoàn thành | Cho phép với các folder khác nhau của cùng user |
+| Trùng file trong cùng folder | Hoàn thành | Bị chặn bằng lỗi validation rõ ràng |
+| Upload lại sau khi xóa | Hoàn thành | Cho phép sau khi entry trong folder đó đã bị xóa |
 
 ### Folder, Tag Và Study Notes
 
@@ -91,8 +96,9 @@ flowchart LR
 | Background document indexing | Hoàn thành | Upload vẫn thành công nếu AI indexing lỗi |
 | Hỏi đáp theo tài liệu | Hoàn thành | Dùng context tài liệu thuộc user hiện tại |
 | Lịch sử hỏi đáp | Hoàn thành | Theo từng user |
-| Sinh tóm tắt | Hoàn thành | Theo document và owner |
-| Mind map / diagram endpoints | Hoàn thành | Hỗ trợ hiểu tài liệu bằng AI |
+| Sinh tóm tắt | Hoàn thành | Scope theo user-document khi input riêng của user có thể ảnh hưởng output |
+| Mind map / diagram endpoints | Hoàn thành | Endpoint backend hỗ trợ hiểu tài liệu bằng AI |
+| Document assistant UI | Hoàn thành | Gồm Study notes, Summary, Ask AI, Related |
 
 ### Admin
 
@@ -238,6 +244,7 @@ erDiagram
 ### Quan Hệ Quan Trọng
 
 - `users -> user_documents -> document`: tách nội dung document khỏi entry thư viện riêng của từng user.
+- Upload cùng file được kiểm tra theo từng folder: cùng user có thể giữ cùng file ở nhiều folder, nhưng không được upload trùng trong cùng một folder.
 - `users -> folder`: folder là dữ liệu riêng theo owner.
 - `users -> tags`: tag là dữ liệu riêng theo owner.
 - `user_documents -> study_notes`: note thuộc relation giữa user và document.
@@ -324,6 +331,7 @@ Base URL khi chạy Docker local: `http://localhost:8000/api`
 | `GET` | `/rag/documents/:documentId/ask/history` | JWT | Lấy lịch sử hỏi đáp |
 | `DELETE` | `/rag/documents/:documentId/ask/history` | JWT | Xóa lịch sử hỏi đáp |
 | `POST` | `/rag/documents/:documentId/summary` | JWT | Sinh tóm tắt |
+| `GET` | `/rag/documents/:documentId/summary` | JWT | Lấy trạng thái/cache tóm tắt |
 | `POST` | `/rag/documents/:documentId/mindmap` | JWT | Sinh mind map |
 | `POST` | `/rag/documents/:documentId/diagram` | JWT | Sinh diagram |
 
@@ -415,18 +423,20 @@ powershell -ExecutionPolicy Bypass -File .\scripts\demo-readiness.ps1 -SkipDocke
 ### Flow Demo Trực Tiếp
 
 1. Mở `http://localhost:3000`.
-2. Đăng ký user mới bằng tên và email.
-3. Mở email verification và hoàn tất đăng ký bằng mật khẩu mạnh.
-4. Đăng nhập.
-5. Hiển thị workspace và trạng thái empty/document list.
-6. Upload một file PDF, DOCX, hoặc TXT.
-7. Mở document viewer của file vừa upload.
-8. Hiển thị preview, metadata, favorite, download, filter, tag, folder.
-9. Chạy summary hoặc Q&A nếu `GEMINI_API_KEY` còn quota.
-10. Giải thích rằng upload/view vẫn hoạt động nếu AI quota hết vì AI indexing chạy background.
-11. Đăng nhập bằng admin.
-12. Hiển thị user management, khóa/mở khóa user thường, và audit logs.
-13. Logout và refresh page để chứng minh session đã được xóa.
+2. Giới thiệu landing page công khai và CTA vào auth/workspace.
+3. Đăng ký user mới bằng tên và email.
+4. Mở email verification và hoàn tất đăng ký bằng mật khẩu mạnh.
+5. Đăng nhập.
+6. Hiển thị workspace và trạng thái empty/document list.
+7. Upload một file PDF, DOCX, hoặc TXT.
+8. Mở document viewer của file vừa upload.
+9. Hiển thị preview, study notes, summary, Ask AI, related documents, favorite, download, filter, tag, folder.
+10. Demo rule upload duplicate theo folder: cùng file được upload sang folder khác, nhưng bị chặn nếu upload lại trong cùng folder.
+11. Chạy summary hoặc Q&A nếu `GEMINI_API_KEY` còn quota.
+12. Giải thích rằng upload/view vẫn hoạt động nếu AI quota hết vì AI indexing chạy background.
+13. Đăng nhập bằng admin.
+14. Hiển thị user management, khóa/mở khóa user thường, và audit logs.
+15. Logout và refresh page để chứng minh session đã được xóa.
 
 ### Ý Chính Khi Thuyết Trình
 

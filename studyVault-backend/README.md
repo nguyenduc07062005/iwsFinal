@@ -2,6 +2,8 @@
 
 NestJS REST API cho StudyVault. Backend chịu trách nhiệm authentication, session, authorization, document/folder/tag/note APIs, upload validation, RAG/AI endpoints, admin dashboard APIs và audit log.
 
+Last updated: 2026-05-02. Tài liệu này phản ánh code backend hiện tại sau các bản sửa security/upload/RAG cache.
+
 ## Tech Stack
 
 - NestJS 11
@@ -87,6 +89,7 @@ DATABASE_NAME=studyvault_iws
 | `ADMIN_EMAILS` | Email được bootstrap thành admin |
 | `ADMIN_BOOTSTRAP_PASSWORD` | Password ban đầu cho admin bootstrap |
 | `SWAGGER_ENABLED` | Bật/tắt API docs |
+| `DATABASE_SYNC` | Phải là `false` trong production; backend sẽ chặn `true` khi `NODE_ENV=production` |
 | `SMTP_*`, `MAIL_FROM` | Cấu hình email verification/reset |
 | `GEMINI_*` | Cấu hình AI/RAG |
 
@@ -113,6 +116,16 @@ npm run migration:show
 - `/api/llm`
 - `/api/health`
 
+## Document Upload Rules
+
+- Hỗ trợ `PDF`, `DOCX`, `TXT`.
+- File upload được validate trước khi lưu: size, MIME type, extension, filename, file signature, và nội dung đọc được.
+- Upload và xem document không phụ thuộc AI quota; indexing chạy sau bằng background flow.
+- Cùng một user có thể upload cùng file vào nhiều folder khác nhau.
+- Cùng một user không thể upload cùng một file hai lần trong cùng một folder.
+- Nếu bản trong folder đã bị xóa, user có thể upload lại file đó vào folder đó.
+- Khi cùng file được đưa vào nhiều folder của cùng user, backend tạo entry/document phù hợp để frontend/API hiện tại vẫn mở bằng `document.id` một cách rõ ràng.
+
 ## Security Notes
 
 - Public registration chỉ tạo role `user`.
@@ -122,3 +135,4 @@ npm run migration:show
 - Refresh/logout yêu cầu CSRF token qua `X-CSRF-Token`.
 - User-owned resources luôn được query theo `ownerId` hoặc `userId`.
 - Upload document validate file trước khi lưu và không phụ thuộc AI quota.
+- Production safety validation chặn wildcard CORS, development JWT secret, `AUTH_RETURN_RESET_TOKEN=true`, và `DATABASE_SYNC=true`.

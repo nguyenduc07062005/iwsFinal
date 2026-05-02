@@ -2,6 +2,8 @@
 
 This document defines who can call each backend API group and how user-owned resources are isolated. It is intended for the Security, Authentication, and Authorization section of the final project report.
 
+Last updated: 2026-05-02.
+
 For the complete security narrative, demo script, and automated evidence map, see `docs/security-architecture-and-demo.md`.
 
 ## Authorization Model
@@ -91,6 +93,7 @@ An active user can call their own workspace APIs. Every resource operation must 
 | `GET` | `/api/rag/documents/:documentId/ask/history` | Allowed | Document and ask history must belong to authenticated user |
 | `DELETE` | `/api/rag/documents/:documentId/ask/history` | Allowed | Document and ask history must belong to authenticated user |
 | `POST` | `/api/rag/documents/:documentId/summary` | Allowed | Document must belong to authenticated user |
+| `GET` | `/api/rag/documents/:documentId/summary` | Allowed | Document must belong to authenticated user |
 | `POST` | `/api/rag/documents/:documentId/mindmap` | Allowed | Document must belong to authenticated user |
 | `POST` | `/api/rag/documents/:documentId/diagram` | Allowed | Document must belong to authenticated user |
 | Any | `/api/admin/*` | Blocked | Requires role `admin` |
@@ -127,6 +130,19 @@ This answers the required question: "Can User A access User B's document, folder
 | RAG ask/history/summary/mindmap/diagram | Blocked | `404 Not Found` style response before AI result is returned | RAG services receive and enforce authenticated `ownerId` |
 
 The system generally returns not-found style responses for cross-user resources. This is intentional: it avoids confirming whether another user's resource ID exists.
+
+## Document Upload Duplicate Rule
+
+This rule is enforced inside the authenticated user's own workspace and does not relax cross-user ownership:
+
+| Scenario | Expected result |
+| --- | --- |
+| Same user uploads the same file into a different folder | Allowed |
+| Same user uploads the same file twice into the same folder | Rejected |
+| Same user deletes the file entry from a folder and uploads it there again | Allowed |
+| Different users upload the same file content | Isolated by each user's ownership relation |
+
+The current frontend opens documents by `document.id`, so per-folder copies must remain unambiguous for document detail routes.
 
 ## Current Automated Coverage
 
