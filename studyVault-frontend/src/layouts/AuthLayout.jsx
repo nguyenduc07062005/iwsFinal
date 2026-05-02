@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Library, Bot, Search, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../lib/utils.js';
+import { emphasisEase } from '../lib/motion.js';
 import studyIllustration from '../assets/study2.png';
 import { Outlet } from 'react-router-dom';
 
@@ -32,10 +33,10 @@ const AuthLayout = () => {
           <AnimatePresence mode="wait">
             <MotionDiv
               key={location.pathname}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, x: -20, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: 20, filter: 'blur(4px)' }}
+              transition={{ duration: 0.35, ease: emphasisEase }}
             >
               <Outlet />
             </MotionDiv>
@@ -52,9 +53,9 @@ const AuthLayout = () => {
         <div className="relative z-10 flex w-full max-w-lg flex-col items-center">
           {/* Hero illustration */}
           <MotionDiv
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: 'easeOut' }}
+            initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.7, ease: emphasisEase }}
             className="mb-5"
           >
             <div className="relative">
@@ -69,9 +70,9 @@ const AuthLayout = () => {
 
           {/* Title and description */}
           <MotionDiv
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            initial={{ opacity: 0, y: 16, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.55, delay: 0.25, ease: emphasisEase }}
             className="mb-5 text-center"
           >
             <h3 className="mb-2 text-3xl font-black leading-tight tracking-normal text-slate-950">
@@ -112,10 +113,10 @@ const AuthLayout = () => {
             ].map((feature, i) => (
               <MotionDiv
                 key={i}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: feature.delay }}
-                whileHover={{ y: -4, scale: 1.02 }}
+                initial={{ opacity: 0, y: 18, scale: 0.95, filter: 'blur(4px)' }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                transition={{ duration: 0.45, delay: feature.delay, ease: emphasisEase }}
+                whileHover={{ y: -5, scale: 1.04, transition: { duration: 0.25, ease: emphasisEase } }}
                 className="group cursor-default"
               >
                 <div className="h-full rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-[var(--shadow-soft)] transition-shadow duration-300 hover:shadow-[var(--shadow-medium)]">

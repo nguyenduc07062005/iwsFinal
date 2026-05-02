@@ -65,6 +65,17 @@
     font-size: 16px;
   }
 
+  /* Global smooth transitions for interactive elements */
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition-property: background-color, color, border-color, box-shadow, opacity, transform;
+    transition-duration: 0.2s;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
@@ -254,6 +265,23 @@
     animation: workspace-title-shimmer 7s ease-in-out infinite;
   }
 
+  .landing-hero-title {
+    font-size: 3.55rem;
+    text-shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
+  }
+
+  @media (min-width: 640px) {
+    .landing-hero-title {
+      font-size: 5.4rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .landing-hero-title {
+      font-size: 6rem;
+    }
+  }
+
   .workspace-visual-image {
     position: absolute;
     inset: 0;
@@ -268,6 +296,35 @@
     filter: saturate(1.04) contrast(1.02);
   }
 
+  .workspace-visual-panel--compact {
+    min-height: 282px;
+    aspect-ratio: 16 / 8;
+    border-radius: 1.35rem;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .workspace-visual-panel--compact .workspace-visual-image {
+    object-fit: cover;
+    object-position: center center;
+    padding: 0;
+  }
+
+  .workspace-hero-dots {
+    position: absolute;
+    bottom: 0.85rem;
+    left: 50%;
+    z-index: 10;
+    display: flex;
+    transform: translateX(-50%);
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 999px;
+    border: 1px solid rgba(203, 213, 225, 0.86);
+    background: rgba(255, 255, 255, 0.84);
+    padding: 0.45rem 0.6rem;
+    box-shadow: var(--shadow-soft);
+  }
+
   @media (max-width: 640px) {
     .workspace-visual-panel {
       min-height: 250px;
@@ -276,6 +333,14 @@
 
     .workspace-visual-image {
       padding: 0.75rem 0.15rem 6.25rem;
+    }
+
+    .workspace-visual-panel--compact {
+      min-height: 230px;
+    }
+
+    .workspace-visual-panel--compact .workspace-visual-image {
+      padding: 0;
     }
   }
 
@@ -616,31 +681,35 @@
   @keyframes soft-reveal {
     from {
       opacity: 0;
-      transform: scale(0.98) translateY(10px);
+      transform: scale(0.97) translateY(12px);
+      filter: blur(6px);
     }
 
     to {
       opacity: 1;
       transform: scale(1) translateY(0);
+      filter: blur(0px);
     }
   }
 
   .animate-soft-reveal {
-    animation: soft-reveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: soft-reveal 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   }
 
   @keyframes fade-in {
     from {
       opacity: 0;
+      filter: blur(4px);
     }
 
     to {
       opacity: 1;
+      filter: blur(0px);
     }
   }
 
   .animate-fade-in {
-    animation: fade-in 0.4s ease-out forwards;
+    animation: fade-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   @keyframes shimmer {
@@ -681,21 +750,123 @@
     transform: translateY(-2px) scale(1.02);
   }
 
-  /* Fade-up animation */
+  /* Fade-up animation with blur */
   @keyframes fade-up {
     from {
       opacity: 0;
       transform: translateY(20px);
+      filter: blur(6px);
     }
 
     to {
       opacity: 1;
       transform: translateY(0);
+      filter: blur(0px);
     }
   }
 
   .animate-fade-up {
-    animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: fade-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Skeleton shimmer loading */
+  @keyframes skeleton-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-skeleton {
+    background: linear-gradient(90deg,
+        rgba(203, 213, 225, 0.2) 0%,
+        rgba(203, 213, 225, 0.45) 40%,
+        rgba(203, 213, 225, 0.2) 80%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* Focus ring animation */
+  @keyframes focus-ring-pulse {
+
+    0%,
+    100% {
+      box-shadow: 0 0 0 3px rgba(143, 59, 50, 0.14);
+    }
+
+    50% {
+      box-shadow: 0 0 0 5px rgba(143, 59, 50, 0.08);
+    }
+  }
+
+  .animate-focus-ring:focus-visible {
+    animation: focus-ring-pulse 2s ease-in-out infinite;
+  }
+
+  /* Subtle pulse glow for CTAs */
+  @keyframes pulse-glow {
+
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(143, 59, 50, 0.3);
+    }
+
+    50% {
+      box-shadow: 0 0 16px 4px rgba(143, 59, 50, 0.12);
+    }
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  /* Shimmer line effect */
+  @keyframes shimmer-line {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer-line {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .animate-shimmer-line::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.5) 50%,
+        transparent 100%);
+    animation: shimmer-line 2s ease-in-out infinite;
+  }
+
+  /* Slide in from bottom */
+  @keyframes slide-up-fade {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+      filter: blur(4px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0px);
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up-fade 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
   @keyframes workspace-aurora-shift {
@@ -794,10 +965,17 @@
 
   .animate-float {
     animation: float 6s ease-in-out infinite;
+    will-change: transform;
   }
 
   .animate-float-slow {
     animation: float 8s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-float-delayed {
+    animation: float 7s ease-in-out 1s infinite;
+    will-change: transform;
   }
 
   .no-scrollbar::-webkit-scrollbar {
@@ -819,7 +997,7 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -828,11 +1006,12 @@
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
     border-radius: 9999px;
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.08);
+    transition: background 0.2s ease;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(143, 59, 50, 0.25);
   }
 
   @media (prefers-reduced-motion: reduce) {

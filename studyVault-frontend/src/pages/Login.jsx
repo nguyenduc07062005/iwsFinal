@@ -1,5 +1,6 @@
 import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getApiErrorMessage, postLogin } from '../service/authAPI.js';
 import {
@@ -7,9 +8,12 @@ import {
   consumeAuthRedirectPath,
   setToken,
 } from '../utils/auth.js';
-import { cn } from '../lib/utils.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const AUTH_NOTICE_TOAST_OPTIONS = {
+  id: 'auth-notice',
+  duration: 3000,
+};
 
 const Login = () => {
   const location = useLocation();
@@ -17,16 +21,22 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const storedNotice = consumeAuthNotice();
     const nextNotice = location.state?.notice || storedNotice;
 
-    if (nextNotice) {
-      setNotice(nextNotice);
+    if (!nextNotice?.message) {
+      return;
     }
+
+    if (nextNotice.tone === 'success') {
+      toast.success(nextNotice.message, AUTH_NOTICE_TOAST_OPTIONS);
+      return;
+    }
+
+    toast(nextNotice.message, AUTH_NOTICE_TOAST_OPTIONS);
   }, [location.state]);
 
   const handleLogin = async (event) => {
@@ -43,7 +53,7 @@ const Login = () => {
     }
 
     setError('');
-    setNotice(null);
+    toast.dismiss(AUTH_NOTICE_TOAST_OPTIONS.id);
     setIsSubmitting(true);
 
     try {
@@ -78,20 +88,6 @@ const Login = () => {
 
   return (
     <>
-      {notice && (
-        <div
-          role="status"
-          className={cn(
-            "fixed left-1/2 top-5 z-[100] w-[min(calc(100%-2rem),28rem)] -translate-x-1/2 rounded-2xl border px-5 py-4 text-center text-sm font-extrabold shadow-2xl backdrop-blur-xl",
-            notice.tone === 'success'
-              ? "border-emerald-200 bg-emerald-50/95 text-emerald-700 shadow-emerald-900/10"
-              : "border-brand-200 bg-brand-50/95 text-brand-700 shadow-brand-900/10"
-          )}
-        >
-          {notice.message}
-        </div>
-      )}
-
       <div className="mb-7">
         <h2 className="text-4xl font-black leading-[1.08] tracking-normal text-slate-950 sm:text-5xl">
           Welcome back!

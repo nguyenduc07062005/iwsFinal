@@ -9,7 +9,7 @@ import {
   Star,
   UserRound,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/lib/utils.js";
 import { getProfile, postLogout } from "../../service/authAPI.js";
 import { logout } from "../../utils/auth.js";
@@ -98,7 +98,7 @@ const ShellHeader = () => {
     const seed = encodeURIComponent(
       profile?.name || profile?.email || "StudyVault",
     );
-    return `https://ui-avatars.com/api/?name=${seed}&background=6366f1&color=ffffff&bold=true`;
+    return `https://ui-avatars.com/api/?name=${seed}&background=8f3b32&color=ffffff&bold=true`;
   }, [profile]);
 
   const navLinks = useMemo(() => {
@@ -112,7 +112,8 @@ const ShellHeader = () => {
   const profileName =
     profile?.name?.trim() || profile?.email?.split("@")[0] || "StudyVault user";
   const profileEmail = profile?.email || "Signed in";
-  const showQuickUpload = location.pathname !== "/app";
+  const showQuickUpload =
+    location.pathname.startsWith("/app") && location.pathname !== "/app";
 
   const handleUploadClick = () => navigate("/app?openUpload=true");
 
@@ -140,7 +141,7 @@ const ShellHeader = () => {
           to="/app"
           className="group relative z-10 flex shrink-0 items-center gap-2.5"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 text-white shadow-md transition-transform group-hover:scale-105 active:scale-95">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-brand-900 to-brand-500 text-white shadow-md transition-transform group-hover:scale-105 active:scale-95">
             <Library size={18} strokeWidth={2.5} />
           </div>
           <span className="hidden text-lg font-bold tracking-tight text-slate-800 sm:block">
@@ -174,7 +175,9 @@ const ShellHeader = () => {
                     transition={{
                       type: "spring",
                       bounce: 0.2,
-                      duration: 0.55,
+                      duration: 0.5,
+                      stiffness: 300,
+                      damping: 28,
                     }}
                   />
                 )}
@@ -194,17 +197,20 @@ const ShellHeader = () => {
         <div className="relative z-10 ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-3">
           {showQuickUpload && (
             <>
-              <button
+              <motion.button
                 type="button"
                 onClick={handleUploadClick}
                 aria-label="Upload document"
-                className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-900 px-3 text-white shadow-lg shadow-brand-900/10 transition-all hover:-translate-y-0.5 hover:bg-brand-600 active:translate-y-0 active:scale-95 sm:px-4"
+                whileHover={{ y: -2, scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                transition={{ duration: 0.2 }}
+                className="flex h-10 items-center justify-center gap-2 rounded-xl bg-brand-900 px-3 text-white shadow-lg shadow-brand-900/10 transition-colors hover:bg-brand-600 sm:px-4"
               >
                 <Plus size={20} strokeWidth={3} />
                 <span className="hidden text-sm font-bold lg:inline">
                   Upload
                 </span>
-              </button>
+              </motion.button>
 
               <div className="hidden h-6 w-px bg-slate-200/70 lg:block" />
             </>
@@ -240,52 +246,60 @@ const ShellHeader = () => {
               />
             </button>
 
-            {isAccountMenuOpen && (
-              <div className="absolute right-0 top-12 w-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10">
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <p className="truncate text-sm font-bold text-slate-900">
-                    {profileName}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
-                    {profileEmail}
-                  </p>
-                </div>
+            <AnimatePresence>
+              {isAccountMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.97, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -6, scale: 0.98, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute right-0 top-12 w-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-2xl shadow-slate-900/10"
+                >
+                  <div className="border-b border-slate-100 px-4 py-3">
+                    <p className="truncate text-sm font-bold text-slate-900">
+                      {profileName}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+                      {profileEmail}
+                    </p>
+                  </div>
 
-                <div className="p-1.5">
-                  <Link
-                    to="/profile"
-                    onClick={() => setIsAccountMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
-                  >
-                    <UserRound size={17} />
-                    Profile
-                  </Link>
-
-                  {profile?.role === "admin" && (
+                  <div className="p-1.5">
                     <Link
-                      to="/admin"
+                      to="/profile"
                       onClick={() => setIsAccountMenuOpen(false)}
                       className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
                     >
-                      <ShieldCheck size={17} />
-                      Admin dashboard
+                      <UserRound size={17} />
+                      Profile
                     </Link>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAccountMenuOpen(false);
-                      void handleLogout();
-                    }}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
-                  >
-                    <LogOut size={17} />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
+                    {profile?.role === "admin" && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900"
+                      >
+                        <ShieldCheck size={17} />
+                        Admin dashboard
+                      </Link>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        void handleLogout();
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                    >
+                      <LogOut size={17} />
+                      Sign out
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <button

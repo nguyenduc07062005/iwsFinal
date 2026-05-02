@@ -18,7 +18,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
+import { emphasisEase } from '@/lib/motion.js';
 import { AppPagination, AppSkeleton } from '@/components/ui/index.js';
 import { cn } from '@/lib/utils.js';
 
@@ -228,188 +229,196 @@ const DropdownActions = ({
         <MoreVertical size={17} />
       </IconButton>
 
-      {isOpen ? (
-        <div className={cn(
-          "absolute bottom-full right-0 z-[80] mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)] transition-all",
-          showTagPanel ? "w-80" : "w-max"
-        )}>
-          <div className="flex items-center gap-1">
-            {onRenameDocument ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  onRenameDocument(doc);
-                }}
-                aria-label="Rename"
-                title="Rename"
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-slate-500 transition-all hover:bg-brand-50 hover:text-brand-600"
-              >
-                <PencilLine size={16} />
-                Rename
-              </button>
-            ) : null}
+      <AnimatePresence>
+        {isOpen ? (
+          <MotionDiv
+            initial={{ opacity: 0, y: 6, scale: 0.97, filter: 'blur(6px)' }}
+            animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: 4, scale: 0.98, filter: 'blur(4px)' }}
+            transition={{ duration: 0.2, ease: emphasisEase }}
+            className={cn(
+              "absolute bottom-full right-0 z-[80] mb-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-35px_rgba(15,23,42,0.35)]",
+              showTagPanel ? "w-80" : "w-max"
+            )}
+          >
+            <div className="flex items-center gap-1">
+              {onRenameDocument ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onRenameDocument(doc);
+                  }}
+                  aria-label="Rename"
+                  title="Rename"
+                  className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-slate-500 transition-all hover:bg-brand-50 hover:text-brand-600"
+                >
+                  <PencilLine size={16} />
+                  Rename
+                </button>
+              ) : null}
 
-            {onMoveDocument ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  onMoveDocument(doc);
-                }}
-                aria-label="Move"
-                title="Move"
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-slate-500 transition-all hover:bg-brand-50 hover:text-brand-600"
-              >
-                <ArrowRightLeft size={16} />
-                Move
-              </button>
-            ) : null}
+              {onMoveDocument ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onMoveDocument(doc);
+                  }}
+                  aria-label="Move"
+                  title="Move"
+                  className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-slate-500 transition-all hover:bg-brand-50 hover:text-brand-600"
+                >
+                  <ArrowRightLeft size={16} />
+                  Move
+                </button>
+              ) : null}
 
-            {hasTagActions ? (
-              <button
-                type="button"
-                onClick={() => setShowTagPanel((current) => !current)}
-                aria-label="Manage tags"
-                title="Manage tags"
-                className={cn(
-                  'inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] transition-all hover:bg-brand-50 hover:text-brand-600',
-                  showTagPanel ? 'bg-brand-50 text-brand-600' : 'text-slate-500',
-                )}
-              >
-                <Tag size={16} />
-                Manage tags
-              </button>
-            ) : null}
+              {hasTagActions ? (
+                <button
+                  type="button"
+                  onClick={() => setShowTagPanel((current) => !current)}
+                  aria-label="Manage tags"
+                  title="Manage tags"
+                  className={cn(
+                    'inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] transition-all hover:bg-brand-50 hover:text-brand-600',
+                    showTagPanel ? 'bg-brand-50 text-brand-600' : 'text-slate-500',
+                  )}
+                >
+                  <Tag size={16} />
+                  Manage tags
+                </button>
+              ) : null}
 
-            {onDeleteDocument ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  onDeleteDocument(doc);
-                }}
-                aria-label="Delete document"
-                title="Delete document"
-                className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600"
-              >
-                <Trash2 size={16} />
-                Delete document
-              </button>
-            ) : null}
-          </div>
+              {onDeleteDocument ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onDeleteDocument(doc);
+                  }}
+                  aria-label="Delete document"
+                  title="Delete document"
+                  className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl text-[0px] text-rose-500 transition-all hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <Trash2 size={16} />
+                  Delete document
+                </button>
+              ) : null}
+            </div>
 
-          {showTagPanel ? (
-            <div className="mt-2 border-t border-slate-100 pt-2">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
-                  Document tags
-                </p>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
-                  {currentTagIds.length}
-                </span>
-              </div>
+            {showTagPanel ? (
+              <div className="mt-2 border-t border-slate-100 pt-2">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-400">
+                    Document tags
+                  </p>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
+                    {currentTagIds.length}
+                  </span>
+                </div>
 
-              <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
-                {tagOptions.length > 0 ? (
-                  tagOptions.map((tag) => {
-                    const selected = currentTagIds.includes(tag.id);
-                    return (
-                      <div
-                        key={tag.id}
-                        className={cn(
-                          'flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
-                          selected ? 'bg-brand-50' : 'hover:bg-slate-50',
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => void toggleDocumentTag(tag.id)}
-                          disabled={tagSaving}
-                          className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-wait disabled:opacity-60"
+                <div className="max-h-36 space-y-1 overflow-y-auto pr-1">
+                  {tagOptions.length > 0 ? (
+                    tagOptions.map((tag) => {
+                      const selected = currentTagIds.includes(tag.id);
+                      return (
+                        <div
+                          key={tag.id}
+                          className={cn(
+                            'flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors',
+                            selected ? 'bg-brand-50' : 'hover:bg-slate-50',
+                          )}
                         >
-                          <span
-                            className={cn(
-                              'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                              selected
-                                ? 'border-brand-600 bg-brand-600 text-white'
-                                : 'border-slate-200 bg-white text-transparent',
-                            )}
-                          >
-                            <Check size={12} />
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-700">
-                            {tag.type === 'SUBJECT' ? `Subject: ${tag.name}` : tag.name}
-                          </span>
-                        </button>
-
-                        {selected ? (
                           <button
                             type="button"
                             onClick={() => void toggleDocumentTag(tag.id)}
                             disabled={tagSaving}
-                            aria-label={`Remove ${tag.name}`}
-                            title="Remove from document"
-                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-rose-600 disabled:cursor-wait disabled:opacity-60"
+                            className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-wait disabled:opacity-60"
                           >
-                            <X size={14} />
+                            <span
+                              className={cn(
+                                'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                                selected
+                                  ? 'border-brand-600 bg-brand-600 text-white'
+                                  : 'border-slate-200 bg-white text-transparent',
+                              )}
+                            >
+                              <Check size={12} />
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-xs font-extrabold text-slate-700">
+                              {tag.type === 'SUBJECT' ? `Subject: ${tag.name}` : tag.name}
+                            </span>
                           </button>
-                        ) : null}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
-                    No saved tags yet.
+
+                          {selected ? (
+                            <button
+                              type="button"
+                              onClick={() => void toggleDocumentTag(tag.id)}
+                              disabled={tagSaving}
+                              aria-label={`Remove ${tag.name}`}
+                              title="Remove from document"
+                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white hover:text-rose-600 disabled:cursor-wait disabled:opacity-60"
+                            >
+                              <X size={14} />
+                            </button>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold text-slate-500">
+                      No saved tags yet.
+                    </p>
+                  )}
+                </div>
+
+                <div className="mt-2 grid grid-cols-[minmax(0,1fr)_40px_40px] gap-2">
+                  <input
+                    value={newTagName}
+                    onChange={(event) => {
+                      setNewTagName(event.target.value);
+                      setTagError('');
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void handleCreateAndAttachTag();
+                      }
+                    }}
+                    placeholder="New tag"
+                    className="h-10 min-w-0 rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand-200 focus:bg-white"
+                  />
+                  <input
+                    type="color"
+                    value={newTagColor}
+                    onChange={(event) => setNewTagColor(event.target.value)}
+                    aria-label="Tag color"
+                    title="Tag color"
+                    className="h-10 w-10 rounded-xl border border-slate-100 bg-white p-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateAndAttachTag()}
+                    disabled={!newTagName.trim() || tagSaving}
+                    aria-label="Create and assign tag"
+                    title="Create and assign tag"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-900 text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
+
+                {tagError ? (
+                  <p className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
+                    {tagError}
                   </p>
-                )}
+                ) : null}
               </div>
-
-              <div className="mt-2 grid grid-cols-[minmax(0,1fr)_40px_40px] gap-2">
-                <input
-                  value={newTagName}
-                  onChange={(event) => {
-                    setNewTagName(event.target.value);
-                    setTagError('');
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void handleCreateAndAttachTag();
-                    }
-                  }}
-                  placeholder="New tag"
-                  className="h-10 min-w-0 rounded-xl border border-slate-100 bg-slate-50 px-3 text-xs font-bold text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand-200 focus:bg-white"
-                />
-                <input
-                  type="color"
-                  value={newTagColor}
-                  onChange={(event) => setNewTagColor(event.target.value)}
-                  aria-label="Tag color"
-                  title="Tag color"
-                  className="h-10 w-10 rounded-xl border border-slate-100 bg-white p-1"
-                />
-                <button
-                  type="button"
-                  onClick={() => void handleCreateAndAttachTag()}
-                  disabled={!newTagName.trim() || tagSaving}
-                  aria-label="Create and assign tag"
-                  title="Create and assign tag"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-900 text-white transition-all hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <Plus size={15} />
-                </button>
-              </div>
-
-              {tagError ? (
-                <p className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600">
-                  {tagError}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+            ) : null}
+          </MotionDiv>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 };
@@ -431,19 +440,24 @@ export const LoadingState = ({ viewMode }) => (
 );
 
 const FolderRow = ({ folder, onOpenFolder }) => (
-  <button
-    type="button"
-    onClick={() => onOpenFolder(folder.id)}
-    className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-all hover:border-brand-200 hover:bg-white hover:shadow-sm"
+  <MotionDiv
+    whileHover={{ y: -2, transition: { duration: 0.2, ease: emphasisEase } }}
+    whileTap={{ scale: 0.99 }}
   >
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
-      <FolderClosed size={20} />
-    </span>
-    <span className="min-w-0 flex-1">
-      <span className="block truncate text-sm font-extrabold text-slate-800">{folder.name}</span>
-      <span className="mt-0.5 block text-xs font-semibold text-slate-600">Subfolder</span>
-    </span>
-  </button>
+    <button
+      type="button"
+      onClick={() => onOpenFolder(folder.id)}
+      className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition-all hover:border-brand-200 hover:bg-white hover:shadow-md"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 transition-transform duration-300 group-hover:scale-110">
+        <FolderClosed size={20} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-extrabold text-slate-800 transition-colors group-hover:text-brand-600">{folder.name}</span>
+        <span className="mt-0.5 block text-xs font-semibold text-slate-600">Subfolder</span>
+      </span>
+    </button>
+  </MotionDiv>
 );
 
 const FileMeta = ({ doc, file, showFolderContext }) => (
@@ -508,10 +522,11 @@ const DocumentRow = ({
 
   return (
     <MotionDiv
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.025, 0.16) }}
-      className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_34px_-32px_rgba(15,23,42,0.45)] transition-all hover:border-brand-200 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(15,23,42,0.42)] lg:grid-cols-[auto_minmax(0,1fr)_auto]"
+      initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      transition={{ duration: 0.38, delay: Math.min(index * 0.04, 0.2), ease: emphasisEase }}
+      whileHover={{ y: -2, transition: { duration: 0.22 } }}
+      className="group grid grid-cols-[auto_minmax(0,1fr)] items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-[0_12px_34px_-32px_rgba(15,23,42,0.45)] transition-[border-color,box-shadow] duration-300 hover:border-brand-200 hover:bg-white hover:shadow-[0_20px_50px_-38px_rgba(15,23,42,0.42)] lg:grid-cols-[auto_minmax(0,1fr)_auto]"
     >
       <button
         type="button"
@@ -581,11 +596,11 @@ const DocumentCard = ({
 
   return (
     <MotionDiv
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.035, 0.18) }}
-      whileHover={{ y: -2 }}
-      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_38px_-34px_rgba(15,23,42,0.45)] transition-all hover:border-brand-200 hover:bg-white"
+      initial={{ opacity: 0, y: 18, scale: 0.97, filter: 'blur(5px)' }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+      transition={{ duration: 0.42, delay: Math.min(index * 0.05, 0.24), ease: emphasisEase }}
+      whileHover={{ y: -4, boxShadow: '0 22px 56px -30px rgba(143, 59, 50, 0.22)', transition: { duration: 0.25 } }}
+      className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_14px_38px_-34px_rgba(15,23,42,0.45)] transition-[border-color] duration-300 hover:border-brand-200 hover:bg-white"
     >
       <div className="flex items-start justify-between gap-4">
         <button
@@ -637,14 +652,24 @@ const DocumentCard = ({
 };
 
 const EmptyPanel = ({ action, description, title }) => (
-  <div className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
-    <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 shadow-sm">
+  <MotionDiv
+    initial={{ opacity: 0, y: 20, filter: 'blur(8px)' }}
+    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+    transition={{ duration: 0.5, ease: emphasisEase }}
+    className="flex min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center"
+  >
+    <MotionDiv
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.15 }}
+      className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-brand-100 bg-brand-50 text-brand-900 shadow-sm"
+    >
       <FileText size={28} />
-    </div>
+    </MotionDiv>
     <h3 className="text-xl font-extrabold text-slate-900">{title}</h3>
     <p className="mt-2 max-w-sm text-sm font-semibold leading-6 text-slate-600">{description}</p>
-    {action ? <div className="mt-5">{action}</div> : null}
-  </div>
+    {action ? <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mt-5">{action}</MotionDiv> : null}
+  </MotionDiv>
 );
 
 const DocumentLibraryPanel = ({
@@ -679,11 +704,12 @@ const DocumentLibraryPanel = ({
     );
   }
 
-  if (loading) {
+  // Only show skeleton on initial load when there is no content yet
+  if (loading && !hasVisibleContent) {
     return <LoadingState viewMode={viewMode} />;
   }
 
-  if (!hasVisibleContent) {
+  if (!loading && !hasVisibleContent) {
     return (
       <EmptyPanel
         title={emptyTitle}
@@ -694,7 +720,7 @@ const DocumentLibraryPanel = ({
   }
 
   return (
-    <div className="space-y-5">
+    <div className={`space-y-5 transition-opacity duration-200 ${loading ? 'pointer-events-none opacity-50' : 'opacity-100'}`}>
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           {childFolders.map((folder) => (
@@ -762,3 +788,4 @@ const DocumentLibraryPanel = ({
 };
 
 export default DocumentLibraryPanel;
+

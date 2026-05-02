@@ -137,6 +137,23 @@ test("clears local session state after password change revokes server sessions",
   assert.equal(getCsrfToken(), null);
   assert.deepEqual(consumeAuthNotice(), {
     message: "Password updated successfully. Please sign in again.",
-    tone: "info",
+    tone: "success",
+  });
+});
+
+test("announces logout with a success tone", async () => {
+  globalThis.window = {
+    localStorage: createStorage(),
+    sessionStorage: createStorage(),
+  };
+  globalThis.document = { cookie: "" };
+
+  const { consumeAuthNotice, logout } = await loadAuthModule();
+
+  logout();
+
+  assert.deepEqual(consumeAuthNotice(), {
+    message: "You signed out successfully.",
+    tone: "success",
   });
 });

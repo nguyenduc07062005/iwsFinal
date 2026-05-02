@@ -1,9 +1,49 @@
 import { motion as Motion } from 'motion/react';
-import { fadeUpItem } from '@/lib/motion.js';
+import { fadeUpItem, subtleScaleIn } from '@/lib/motion.js';
 
-export function Reveal({ children, variants = fadeUpItem, ...props }) {
+/**
+ * Reveal — wraps children in a smooth entrance animation.
+ *
+ * @param {"fadeUp"|"scaleIn"} preset  – animation preset name
+ * @param {object}             variants – override with raw framer-motion variants
+ */
+export function Reveal({
+  children,
+  className,
+  delay = 0,
+  preset = 'fadeUp',
+  variants,
+  ...props
+}) {
+  const presetMap = {
+    fadeUp: fadeUpItem,
+    scaleIn: subtleScaleIn,
+  };
+
+  const resolvedVariants = variants || presetMap[preset] || fadeUpItem;
+
+  // If a delay is provided, clone the variants with the delay added
+  const finalVariants = delay > 0
+    ? {
+      ...resolvedVariants,
+      visible: {
+        ...resolvedVariants.visible,
+        transition: {
+          ...resolvedVariants.visible?.transition,
+          delay,
+        },
+      },
+    }
+    : resolvedVariants;
+
   return (
-    <Motion.div initial="hidden" animate="visible" variants={variants} {...props}>
+    <Motion.div
+      initial="hidden"
+      animate="visible"
+      variants={finalVariants}
+      className={className}
+      {...props}
+    >
       {children}
     </Motion.div>
   );

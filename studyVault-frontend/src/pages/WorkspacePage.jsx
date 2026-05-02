@@ -26,8 +26,10 @@ import FoldersPanel from '../components/folders/FoldersPanel.jsx';
 import DocumentLibraryPanel from '../components/workspace/DocumentLibraryPanel.jsx';
 import WorkspaceDocumentModals from '../components/workspace/WorkspaceDocumentModals.jsx';
 import { addDocumentToFolder } from '../service/folderAPI.js';
-import studyImage from '../assets/study.png';
-import studyIllustration from '../assets/study2.png';
+import workspaceHeroAiImage from '../assets/workspace-hero-ai.png';
+import workspaceHeroFlowImage from '../assets/workspace-hero-flow.png';
+import workspaceHeroLibraryImage from '../assets/workspace-hero-library.png';
+import workspaceHeroOverviewImage from '../assets/workspace-hero-overview.png';
 import {
   deleteDocument,
   downloadDocumentFile,
@@ -359,16 +361,28 @@ const MotionImg = motion.img;
 
 const WORKSPACE_HERO_SLIDES = [
   {
-    src: studyIllustration,
-    alt: 'Bright AI learning visualization',
-    label: 'AI support',
-    description: 'Summaries and Q&A for faster review.',
+    src: workspaceHeroOverviewImage,
+    alt: 'StudyVault workspace overview with documents and AI assistant',
+    label: 'StudyVault overview',
+    description: 'Search, organize, and review documents in one workspace.',
   },
   {
-    src: studyImage,
-    alt: 'Study workspace with organized learning resources',
+    src: workspaceHeroLibraryImage,
+    alt: 'Wide StudyVault document library dashboard',
     label: 'Smart library',
-    description: 'Organize documents into a searchable study hub.',
+    description: 'Organize PDFs, notes, and lectures by folder.',
+  },
+  {
+    src: workspaceHeroAiImage,
+    alt: 'Wide AI assistant workspace for study documents',
+    label: 'AI assistant',
+    description: 'Summarize files and ask questions from your materials.',
+  },
+  {
+    src: workspaceHeroFlowImage,
+    alt: 'Wide StudyVault upload and review workflow',
+    label: 'Study flow',
+    description: 'Track uploads, tags, and review context in one place.',
   },
 ];
 
@@ -1135,19 +1149,19 @@ const WorkspacePage = () => {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
-          className="relative mx-auto grid min-h-[380px] w-full max-w-[1480px] grid-cols-1 items-center gap-6 overflow-visible px-4 pb-10 pt-2 sm:px-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8 lg:pt-4 2xl:grid-cols-[minmax(0,1fr)_470px]"
+          className="relative mx-auto grid w-full max-w-[1480px] grid-cols-1 items-center gap-4 overflow-visible px-4 pb-6 pt-2 sm:px-6 lg:min-h-[300px] lg:grid-cols-[minmax(0,1fr)_minmax(540px,44vw)] lg:px-8 lg:pt-2 2xl:grid-cols-[minmax(0,1fr)_760px]"
         >
           <div className="relative flex flex-col items-center text-center lg:items-start lg:text-left">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/76 px-5 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-brand-600 shadow-sm ring-1 ring-white/80 backdrop-blur-xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.18em] text-brand-600 shadow-sm">
               <Sparkles size={14} />
               Study workspace
             </div>
 
-            <h1 className="workspace-hero-title whitespace-nowrap pb-3 text-4xl font-black leading-[1.12] tracking-normal drop-shadow-[0_8px_26px_rgba(255,255,255,0.62)] sm:text-5xl lg:text-[3.75rem] xl:text-[4.15rem]">
+            <h1 className="workspace-hero-title pb-2 text-4xl font-black leading-[1.05] tracking-normal sm:whitespace-nowrap sm:text-5xl lg:text-[3.35rem] xl:text-[3.75rem]">
               Study smarter
             </h1>
 
-            <div className="relative mt-5 flex w-full max-w-3xl items-center rounded-full border border-brand-200 bg-white/95 p-1.5 shadow-[0_28px_82px_-36px_rgba(66,53,48,0.72),0_0_0_6px_rgba(255,255,255,0.34)] backdrop-blur-xl transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-brand-500 focus-within:shadow-[0_30px_88px_-34px_rgba(139,63,54,0.78),0_0_0_7px_rgba(229,111,86,0.14)]">
+            <div className="relative mt-4 flex w-full max-w-3xl items-center rounded-[1.15rem] border border-brand-200 bg-white p-1.5 shadow-[0_20px_56px_-34px_rgba(66,53,48,0.65)] transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-brand-500 focus-within:shadow-[0_24px_68px_-34px_rgba(139,63,54,0.72),0_0_0_5px_rgba(198,90,70,0.12)]">
               <div className="pl-5 pr-2 text-slate-500">
                 <Search size={19} />
               </div>
@@ -1179,22 +1193,22 @@ const WorkspacePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleApplySearch}
-                className="sks-ai-glow-btn rounded-full bg-gradient-to-r from-brand-900 to-brand-500 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-brand-900/28 transition-opacity hover:opacity-95"
+                className="sks-ai-glow-btn rounded-[0.95rem] bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:bg-brand-600"
               >
                 Search
               </MotionButton>
             </div>
 
-            <div className="mt-5 grid w-full max-w-3xl grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="mt-3 flex w-full max-w-3xl flex-wrap gap-2">
               {workspaceMetrics.map(({ label, value, icon }, index) => (
                 <MotionDiv
                   key={label}
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45, delay: 0.16 + index * 0.08, ease: 'easeOut' }}
-                  className="workspace-metric-tile group"
+                  className="workspace-metric-tile group min-h-[3.15rem] flex-1 basis-[160px] !rounded-[1rem] !px-3 !py-2"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm transition-transform group-hover:scale-105">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition-transform group-hover:scale-105">
                     {icon}
                   </span>
                   <span className="min-w-0 text-left">
@@ -1214,51 +1228,37 @@ const WorkspacePage = () => {
             initial={{ opacity: 0, scale: 0.96, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.12, ease: 'easeOut' }}
-            className="workspace-visual-panel group"
+            className="workspace-visual-panel workspace-visual-panel--compact group"
           >
             <AnimatePresence mode="wait">
               <MotionImg
                 key={currentHeroSlide.src}
                 src={currentHeroSlide.src}
                 alt={currentHeroSlide.alt}
-                initial={{ opacity: 0, scale: 1.01, y: 12 }}
-                animate={{ opacity: 1, scale: 1.06, y: 0 }}
-                exit={{ opacity: 0, scale: 1.1, y: -10 }}
+                initial={{ opacity: 0, scale: 1.01, y: 8 }}
+                animate={{ opacity: 1, scale: 1.01, y: 0 }}
+                exit={{ opacity: 0, scale: 1.03, y: -8 }}
                 transition={{ duration: 0.75, ease: 'easeOut' }}
                 className="workspace-visual-image"
               />
             </AnimatePresence>
 
-            <div className="absolute bottom-2 left-5 right-5 z-10 rounded-[1.25rem] border border-white/72 bg-white/78 p-4 text-slate-900 shadow-2xl backdrop-blur-xl">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700">
-                    <BrainCircuit size={18} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-black">{currentHeroSlide.label}</p>
-                    <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                      {currentHeroSlide.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                {WORKSPACE_HERO_SLIDES.map((slide, index) => (
-                  <button
-                    key={slide.label}
-                    type="button"
-                    aria-label={`Show ${slide.label}`}
-                    onClick={() => setActiveHeroSlide(index)}
-                    className={cn(
-                      'h-2 rounded-full transition-all',
-                      activeHeroSlide === index
-                        ? 'w-8 bg-brand-600'
-                        : 'w-2 bg-slate-300 hover:bg-brand-300',
-                    )}
-                  />
-                ))}
-              </div>
+            <div className="workspace-hero-dots">
+              {WORKSPACE_HERO_SLIDES.map((slide, index) => (
+                <button
+                  key={slide.label}
+                  type="button"
+                  aria-label={`Show ${slide.label}`}
+                  aria-current={activeHeroSlide === index ? 'true' : undefined}
+                  onClick={() => setActiveHeroSlide(index)}
+                  className={cn(
+                    'h-2 rounded-full transition-all',
+                    activeHeroSlide === index
+                      ? 'w-8 bg-brand-600'
+                      : 'w-2 bg-slate-300 hover:bg-brand-300',
+                  )}
+                />
+              ))}
             </div>
           </MotionDiv>
         </MotionDiv>

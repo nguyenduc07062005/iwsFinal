@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { emphasisEase } from "@/lib/motion.js";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -279,8 +280,9 @@ const Profile = () => {
 
       <main className="relative z-10 mx-auto w-full max-w-[1480px] px-4 pt-3 sm:px-6 lg:px-8">
         <MotionDiv
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
+          initial={{ opacity: 0, y: 24, filter: 'blur(10px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.55, ease: emphasisEase }}
           className="overflow-hidden rounded-[1.5rem] border border-slate-200 bg-white shadow-[0_30px_90px_-62px_rgba(15,23,42,0.45)]"
         >
           <div className="relative overflow-hidden border-b border-slate-200 p-5 sm:p-7">
@@ -305,13 +307,19 @@ const Profile = () => {
                 </button>
               </div>
 
-              <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-4">
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="h-20 w-20 shrink-0 rounded-[1.6rem] border-4 border-white object-cover shadow-xl"
-                  />
+                  <MotionDiv
+                    initial={{ scale: 0.85, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.15 }}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="h-20 w-20 shrink-0 rounded-[1.6rem] border-4 border-white object-cover shadow-xl"
+                    />
+                  </MotionDiv>
                   <div className="min-w-0">
                     <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brand-900 shadow-sm">
                       <ShieldCheck size={13} />
@@ -329,6 +337,29 @@ const Profile = () => {
                   </div>
                 </div>
 
+                {/* Right side quick-stats — fills the dead space */}
+                <MotionDiv
+                  initial={{ opacity: 0, x: 16, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.45, delay: 0.25, ease: emphasisEase }}
+                  className="hidden shrink-0 sm:flex sm:items-center sm:gap-3"
+                >
+                  {[
+                    { label: 'Account ID', value: profile?.id ? `#${String(profile.id).slice(-6)}` : '——' },
+                    { label: 'Role', value: getRoleLabel(profile?.role) },
+                    { label: 'Status', value: profile?.isActive ? 'Active' : 'Suspended', active: profile?.isActive },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex min-w-[90px] flex-col items-center justify-center rounded-2xl border border-white/80 bg-white/70 px-4 py-3 text-center shadow-sm"
+                    >
+                      <span className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-500">{item.label}</span>
+                      <span className={`mt-1 text-sm font-black ${item.active !== undefined ? (item.active ? 'text-emerald-600' : 'text-rose-600') : 'text-slate-900'}`}>
+                        {item.value}
+                      </span>
+                    </div>
+                  ))}
+                </MotionDiv>
               </div>
             </div>
           </div>
@@ -343,68 +374,74 @@ const Profile = () => {
                 {error}
               </div>
             ) : (
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
-                <section className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
-                  <div className="mb-5">
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_360px]">
+                <MotionDiv
+                  initial={{ opacity: 0, y: 16, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.45, delay: 0.12, ease: emphasisEase }}
+                  className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  <div className="mb-5 flex items-center justify-between">
                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-600">
                       Display information
                     </p>
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-600">
+                      Active account
+                    </span>
                   </div>
 
-                  <form onSubmit={handleProfileSubmit} className="space-y-4">
-                    <label className="block space-y-2">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
-                        Display name
-                      </span>
-                      <input
-                        type="text"
-                        value={profileForm.name}
-                        onChange={(event) =>
-                          setProfileForm({ name: event.target.value })
-                        }
-                        className={inputClass}
-                        placeholder="Your name"
-                      />
-                    </label>
-
-                    <div className="space-y-2">
-                      <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-                        Sign-in email
-                      </span>
-                      <div className={readOnlyClass}>
-                        <Mail size={17} className="text-slate-600" />
-                        <span className="min-w-0 truncate">
-                          {profile?.email}
+                  <form onSubmit={handleProfileSubmit}>
+                    {/* Three columns: name | email | save button — all on same row */}
+                    <div className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
+                      <label className="block space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-700">
+                          Display name
                         </span>
+                        <input
+                          type="text"
+                          value={profileForm.name}
+                          onChange={(event) =>
+                            setProfileForm({ name: event.target.value })
+                          }
+                          className={inputClass}
+                          placeholder="Your name"
+                        />
+                      </label>
+
+                      <div className="space-y-2">
+                        <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+                          Sign-in email
+                        </span>
+                        <div className={readOnlyClass}>
+                          <Mail size={17} className="text-slate-600" />
+                          <span className="min-w-0 truncate">
+                            {profile?.email}
+                          </span>
+                        </div>
                       </div>
+
+                      <button
+                        type="submit"
+                        disabled={profileSaving}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Save size={16} />
+                        {profileSaving ? "Saving..." : "Save changes"}
+                      </button>
                     </div>
 
                     <Feedback feedback={profileFeedback} />
-
-                    <button
-                      type="submit"
-                      disabled={profileSaving}
-                      className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Save size={16} />
-                      {profileSaving ? "Saving..." : "Save changes"}
-                    </button>
                   </form>
-                </section>
+
+                </MotionDiv>
 
                 <aside className="space-y-4">
-                  <InfoPill
-                    icon={UserRound}
-                    label="Role"
-                    value={getRoleLabel(profile?.role)}
-                  />
-                  <InfoPill
-                    icon={CheckCircle2}
-                    label="Status"
-                    value={profile?.isActive ? "Active" : "Suspended"}
-                  />
-
-                  <div className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <MotionDiv
+                    initial={{ opacity: 0, x: 16, filter: 'blur(4px)' }}
+                    animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+                    transition={{ duration: 0.4, delay: 0.3, ease: emphasisEase }}
+                    className="rounded-[1.25rem] border border-slate-200 bg-white p-5 shadow-sm"
+                  >
                     <div className="flex items-start gap-3">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-dark text-white shadow-lg shadow-dark/12">
                         <KeyRound size={18} />
@@ -426,7 +463,7 @@ const Profile = () => {
                     >
                       Change password
                     </button>
-                  </div>
+                  </MotionDiv>
                 </aside>
               </div>
             )}
@@ -438,9 +475,10 @@ const Profile = () => {
         {passwordOpen && (
           <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/36 p-3 backdrop-blur-md sm:items-center">
             <MotionDiv
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.98 }}
+              initial={{ opacity: 0, y: 28, scale: 0.96, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: 18, scale: 0.97, filter: 'blur(6px)' }}
+              transition={{ duration: 0.35, ease: emphasisEase }}
               className="w-full max-w-[500px] rounded-[1.5rem] border border-slate-200 bg-white p-5 shadow-2xl sm:p-6"
             >
               <div className="mb-5 flex items-start justify-between gap-4">

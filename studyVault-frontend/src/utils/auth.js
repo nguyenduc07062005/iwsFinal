@@ -258,6 +258,7 @@ export const expireSession = ({
 
 export const logout = ({
   message = "You signed out successfully.",
+  tone = "success",
   announce = true,
 } = {}) => {
   clearToken();
@@ -267,7 +268,7 @@ export const logout = ({
   if (announce) {
     setAuthNotice({
       message,
-      tone: "info",
+      tone,
     });
   }
 };
