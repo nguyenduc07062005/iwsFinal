@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -91,7 +91,7 @@ const StatCard = ({ icon, label, value, subLabel }) => {
   return (
     <div className="rounded-[1.6rem] border border-white/70 bg-white/66 p-4 shadow-sm backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#9b3f36] text-white shadow-lg shadow-[#9b3f36]/18">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-lg shadow-brand-900/18">
           <StatIcon size={19} />
         </span>
         <BarChart3 className="h-5 w-5 text-slate-300" />
@@ -177,7 +177,7 @@ const Admin = () => {
     setSearchParams(nextParams);
   };
 
-  const loadAdminData = async () => {
+  const loadAdminData = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
 
@@ -204,9 +204,9 @@ const Admin = () => {
 
       setStats(statsResult.data || null);
       setUsers(usersResult.data || []);
-      setPagination(usersResult.pagination || pagination);
+      setPagination((current) => usersResult.pagination || current);
       setAuditLogs(auditResult.data || []);
-      setAuditPagination(auditResult.pagination || auditPagination);
+      setAuditPagination((current) => auditResult.pagination || current);
     } catch (requestError) {
       if (requestId !== requestIdRef.current) return;
       setUsers([]);
@@ -224,12 +224,11 @@ const Admin = () => {
         setLoading(false);
       }
     }
-  };
+  }, [keyword, limit, page, status]);
 
   useEffect(() => {
     void loadAdminData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keyword, limit, page, status]);
+  }, [loadAdminData]);
 
   const statCards = useMemo(() => {
     const usersStat = stats?.users || {};
@@ -301,7 +300,7 @@ const Admin = () => {
         >
           <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#9b3f36] shadow-sm">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-brand-900 shadow-sm">
                 <ShieldCheck size={14} />
                 System administration
               </div>
@@ -313,7 +312,7 @@ const Admin = () => {
               </p>
             </div>
 
-            <div className="relative flex w-full items-center rounded-full border border-[#ead2c9] bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] lg:max-w-md">
+            <div className="relative flex w-full items-center rounded-full border border-brand-200 bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] lg:max-w-md">
               <Search className="ml-4 h-5 w-5 text-slate-400" />
               <input
                 value={keywordInput}
@@ -327,7 +326,7 @@ const Admin = () => {
               <button
                 type="button"
                 onClick={handleSearch}
-                className="rounded-full bg-[#9b3f36] px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+                className="rounded-full bg-brand-900 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
               >
                 Search
               </button>
@@ -357,7 +356,7 @@ const Admin = () => {
             <div className="flex items-center justify-between gap-4 border-b border-white/70 px-4 py-4 sm:px-5">
               <div>
                 <h2 className="flex items-center gap-2 text-xl font-black tracking-tight text-slate-950">
-                  <History size={20} className="text-[#9b3f36]" />
+                  <History size={20} className="text-brand-900" />
                   Admin audit log
                 </h2>
                 <p className="mt-1 text-sm font-semibold text-slate-500">
@@ -382,7 +381,7 @@ const Admin = () => {
                     <tr>
                       <td colSpan={5} className="px-5 py-10 text-center">
                         <div className="inline-flex items-center gap-3 text-sm font-bold text-slate-500">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#9b3f36]" />
+                          <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
                           Loading audit logs...
                         </div>
                       </td>
@@ -471,8 +470,8 @@ const Admin = () => {
                       className={cn(
                         "rounded-full px-4 py-2 text-xs font-black transition-all",
                         active
-                          ? "bg-[#9b3f36] text-white shadow-lg shadow-[#9b3f36]/18"
-                          : "bg-white/78 text-slate-500 hover:bg-white hover:text-[#9b3f36]",
+                          ? "bg-brand-900 text-white shadow-lg shadow-brand-900/18"
+                          : "bg-white/78 text-slate-500 hover:bg-white hover:text-brand-900",
                       )}
                     >
                       {item.label}
@@ -497,7 +496,7 @@ const Admin = () => {
                     <tr>
                       <td colSpan={4} className="px-5 py-12 text-center">
                         <div className="inline-flex items-center gap-3 text-sm font-bold text-slate-500">
-                          <Loader2 className="h-5 w-5 animate-spin text-[#9b3f36]" />
+                          <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
                           Loading data...
                         </div>
                       </td>
@@ -510,7 +509,7 @@ const Admin = () => {
                       >
                         <td className="px-5 py-4">
                           <div className="flex min-w-[260px] items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1f2a44] text-sm font-black text-white shadow-lg shadow-[#1f2a44]/12">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-dark text-sm font-black text-white shadow-lg shadow-dark/12">
                               {(user.name || user.email || "U")
                                 .slice(0, 2)
                                 .toUpperCase()}

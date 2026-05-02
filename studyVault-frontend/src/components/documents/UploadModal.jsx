@@ -4,6 +4,10 @@ import { AppButton, AppInput, AppModal } from '@/components/ui/index.js';
 import { cn } from '@/lib/utils.js';
 import { getApiErrorMessage } from '../../utils/apiError.js';
 
+/** Matches Tailwind `brand-900` token */
+const DEFAULT_TAG_COLOR = '#9b3f36';
+
+
 const selectClassName =
   'control-surface w-full appearance-none rounded-[var(--radius-control)] px-4 py-3 pr-11 text-sm font-semibold text-slate-800 outline-none transition-all duration-300 focus:border-brand-200 focus:bg-white focus:shadow-[var(--shadow-medium)] focus:ring-2 focus:ring-brand-500/15';
 
@@ -26,7 +30,7 @@ const UploadModal = ({
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [tagPickerValue, setTagPickerValue] = useState('');
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#9b3f36');
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [isTagMutating, setIsTagMutating] = useState(false);
   const [tagError, setTagError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -63,7 +67,7 @@ const UploadModal = ({
     setSelectedTagIds([]);
     setTagPickerValue('');
     setNewTagName('');
-    setNewTagColor('#9b3f36');
+    setNewTagColor(DEFAULT_TAG_COLOR);
     setIsTagMutating(false);
     setTagError('');
     setIsTagDropdownOpen(false);
@@ -282,7 +286,7 @@ const UploadModal = ({
       }
 
       setNewTagName('');
-      setNewTagColor('#9b3f36');
+      setNewTagColor(DEFAULT_TAG_COLOR);
     } catch (err) {
       setTagError(
         getApiErrorMessage(
@@ -330,7 +334,7 @@ const UploadModal = ({
   return (
     <AppModal
       open={isOpen}
-      onClose={isUploading ? () => {} : onClose}
+      onClose={isUploading ? () => { } : onClose}
       title="Add document"
       size="lg"
       footer={footer}

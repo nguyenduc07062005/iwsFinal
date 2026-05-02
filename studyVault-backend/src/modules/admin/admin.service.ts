@@ -8,6 +8,7 @@ import {
   AdminAuditLog,
   AdminAuditTargetType,
 } from 'src/database/entities/admin-audit-log.entity';
+import { buildContainsLikePattern } from 'src/common/database/like-pattern';
 import { DocumentRepository } from 'src/database/repositories/document.repository';
 import { FolderRepository } from 'src/database/repositories/folder.repository';
 import { UserRole } from 'src/database/entities/user.entity';
@@ -88,8 +89,8 @@ export class AdminService {
 
     if (keyword) {
       queryBuilder.andWhere(
-        "(LOWER(user.email) LIKE LOWER(:keyword) OR LOWER(COALESCE(user.name, '')) LIKE LOWER(:keyword))",
-        { keyword: `%${keyword}%` },
+        "(LOWER(user.email) LIKE LOWER(:keyword) ESCAPE '\\' OR LOWER(COALESCE(user.name, '')) LIKE LOWER(:keyword) ESCAPE '\\')",
+        { keyword: buildContainsLikePattern(keyword) },
       );
     }
 

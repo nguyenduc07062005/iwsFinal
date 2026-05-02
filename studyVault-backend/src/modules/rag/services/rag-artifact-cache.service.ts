@@ -102,6 +102,17 @@ export class RagArtifactCacheService {
     await this.saveDocumentArtifactCache(document, { diagram });
   }
 
+  getUserDiagram(userDocument: UserDocument): DiagramArtifact | null {
+    return this.getArtifactCache(userDocument).diagram ?? null;
+  }
+
+  async saveUserDiagram(
+    userDocument: UserDocument,
+    diagram: DiagramArtifact,
+  ): Promise<void> {
+    await this.saveUserDocumentArtifactCache(userDocument, { diagram });
+  }
+
   private getArtifactCache(owner: ArtifactOwner): DocumentArtifactCache {
     const rawExtraAttributes = owner?.extraAttributes;
 

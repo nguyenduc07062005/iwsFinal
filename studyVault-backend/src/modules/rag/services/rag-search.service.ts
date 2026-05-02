@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import pgvector from 'pgvector';
 import { DataSource } from 'typeorm';
+import { buildContainsLikePattern } from 'src/common/database/like-pattern';
 import { GeminiService } from 'src/common/llm/gemini.service';
 import { Document } from 'src/database/entities/document.entity';
 import { Folder } from 'src/database/entities/folder.entity';
@@ -392,7 +393,7 @@ export class RagSearchService {
     query: string,
     excludedIds: string[],
   ): Promise<SearchResultDocument[]> {
-    const searchTerm = `%${query}%`;
+    const searchTerm = buildContainsLikePattern(query);
     const repository = this.userDocumentRepository.getRepository();
     const queryBuilder = repository
       .createQueryBuilder('userDocument')
@@ -404,8 +405,8 @@ export class RagSearchService {
       .andWhere(
         `
           (
-            LOWER(COALESCE(userDocument.documentName, document.title, '')) LIKE LOWER(:searchTerm)
-            OR LOWER(chunk.chunkText) LIKE LOWER(:searchTerm)
+            LOWER(COALESCE(userDocument.documentName, document.title, '')) LIKE LOWER(:searchTerm) ESCAPE '\\'
+            OR LOWER(chunk.chunkText) LIKE LOWER(:searchTerm) ESCAPE '\\'
           )
         `,
         { searchTerm },
@@ -559,7 +560,7 @@ export class RagSearchService {
       return new Map();
     }
 
-    const searchTerm = `%${query}%`;
+    const searchTerm = buildContainsLikePattern(query);
     const params: unknown[] = [ownerId, documentIds, searchTerm, query];
     const whereClauses = ['ud.user_id = $1', `d.id = ANY($2::uuid[])`];
 
@@ -585,11 +586,11 @@ export class RagSearchService {
         ORDER BY
           d.id,
           CASE
-            WHEN LOWER(COALESCE(c.chunk_text, '')) LIKE LOWER($3) THEN 0
+            WHEN LOWER(COALESCE(c.chunk_text, '')) LIKE LOWER($3) ESCAPE '\\' THEN 0
             ELSE 1
           END ASC,
           CASE
-            WHEN LOWER(COALESCE(c.chunk_text, '')) LIKE LOWER($3)
+            WHEN LOWER(COALESCE(c.chunk_text, '')) LIKE LOWER($3) ESCAPE '\\'
               THEN POSITION(LOWER($4) IN LOWER(COALESCE(c.chunk_text, '')))
             ELSE 2147483647
           END ASC,

@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -185,6 +185,71 @@ describe('AuthenticationService.forgotPassword', () => {
       resetPasswordTokenHash: null,
       resetPasswordTokenExpiresAt: null,
     });
+  });
+});
+
+describe('AuthenticationService.register', () => {
+  it('recovers from a concurrent unverified registration for the same email', async () => {
+    const { mailService, service, userRepository } = createService();
+    const racedUser = createUser({
+      id: 'race-user',
+      email: 'new@example.com',
+      isEmailVerified: false,
+      emailVerificationTokenHash: 'old-token',
+      emailVerificationTokenExpiresAt: new Date('2026-04-01T00:00:00.000Z'),
+    });
+    userRepository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(racedUser);
+    userRepository.create.mockRejectedValueOnce({ code: '23505' });
+    userRepository.update.mockResolvedValue({
+      ...racedUser,
+      name: 'New Student',
+      emailVerificationTokenHash: 'new-token',
+    });
+    mailService.sendEmailVerificationEmail.mockResolvedValue(undefined);
+
+    await expect(
+      service.register({
+        email: ' New@Example.com ',
+        name: ' New Student ',
+      }),
+    ).resolves.toMatchObject({
+      user: {
+        id: 'race-user',
+        email: 'new@example.com',
+        name: 'New Student',
+        isEmailVerified: false,
+      },
+    });
+
+    expect(userRepository.findOne).toHaveBeenNthCalledWith(2, {
+      where: { email: 'new@example.com' },
+    });
+    expect(userRepository.update).toHaveBeenCalledWith(
+      'race-user',
+      expect.objectContaining({
+        name: 'New Student',
+        role: UserRole.USER,
+        emailVerificationTokenHash: expect.any(String) as string,
+        emailVerificationTokenExpiresAt: expect.any(Date) as Date,
+      }),
+    );
+  });
+
+  it('returns the normal duplicate email error when a raced registration is already verified', async () => {
+    const { service, userRepository } = createService();
+    userRepository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(createUser({ email: 'new@example.com' }));
+    userRepository.create.mockRejectedValueOnce({ code: '23505' });
+
+    await expect(
+      service.register({
+        email: 'new@example.com',
+        name: 'New Student',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

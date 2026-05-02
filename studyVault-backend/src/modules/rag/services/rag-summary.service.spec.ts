@@ -239,6 +239,96 @@ describe('RagSummaryService', () => {
     );
   });
 
+  it('regenerates a custom summary when the requested instruction changes', async () => {
+    const document = {
+      id: 'doc-1',
+      title: 'Debugging Notes',
+    };
+    const representativeChunks = [
+      {
+        chunkIndex: 0,
+        chunkText: 'Relevant context',
+        pageNumber: 1,
+        sectionTitle: 'Introduction',
+      },
+    ];
+    const cachedSummaryState = {
+      activeSlot: 'custom' as const,
+      versions: {
+        custom: {
+          title: 'Old custom summary',
+          overview: 'Old overview.',
+          key_points: ['Old point'],
+          conclusion: 'Old conclusion.',
+          language: 'en' as const,
+          generatedAt: '2026-04-11T00:00:00.000Z',
+          sources: [],
+          slot: 'custom' as const,
+          instruction: 'Focus on debugging workflow.',
+        },
+      },
+    };
+    const nextSummaryState = {
+      activeSlot: 'custom' as const,
+      versions: {
+        custom: {
+          title: 'New custom summary',
+          overview: 'New overview.',
+          key_points: ['New point'],
+          conclusion: 'New conclusion.',
+          language: 'en' as const,
+          generatedAt: '2026-04-12T00:00:00.000Z',
+          sources: [],
+          slot: 'custom' as const,
+          instruction: 'Focus on architecture.',
+        },
+      },
+    };
+
+    ragDocumentContextService.ensureOwnedDocument.mockResolvedValue(document);
+    ragArtifactCacheService.getSummaryState
+      .mockReturnValueOnce(cachedSummaryState)
+      .mockReturnValueOnce(nextSummaryState);
+    ragDocumentContextService.getRepresentativeChunks.mockResolvedValue(
+      representativeChunks,
+    );
+    ragDocumentContextService.buildSummaryContext.mockReturnValue(
+      'Relevant context',
+    );
+    ragDocumentContextService.buildSources.mockReturnValue([]);
+
+    jest
+      .spyOn(
+        service as unknown as StructuredSummaryInternals,
+        'generateStructuredSummary',
+      )
+      .mockResolvedValue({
+        title: 'New custom summary',
+        overview: 'New overview.',
+        key_points: ['New point'],
+        conclusion: 'New conclusion.',
+      });
+
+    const result = await service.generateSummary(
+      'doc-1',
+      'user-1',
+      'en',
+      false,
+      'Focus on architecture.',
+    );
+
+    expect(result.cached).toBe(false);
+    expect(result.title).toBe('New custom summary');
+    expect(ragArtifactCacheService.saveSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user-doc-1' }),
+      expect.objectContaining({
+        slot: 'custom',
+        instruction: 'Focus on architecture.',
+      }),
+      expect.objectContaining({ id: 'doc-1' }),
+    );
+  });
+
   it('rejects summary generation when the document has no indexed chunks', async () => {
     ragDocumentContextService.ensureOwnedDocument.mockResolvedValue({
       id: 'doc-1',

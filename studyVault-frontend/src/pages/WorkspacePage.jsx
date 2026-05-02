@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDownAZ,
   BrainCircuit,
@@ -40,6 +40,7 @@ import {
 import { createTag, deleteTag, getTags } from '../service/tagAPI.js';
 import { cn } from '@/lib/utils.js';
 import { getApiErrorMessage } from '../utils/apiError.js';
+import { buildRoutePath } from '../utils/workspaceNavigation.js';
 
 const DEFAULT_LIMIT = 12;
 const DEFAULT_SORT_BY = 'createdAt';
@@ -500,6 +501,7 @@ const getFolderLabel = (folder, rootFolder) => {
 };
 
 const WorkspacePage = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
@@ -512,7 +514,7 @@ const WorkspacePage = () => {
     selectFolder,
   } = useDocumentsContext();
   const initialPreferencesRef = useRef(null);
-  const queryPreferencesHydratedRef = useRef(false);
+  const [queryPreferencesHydrated, setQueryPreferencesHydrated] = useState(false);
 
   if (!initialPreferencesRef.current) {
     initialPreferencesRef.current = readWorkspaceDocumentPreferences();
@@ -646,9 +648,10 @@ const WorkspacePage = () => {
       icon: <ActiveViewIcon size={16} />,
     },
   ];
+  const documentReturnPath = buildRoutePath(location);
 
   useEffect(() => {
-    if (queryPreferencesHydratedRef.current) return;
+    if (queryPreferencesHydrated) return;
 
     const storedQuery = initialPreferencesRef.current?.query || {};
     const shouldRestoreStoredQuery =
@@ -664,11 +667,11 @@ const WorkspacePage = () => {
       }
     }
 
-    queryPreferencesHydratedRef.current = true;
-  }, [searchParams, setSearchParams]);
+    setQueryPreferencesHydrated(true);
+  }, [queryPreferencesHydrated, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (!queryPreferencesHydratedRef.current) return;
+    if (!queryPreferencesHydrated) return;
 
     writeWorkspaceDocumentPreferences({
       query: buildWorkspaceQueryPreferences({
@@ -684,7 +687,7 @@ const WorkspacePage = () => {
       }),
       viewMode,
     });
-  }, [favorite, folderIdParam, keyword, limit, sortBy, sortOrder, subjectId, tagId, type, viewMode]);
+  }, [favorite, folderIdParam, keyword, limit, queryPreferencesHydrated, sortBy, sortOrder, subjectId, tagId, type, viewMode]);
 
   useEffect(() => {
     if (!flash) return undefined;
@@ -727,12 +730,12 @@ const WorkspacePage = () => {
   }, [loadTags]);
 
   useEffect(() => {
-    if (!queryPreferencesHydratedRef.current || !rootFolder) return;
+    if (!queryPreferencesHydrated || !rootFolder) return;
     const normalizedFolderId = folderIdParam && folderIdParam !== rootFolder.id ? folderIdParam : null;
     if (selectedFolderId !== normalizedFolderId) {
       selectFolder(normalizedFolderId);
     }
-  }, [folderIdParam, rootFolder, selectFolder, selectedFolderId]);
+  }, [folderIdParam, queryPreferencesHydrated, rootFolder, selectFolder, selectedFolderId]);
 
   const updateQuery = (updates, options = {}) => {
     const { resetPage = false } = options;
@@ -766,7 +769,7 @@ const WorkspacePage = () => {
 
   useEffect(() => {
     if (
-      !queryPreferencesHydratedRef.current ||
+      !queryPreferencesHydrated ||
       !rootFolder ||
       (!isGlobalDocumentSearch && !activeFolderId)
     ) {
@@ -831,7 +834,7 @@ const WorkspacePage = () => {
     };
 
     void loadDocuments();
-  }, [activeFolderId, documentQueryFolderId, favorite, isGlobalDocumentSearch, keyword, limit, page, reloadKey, rootFolder, sortBy, sortOrder, subjectId, tagId, type]);
+  }, [activeFolderId, documentQueryFolderId, favorite, isGlobalDocumentSearch, keyword, limit, page, queryPreferencesHydrated, reloadKey, rootFolder, sortBy, sortOrder, subjectId, tagId, type]);
 
   const showSuccess = (message) => setFlash({ tone: 'success', message });
   const showError = (message) => setFlash({ tone: 'error', message });
@@ -1125,7 +1128,7 @@ const WorkspacePage = () => {
               Study smarter
             </h1>
 
-            <div className="relative mt-5 flex w-full max-w-3xl items-center rounded-full border border-[#ead2c9] bg-white/95 p-1.5 shadow-[0_28px_82px_-36px_rgba(66,53,48,0.72),0_0_0_6px_rgba(255,255,255,0.34)] backdrop-blur-xl transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-[#e56f56] focus-within:shadow-[0_30px_88px_-34px_rgba(139,63,54,0.78),0_0_0_7px_rgba(229,111,86,0.14)]">
+            <div className="relative mt-5 flex w-full max-w-3xl items-center rounded-full border border-brand-200 bg-white/95 p-1.5 shadow-[0_28px_82px_-36px_rgba(66,53,48,0.72),0_0_0_6px_rgba(255,255,255,0.34)] backdrop-blur-xl transition-all duration-300 focus-within:-translate-y-0.5 focus-within:border-brand-500 focus-within:shadow-[0_30px_88px_-34px_rgba(139,63,54,0.78),0_0_0_7px_rgba(229,111,86,0.14)]">
               <div className="pl-5 pr-2 text-slate-500">
                 <Search size={19} />
               </div>
@@ -1157,7 +1160,7 @@ const WorkspacePage = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleApplySearch}
-                className="sks-ai-glow-btn rounded-full bg-gradient-to-r from-[#9b3f36] to-[#e56f56] px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-[#9b3f36]/28 transition-opacity hover:opacity-95"
+                className="sks-ai-glow-btn rounded-full bg-gradient-to-r from-brand-900 to-brand-500 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-brand-900/28 transition-opacity hover:opacity-95"
               >
                 Search
               </MotionButton>
@@ -1370,7 +1373,11 @@ const WorkspacePage = () => {
               error={documentsError}
               loading={foldersLoading || documentsLoading}
               onOpenFolder={handleFolderSelectionChange}
-              onOpenDocument={(id) => navigate(`/app/documents/${id}`)}
+              onOpenDocument={(id) =>
+                navigate(`/app/documents/${id}`, {
+                  state: { returnTo: documentReturnPath },
+                })
+              }
               onDownloadDocument={handleDownloadDocument}
               onToggleFavorite={handleToggleFavorite}
               onMoveDocument={(doc) => {

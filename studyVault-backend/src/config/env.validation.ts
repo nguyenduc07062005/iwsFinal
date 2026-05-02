@@ -82,6 +82,10 @@ const validateProductionSafety = (
       'AUTH_RETURN_RESET_TOKEN must be false when NODE_ENV=production.',
     );
   }
+
+  if (readString(normalizedConfig, 'DATABASE_SYNC').toLowerCase() === 'true') {
+    throw new Error('DATABASE_SYNC must be false when NODE_ENV=production.');
+  }
 };
 
 export const validateEnvironment = (

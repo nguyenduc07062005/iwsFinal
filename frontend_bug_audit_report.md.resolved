@@ -1,0 +1,219 @@
+# 🖥️ StudyVault Frontend — Bug Audit Report
+
+> Đọc toàn bộ source code frontend mới nhất. Kiểm tra từng file page, service, route guard, context, utility.
+
+---
+
+## Tổng quan
+
+| Module | Files đã đọc | Kết quả |
+|---|---|---|
+| Pages | Login, Register, Profile, ForgotPassword, WorkspacePage, DocumentViewer, Admin | ✅ |
+| API Services | apiClient.js, authAPI, documentAPI, ragAPI, folderAPI, adminAPI, tagAPI | ✅ |
+| Route Guards | ProtectedWorkspaceRoute, GuestOnlyRoute | ✅ |
+| Context/Utils | DocViewerContext, auth.js, apiError.js, workspaceNavigation | ✅ |
+
+---
+
+## 🐛 Bug List
+
+### 🟠 FE-BUG-1 (Medium): [DocumentViewer](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/DocumentViewer.jsx#227-1261) — Object URL có thể leak nếu navigate nhanh giữa documents
+
+**File:** [DocumentViewer.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/DocumentViewer.jsx) — dòng 416-421, 278-284
+
+```jsx
+// Khi load viewer mới:
+const { blob } = await fetchDocumentFile(documentId);
+const nextFileUrl = URL.createObjectURL(blob); // tạo URL mới
+fileUrlRef.current = nextFileUrl;
+setFileUrl(nextFileUrl);
+```
+
+```jsx
+// Cleanup chỉ chạy khi component unmount:
+useEffect(() => {
+  return () => { cleanupFileUrl(); };  // unmount cleanup
+}, [cleanupFileUrl, clearDocViewer, loadNotes, loadViewer]);
+```
+
+**Vấn đề:** Khi `documentId` thay đổi (ví dụ click Related Document → navigate đến `/app/documents/newId`), `loadViewer` được gọi lại vì `documentId` thay đổi. Bên trong `loadViewer`, `cleanupFileUrl()` **được gọi đầu tiên** (dòng 406) — tức là URL cũ đã bị revoke trước khi tạo URL mới. **OK, đúng logic.**
+
+Tuy nhiên, nếu user click nhanh giữa 2 documents, `loadViewer` đang chạy async → [fetchDocumentFile](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/service/documentAPI.js#132-142) chưa xong → `documentId` đổi lại → `loadViewer` mới chạy → URL của lần fetch trước xong sau và set vào `fileUrlRef` nhưng lần cleanup tiếp theo chỉ cleanup URL mới nhất. **Object URL từ lần fetch cũ bị leak.**
+
+**Fix:** Cần abort cơ chế tương tự `requestIdRef` trong WorkspacePage:
+```jsx
+const requestIdRef = useRef(0);
+// Trong loadViewer:
+const requestId = ++requestIdRef.current;
+// Sau mỗi async: if (requestId !== requestIdRef.current) { URL.revokeObjectURL(nextFileUrl); return; }
+```
+
+---
+
+### 🟡 FE-BUG-2 (Minor): [apiClient.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js) response interceptor — catch block không return explicit
+
+**File:** [apiClient.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js) — dòng 191-193
+
+```js
+} catch {
+  redirectToLoginAfterSessionExpiry();
+  // ← không return → fall through đến dòng 197
+}
+// ...
+return Promise.reject(error);  // ← dòng 197: reject lỗi gốc
+```
+
+**Vấn đề:** Khi refresh token thất bại, hàm gọi [redirectToLoginAfterSessionExpiry()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js#87-103) rồi **không return**. Code fall through đến `return Promise.reject(error)` bên ngoài. Behavior đúng (reject lỗi cho caller biết), nhưng logic **confusing** — caller nhận 2 side-effects: redirect + rejection. Nếu caller có `.catch()` handler hiển thị error toast, user sẽ thấy cả toast error VÀ redirect.
+
+**Mức độ:** Minor — trong thực tế `window.location.assign('/login')` navigate ngay nên toast hiếm khi hiện kịp.
+
+---
+
+### 🟡 FE-BUG-3 (Minor): [GuestOnlyRoute](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/routes/GuestOnlyRoute.jsx#4-11) chỉ check [hasValidAccessToken()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js#139-144), không check [hasRefreshSessionHint()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js#145-146)
+
+**File:** [GuestOnlyRoute.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/routes/GuestOnlyRoute.jsx) — dòng 5
+
+```jsx
+if (hasValidAccessToken()) {
+  return <Navigate to="/app" replace />;
+}
+```
+
+**Vấn đề:** Trong [auth.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js), [isAuthenticated()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js#147-150) dùng cả [hasValidAccessToken() || hasRefreshSessionHint()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js#139-144). Nhưng [GuestOnlyRoute](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/routes/GuestOnlyRoute.jsx#4-11) chỉ check [hasValidAccessToken()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/utils/auth.js#139-144). Nếu access token hết hạn nhưng refresh token còn (CSRF cookie vẫn có), user vẫn thấy trang Login thay vì redirect đến `/app`.
+
+**Mức độ:** Minor — user bấm Login → request interceptor sẽ auto-refresh → hoạt động bình thường. Chỉ là trải nghiệm hơi lạ khi thấy trang login dù vẫn có session.
+
+---
+
+### 🟡 FE-BUG-4 (Minor): [Admin.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Admin.jsx) — [loadAdminData](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Admin.jsx#180-228) không wrap trong `useCallback`
+
+**File:** [Admin.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Admin.jsx) — dòng 180-227
+
+```jsx
+const loadAdminData = async () => { ... };
+
+useEffect(() => {
+  void loadAdminData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [keyword, limit, page, status]);
+```
+
+**Vấn đề:** [loadAdminData](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Admin.jsx#180-228) là function closure bên trong component, nhưng không được wrap trong `useCallback`. ESLint rule đã bị suppress bằng comment. Function tham chiếu đến state setter bên trong nên **hoạt động đúng**, nhưng nếu ai đó bỏ suppress lint → sẽ bị lint error. Đây là code smell, không phải bug runtime.
+
+---
+
+### 🟡 FE-BUG-5 (Minor): [Profile.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Profile.jsx) — Password modal backdrop không có click-to-close
+
+**File:** [Profile.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Profile.jsx) — dòng 439
+
+```jsx
+<div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/36 p-3 backdrop-blur-md sm:items-center">
+  {/* modal content */}
+</div>
+```
+
+**Vấn đề:** Click vào backdrop (overlay tối bên ngoài modal) không đóng modal. User phải bấm nút X. UX pattern phổ biến là click backdrop = đóng modal.
+
+---
+
+### 🟡 FE-BUG-6 (Minor): [documentAPI.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/service/documentAPI.js) [openDocumentFile](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/service/documentAPI.js#148-174) — popup bị chặn gây blank tab
+
+**File:** [documentAPI.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/service/documentAPI.js) — dòng 149-173
+
+```jsx
+const popup = window.open('', '_blank');  // Mở blank tab ngay
+try {
+  const { blob } = await fetchDocumentFile(documentId);  // fetch async
+  if (popup) {
+    popup.opener = null;
+    popup.location.href = objectUrl;  // gán URL sau
+  } else {
+    // fallback: tạo <a> link
+  }
+} catch (error) {
+  popup?.close();
+  throw error;
+}
+```
+
+**Vấn đề:** Pattern `window.open('', '_blank')` trước khi fetch là **đúng** (tránh popup blocker). Nhưng nếu fetch thất bại → popup đã mở → `popup.close()` → user thấy tab blank nhấp nháy rồi biến mất. UX chưa smooth lắm.
+
+**Mức độ:** Minor — chỉ ảnh hưởng khi fetch thất bại.
+
+---
+
+### 🔵 FE-DESIGN-1: [DocumentViewer](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/DocumentViewer.jsx#227-1261) — Ask history hardcode `slice(-8)`
+
+**File:** [DocumentViewer.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/DocumentViewer.jsx) — dòng 530
+
+```jsx
+setAskHistory((current) => [...current, result.historyItem].slice(-8));
+```
+
+**Vấn đề:** Client chỉ giữ 8 items gần nhất trong memory, nhưng server trả history đầy đủ khi `loadAskHistory()`. Nếu user hỏi 9 câu, câu đầu tiên phía client → backend vẫn có nhưng client cắt. Khi refresh page → load lại từ server → thấy đầy đủ. **UX inconsistency** nhưng không phải bug logic.
+
+---
+
+### 🔵 FE-DESIGN-2: [WorkspacePage](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/WorkspacePage.jsx#503-1449) — Search chỉ trigger khi Enter/Click, không debounce
+
+**File:** [WorkspacePage.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/WorkspacePage.jsx) — dòng 859-870
+
+```jsx
+const handleSearchInputChange = (event) => {
+  const nextValue = event.target.value;
+  setSearchInput(nextValue);
+  if (!nextValue.trim() && keyword) {
+    updateQuery({ keyword: undefined }, { resetPage: true });
+  }
+};
+
+const handleApplySearch = () => {
+  updateQuery({ keyword: searchInput.trim() || undefined }, { resetPage: true });
+};
+```
+
+**Vấn đề:** Search chỉ áp dụng khi user nhấn Enter hoặc bấm nút Search. Đây là **intentional design** (giảm API calls) nhưng khi user xóa text bằng input → `keyword` bị clear ngay (dòng 863-865) mà không cần Enter. **Hành vi bất đối xứng:** nhập text → cần Enter, xóa hết text → auto clear. Hơi lạ nhưng chấp nhận được.
+
+---
+
+### 🔵 FE-DESIGN-3: [Profile.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Profile.jsx) — `pageFeedback` không auto-dismiss
+
+**File:** [Profile.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/Profile.jsx) — dòng 179
+
+```jsx
+setPageFeedback({ tone: "success", message: "Display name saved." });
+```
+
+Feedback toast hiện mãi cho đến khi có action khác clear nó. Trong khi [WorkspacePage.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/WorkspacePage.jsx) có timer 4500ms auto-dismiss cho `flash`.
+
+---
+
+## ✅ Những điểm code frontend tốt
+
+| Điểm | Chi tiết |
+|---|---|
+| **Race condition protection** | `requestIdRef` trong cả WorkspacePage và Admin — tránh stale response |
+| **Object URL cleanup** | DocumentViewer có `cleanupFileUrl()` + `useEffect` cleanup |
+| **Token refresh deduplication** | `refreshPromise` singleton trong apiClient — multiple 401s chỉ trigger 1 refresh |
+| **URL-based state management** | `searchParams` sync filters/pagination — hỗ trợ deep-linking tốt |
+| **Input validation** | Email pattern, password policy, trim() nhất quán |
+| **Error boundaries** | `AppErrorBoundary` wrap toàn bộ app |
+| **Accessibility** | `aria-label`, `role`, `title` attributes đầy đủ |
+
+---
+
+## 📊 Tổng Kết
+
+| Mức độ | Số lượng |
+|---|---|
+| 🔴 Critical | 0 |
+| 🟠 Medium | 1 (FE-BUG-1) |
+| 🟡 Minor | 5 (FE-BUG-2, 3, 4, 5, 6) |
+| 🔵 Design | 3 (FE-DESIGN-1, 2, 3) |
+
+### 🎯 Kết luận
+
+**Frontend code chất lượng cao.** Không có bug critical hay security issue. Các vấn đề tìm được đều ở mức minor/design:
+
+- **FE-BUG-1** là vấn đề đáng chú ý nhất — object URL leak khi navigate nhanh
+- Còn lại đều là UX polish, không ảnh hưởng demo

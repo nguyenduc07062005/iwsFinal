@@ -8,6 +8,7 @@ import { IndexingResult } from '../types/rag.types';
 
 const EMBEDDING_MODEL = 'gemini-embedding-001';
 const EMBEDDING_DIMENSION = 3072;
+const EMBEDDING_CONCURRENCY_LIMIT = 3;
 
 @Injectable()
 export class RagIndexingService {
@@ -51,21 +52,37 @@ export class RagIndexingService {
     let indexedChunks = 0;
 
     try {
-      for (const chunk of chunks) {
+      const chunksToIndex = chunks.filter((chunk) => {
         if (!force && chunk.embedding) {
           indexedChunks += 1;
-          continue;
+          return false;
         }
 
-        const embeddingValues = await this.geminiService.createEmbedding(
-          chunk.chunkText,
-        );
+        return true;
+      });
+      const chunkRepository = this.chunkRepository.getRepository();
+      let nextChunkIndex = 0;
+      const workerCount = Math.min(
+        EMBEDDING_CONCURRENCY_LIMIT,
+        chunksToIndex.length,
+      );
+      const indexNextChunk = async () => {
+        while (nextChunkIndex < chunksToIndex.length) {
+          const chunk = chunksToIndex[nextChunkIndex++];
+          const embeddingValues = await this.geminiService.createEmbedding(
+            chunk.chunkText,
+          );
 
-        chunk.embedding = this.toVectorSql(embeddingValues);
-        chunk.embeddingModel = EMBEDDING_MODEL;
-        await this.chunkRepository.getRepository().save(chunk);
-        indexedChunks += 1;
-      }
+          chunk.embedding = this.toVectorSql(embeddingValues);
+          chunk.embeddingModel = EMBEDDING_MODEL;
+          await chunkRepository.save(chunk);
+          indexedChunks += 1;
+        }
+      };
+
+      await Promise.all(
+        Array.from({ length: workerCount }, () => indexNextChunk()),
+      );
 
       await this.updateDocumentStatus(documentId, 'indexed');
 

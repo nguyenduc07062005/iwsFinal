@@ -10,7 +10,7 @@ import {
 } from "../utils/auth.js";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -46,10 +46,28 @@ const CSRF_PROTECTED_AUTH_PATHS = [
 
 let refreshPromise = null;
 
-const isAuthFlowRequest = (url = "") =>
-  AUTH_FLOW_PATHS.some((path) => String(url).startsWith(path));
-const isCsrfProtectedRequest = (url = "") =>
-  CSRF_PROTECTED_AUTH_PATHS.some((path) => String(url).startsWith(path));
+const getRequestPath = (url = "") => {
+  const rawUrl = String(url);
+
+  try {
+    return new URL(rawUrl, "http://studyvault.local").pathname.replace(
+      /\/+$/,
+      "",
+    );
+  } catch {
+    return rawUrl.split(/[?#]/)[0].replace(/\/+$/, "");
+  }
+};
+
+const requestPathMatches = (url, paths) => {
+  const requestPath = getRequestPath(url);
+  return paths.includes(requestPath);
+};
+
+export const isAuthFlowRequest = (url = "") =>
+  requestPathMatches(url, AUTH_FLOW_PATHS);
+export const isCsrfProtectedRequest = (url = "") =>
+  requestPathMatches(url, CSRF_PROTECTED_AUTH_PATHS);
 
 const attachCsrfHeader = (config) => {
   if (!isCsrfProtectedRequest(config.url)) {

@@ -135,6 +135,17 @@ describe('RagSearchService', () => {
       query,
       insight,
     );
+  const callGetKeywordFallbackDocuments = (
+    query: string,
+  ): Promise<SearchResultDocument[]> =>
+    (
+      service as unknown as RagSearchServiceInternals
+    ).getKeywordFallbackDocuments(
+      'user-1',
+      { folder: null, scopedFolderId: null, isWorkspaceScope: true },
+      query,
+      [],
+    );
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -294,5 +305,27 @@ describe('RagSearchService', () => {
     );
 
     expect(result).toEqual([]);
+  });
+
+  it('escapes wildcard characters in keyword fallback search', async () => {
+    const queryBuilder = {
+      andWhere: jest.fn().mockReturnThis(),
+      distinct: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+      leftJoin: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+    };
+    userDocumentRepository.getRepository.mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+    });
+
+    await callGetKeywordFallbackDocuments('a%_b\\');
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("ESCAPE '\\'"),
+      { searchTerm: '%a\\%\\_b\\\\%' },
+    );
   });
 });

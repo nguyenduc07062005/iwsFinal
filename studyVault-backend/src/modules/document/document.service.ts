@@ -23,6 +23,10 @@ import {
   ListDocumentsDto,
 } from './dtos/list-documents.dto';
 import { StudyNoteDto } from './dtos/study-note.dto';
+import {
+  buildContainsLikePattern,
+  escapeLikePattern,
+} from 'src/common/database/like-pattern';
 
 import {
   DataSource,
@@ -939,7 +943,7 @@ export class DocumentService {
   }
 
   private escapeLikePattern(value: string): string {
-    return value.replace(/[\\%_]/g, '\\$&');
+    return escapeLikePattern(value);
   }
 
   /**
@@ -1014,7 +1018,10 @@ export class DocumentService {
             `${searchableTitleExpression} LIKE :keyword ESCAPE '\\'`,
           ];
 
-          if (normalizedKeyword.length >= 2 && !normalizedKeyword.startsWith('.')) {
+          if (
+            normalizedKeyword.length >= 2 &&
+            !normalizedKeyword.startsWith('.')
+          ) {
             searchClauses.push(
               `LOWER(COALESCE("document"."metadata"::text, '')) LIKE :keyword ESCAPE '\\'`,
               `LOWER(COALESCE("document"."extra_attributes"::text, '')) LIKE :keyword ESCAPE '\\'`,
@@ -1143,23 +1150,24 @@ export class DocumentService {
       }
 
       // No other users - full deletion
-      const chunksToDelete: string[] = [];
-      for (const chunkId of chunkIds) {
-        const relatedDocs = await chunkRepo
-          .createQueryBuilder('chunk')
-          .leftJoin('chunk.documents', 'document')
-          .where('chunk.id = :chunkId', { chunkId })
-          .getCount();
-
-        if (relatedDocs === 1) {
-          chunksToDelete.push(chunkId);
-        }
-      }
+      const chunksToDelete =
+        chunkIds.length === 0
+          ? []
+          : (
+              await chunkRepo
+                .createQueryBuilder('chunk')
+                .leftJoin('chunk.documents', 'document')
+                .select('chunk.id', 'id')
+                .where('chunk.id IN (:...chunkIds)', { chunkIds })
+                .groupBy('chunk.id')
+                .having('COUNT(document.id) = 1')
+                .getRawMany<{ id: string }>()
+            ).map((row) => row.id);
 
       await documentRepo.delete({ id: documentId });
 
-      for (const chunkId of chunksToDelete) {
-        await chunkRepo.delete({ id: chunkId });
+      if (chunksToDelete.length > 0) {
+        await chunkRepo.delete({ id: In(chunksToDelete) });
       }
 
       // Delete file from disk
@@ -1265,9 +1273,9 @@ export class DocumentService {
         ])
         .where('user.id = :ownerId', { ownerId })
         .andWhere(
-          'LOWER(COALESCE("userDocument"."document_name", "document"."title", \'\')) LIKE LOWER(:query)',
+          'LOWER(COALESCE("userDocument"."document_name", "document"."title", \'\')) LIKE LOWER(:query) ESCAPE \'\\\'',
           {
-            query: `%${keyword}%`,
+            query: buildContainsLikePattern(keyword),
           },
         )
         .orderBy('document.createdAt', 'DESC')
@@ -1304,9 +1312,12 @@ export class DocumentService {
           'folder.name',
         ])
         .where('user.id = :ownerId', { ownerId })
-        .andWhere('LOWER("chunk"."chunk_text") LIKE LOWER(:query)', {
-          query: `%${keyword}%`,
-        })
+        .andWhere(
+          'LOWER("chunk"."chunk_text") LIKE LOWER(:query) ESCAPE \'\\\'',
+          {
+            query: buildContainsLikePattern(keyword),
+          },
+        )
         .andWhere(
           excludedIds.length > 0
             ? '"document"."id" NOT IN (:...excludedIds)'
@@ -1553,7 +1564,9 @@ export class DocumentService {
     const extension = path.extname(filePath).toLowerCase();
 
     if (extension !== '.docx') {
-      throw new BadRequestException('HTML preview is only available for DOCX files.');
+      throw new BadRequestException(
+        'HTML preview is only available for DOCX files.',
+      );
     }
 
     try {
@@ -1604,6 +1617,12 @@ export class DocumentService {
     documentId: string,
     newName: string,
   ) {
+    const trimmedName = newName.trim();
+
+    if (!trimmedName) {
+      throw new BadRequestException('Document name cannot be empty');
+    }
+
     const userDocument = await this.dataSource
       .getRepository(UserDocument)
       .findOne({
@@ -1614,7 +1633,7 @@ export class DocumentService {
       throw new NotFoundException('Document not found or not owned by user');
     }
 
-    userDocument.documentName = newName;
+    userDocument.documentName = trimmedName;
     await this.dataSource.getRepository(UserDocument).save(userDocument);
 
     return {

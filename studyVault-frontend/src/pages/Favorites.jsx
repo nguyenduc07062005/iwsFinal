@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowDownAZ,
   ArrowLeft,
@@ -22,6 +22,7 @@ import {
   toggleFavorite,
 } from '../service/documentAPI.js';
 import { getApiErrorMessage } from '../utils/apiError.js';
+import { buildRoutePath } from '../utils/workspaceNavigation.js';
 
 const DEFAULT_LIMIT = 10;
 const DEFAULT_SORT_BY = 'createdAt';
@@ -193,6 +194,7 @@ const mergeStoredFavoritesQuery = (params, storedQuery) => {
 };
 
 const Favorites = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPreferencesRef = useRef(null);
@@ -230,6 +232,7 @@ const Favorites = () => {
     () => TYPE_FILTERS.find((option) => option.value === type) || TYPE_FILTERS[0],
     [type],
   );
+  const documentReturnPath = buildRoutePath(location);
 
   useEffect(() => {
     if (queryPreferencesHydratedRef.current) return;
@@ -367,7 +370,9 @@ const Favorites = () => {
   };
 
   const handleOpenDocument = (documentId) => {
-    navigate(`/app/documents/${documentId}`);
+    navigate(`/app/documents/${documentId}`, {
+      state: { returnTo: documentReturnPath },
+    });
   };
 
   const handleDownloadDocument = async (documentId, title) => {
@@ -443,7 +448,7 @@ const Favorites = () => {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#9b3f36] text-white shadow-lg shadow-[#9b3f36]/18">
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-lg shadow-brand-900/18">
                   <Star size={19} fill="currentColor" />
                 </span>
                 <div>
@@ -469,7 +474,7 @@ const Favorites = () => {
               <button
                 type="button"
                 onClick={() => navigate('/app')}
-                className="inline-flex items-center gap-2 rounded-full bg-white/82 px-4 py-2.5 text-sm font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-[#9b3f36]"
+                className="inline-flex items-center gap-2 rounded-full bg-white/82 px-4 py-2.5 text-sm font-extrabold text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
               >
                 <ArrowLeft size={16} />
                 Workspace
@@ -504,7 +509,7 @@ const Favorites = () => {
             </div>
           </div>
 
-          <div className="relative mt-5 flex w-full items-center rounded-full border border-[#ead2c9] bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] backdrop-blur-xl transition-all duration-300 focus-within:border-[#e56f56] focus-within:shadow-[0_28px_80px_-40px_rgba(139,63,54,0.78),0_0_0_6px_rgba(229,111,86,0.12)]">
+          <div className="relative mt-5 flex w-full items-center rounded-full border border-brand-200 bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] backdrop-blur-xl transition-all duration-300 focus-within:border-brand-500 focus-within:shadow-[0_28px_80px_-40px_rgba(139,63,54,0.78),0_0_0_6px_rgba(229,111,86,0.12)]">
             <div className="pl-5 pr-2 text-slate-500">
               <Search size={19} />
             </div>
@@ -522,7 +527,7 @@ const Favorites = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleApplySearch}
-              className="rounded-full bg-gradient-to-r from-[#9b3f36] to-[#e56f56] px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-[#9b3f36]/28 transition-opacity hover:opacity-95"
+              className="rounded-full bg-gradient-to-r from-brand-900 to-brand-500 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-brand-900/28 transition-opacity hover:opacity-95"
             >
               Search
             </MotionButton>

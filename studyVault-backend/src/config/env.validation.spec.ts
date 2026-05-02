@@ -55,6 +55,15 @@ describe('validateEnvironment', () => {
     ).toThrow('AUTH_RETURN_RESET_TOKEN');
   });
 
+  it('rejects automatic schema synchronization in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnv,
+        DATABASE_SYNC: 'true',
+      }),
+    ).toThrow('DATABASE_SYNC');
+  });
+
   it('keeps local development defaults permissive', () => {
     const validated = validateEnvironment({
       NODE_ENV: 'development',

@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, timingSafeEqual } from 'crypto';
 import type { StringValue } from 'ms';
+import { QueryFailedError } from 'typeorm';
 import { MailService } from 'src/common/mail/mail.service';
 import { UserSessionRepository } from 'src/database/repositories/user-session.repository';
 import { UserRepository } from 'src/database/repositories/user.repository';
@@ -33,6 +34,7 @@ const PASSWORD_RESET_RESPONSE =
   'Please check your email to reset your password.';
 const EMAIL_VERIFICATION_RESPONSE =
   'If an account with that email needs verification, a verification link has been issued.';
+const POSTGRES_UNIQUE_VIOLATION_CODE = '23505';
 
 type SessionRequestContext = {
   ipAddress?: string;
@@ -208,6 +210,20 @@ export class AuthenticationService {
     return verificationUrl.toString();
   }
 
+  private isUniqueConstraintViolation(error: unknown): boolean {
+    if (error instanceof QueryFailedError) {
+      const driverError = error.driverError as { code?: string } | undefined;
+      return driverError?.code === POSTGRES_UNIQUE_VIOLATION_CODE;
+    }
+
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: unknown }).code === POSTGRES_UNIQUE_VIOLATION_CODE
+    );
+  }
+
   async register(dto: CreateUserDto) {
     const normalizedEmail = dto.email.toLowerCase().trim();
     const displayName = dto.name.trim();
@@ -222,7 +238,9 @@ export class AuthenticationService {
     const { rawToken, tokenHash, expiresAt } =
       this.createEmailVerificationToken();
 
-    const user = existingUser
+    let createdUserId: string | null = null;
+    let userToRestore = existingUser;
+    let user = existingUser
       ? ((await this.userRepository.update(existingUser.id, {
           name: displayName,
           role: UserRole.USER,
@@ -235,7 +253,11 @@ export class AuthenticationService {
           emailVerificationTokenHash: tokenHash,
           emailVerificationTokenExpiresAt: expiresAt,
         })
-      : await this.userRepository.create({
+      : null;
+
+    if (!user) {
+      try {
+        user = await this.userRepository.create({
           email: normalizedEmail,
           password: await bcrypt.hash(randomBytes(32).toString('hex'), 10),
           name: displayName,
@@ -246,6 +268,35 @@ export class AuthenticationService {
           emailVerificationTokenHash: tokenHash,
           emailVerificationTokenExpiresAt: expiresAt,
         });
+        createdUserId = user.id;
+      } catch (error) {
+        if (!this.isUniqueConstraintViolation(error)) {
+          throw error;
+        }
+
+        const racedUser = await this.userRepository.findOne({
+          where: { email: normalizedEmail },
+        });
+
+        if (!racedUser || racedUser.isEmailVerified) {
+          throw new BadRequestException('Email already in use');
+        }
+
+        userToRestore = racedUser;
+        user = (await this.userRepository.update(racedUser.id, {
+          name: displayName,
+          role: UserRole.USER,
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationTokenExpiresAt: expiresAt,
+        })) ?? {
+          ...racedUser,
+          name: displayName,
+          role: UserRole.USER,
+          emailVerificationTokenHash: tokenHash,
+          emailVerificationTokenExpiresAt: expiresAt,
+        };
+      }
+    }
 
     try {
       await this.mailService.sendEmailVerificationEmail(
@@ -254,16 +305,16 @@ export class AuthenticationService {
         expiresAt,
       );
     } catch (error) {
-      if (existingUser) {
-        await this.userRepository.update(existingUser.id, {
-          name: existingUser.name,
-          role: existingUser.role,
-          emailVerificationTokenHash: existingUser.emailVerificationTokenHash,
+      if (userToRestore) {
+        await this.userRepository.update(userToRestore.id, {
+          name: userToRestore.name,
+          role: userToRestore.role,
+          emailVerificationTokenHash: userToRestore.emailVerificationTokenHash,
           emailVerificationTokenExpiresAt:
-            existingUser.emailVerificationTokenExpiresAt,
+            userToRestore.emailVerificationTokenExpiresAt,
         });
-      } else {
-        await this.userRepository.delete(user.id);
+      } else if (createdUserId) {
+        await this.userRepository.delete(createdUserId);
       }
       throw error;
     }

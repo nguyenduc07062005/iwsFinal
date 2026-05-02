@@ -20,8 +20,18 @@ const createAdminUser = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const createService = () => {
+  const userQueryBuilder = {
+    andWhere: jest.fn().mockReturnThis(),
+    getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    orderBy: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    take: jest.fn().mockReturnThis(),
+  };
   const userRepository = {
     findById: jest.fn(),
+    getRepository: jest.fn().mockReturnValue({
+      createQueryBuilder: jest.fn().mockReturnValue(userQueryBuilder),
+    }),
     update: jest.fn(),
   };
   const auditLogRepository = {
@@ -42,11 +52,25 @@ const createService = () => {
 
   return {
     service,
+    userQueryBuilder,
     userRepository,
     auditLogRepository,
     userSessionRepository,
   };
 };
+
+describe('AdminService.listUsers', () => {
+  it('escapes wildcard characters in keyword filters', async () => {
+    const { service, userQueryBuilder } = createService();
+
+    await service.listUsers({ keyword: 'a%_b\\' });
+
+    expect(userQueryBuilder.andWhere).toHaveBeenCalledWith(
+      expect.stringContaining("ESCAPE '\\'"),
+      { keyword: '%a\\%\\_b\\\\%' },
+    );
+  });
+});
 
 describe('AdminService.updateUserStatus', () => {
   it('blocks status changes for admin accounts', async () => {

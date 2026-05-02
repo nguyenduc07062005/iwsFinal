@@ -1,0 +1,105 @@
+import { BadRequestException } from '@nestjs/common';
+import { In } from 'typeorm';
+import { Chunk } from 'src/database/entities/chunks.entity';
+import { Document } from 'src/database/entities/document.entity';
+import { UserDocument } from 'src/database/entities/user-document.entity';
+import { ChunkRepository } from 'src/database/repositories/chunks.repository';
+import { DocumentRepository } from 'src/database/repositories/document.repository';
+import { FolderRepository } from 'src/database/repositories/folder.repository';
+import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
+import { DocumentService } from './document.service';
+
+const createService = (dataSource: unknown) =>
+  new DocumentService(
+    {} as never as DocumentRepository,
+    {} as never as ChunkRepository,
+    {} as never as UserDocumentRepository,
+    {} as never as FolderRepository,
+    dataSource as never,
+  );
+
+describe('DocumentService.updateDocumentName', () => {
+  it('rejects document names that are only whitespace', async () => {
+    const save = jest.fn();
+    const findOne = jest.fn().mockResolvedValue({
+      id: 'user-doc-1',
+      documentName: 'Original',
+    });
+    const dataSource = {
+      getRepository: jest.fn().mockReturnValue({ findOne, save }),
+    };
+    const service = createService(dataSource);
+
+    await expect(
+      service.updateDocumentName('user-1', 'doc-1', '   '),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe('DocumentService.deleteDocument', () => {
+  it('bulk deletes only chunks that are exclusive to the deleted document', async () => {
+    const accessQueryBuilder = {
+      addSelect: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({
+        documentId: 'doc-1',
+        fileRef: null,
+        title: 'Document',
+      }),
+      leftJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+    };
+    const exclusiveChunkQueryBuilder = {
+      getRawMany: jest.fn().mockResolvedValue([{ id: 'chunk-1' }]),
+      groupBy: jest.fn().mockReturnThis(),
+      having: jest.fn().mockReturnThis(),
+      leftJoin: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+    };
+    const documentRepo = {
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const chunkRepo = {
+      createQueryBuilder: jest.fn().mockReturnValue(exclusiveChunkQueryBuilder),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      find: jest.fn().mockResolvedValue([{ id: 'chunk-1' }, { id: 'chunk-2' }]),
+    };
+    const userDocumentRepo = {
+      count: jest.fn().mockResolvedValue(0),
+      createQueryBuilder: jest.fn().mockReturnValue(accessQueryBuilder),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
+    const transactionManager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === Document) return documentRepo;
+        if (entity === Chunk) return chunkRepo;
+        if (entity === UserDocument) return userDocumentRepo;
+        throw new Error('Unexpected repository');
+      }),
+    };
+    type TransactionCallback<T> = (
+      manager: typeof transactionManager,
+    ) => Promise<T> | T;
+    const dataSource = {
+      transaction: jest.fn(<T>(callback: TransactionCallback<T>) =>
+        callback(transactionManager),
+      ),
+    };
+    const service = createService(dataSource);
+
+    await expect(
+      service.deleteDocument('user-1', 'doc-1'),
+    ).resolves.toMatchObject({
+      removedFromLibraryOnly: false,
+    });
+
+    expect(chunkRepo.createQueryBuilder).toHaveBeenCalledTimes(1);
+    expect(exclusiveChunkQueryBuilder.having).toHaveBeenCalledWith(
+      'COUNT(document.id) = 1',
+    );
+    expect(chunkRepo.delete).toHaveBeenCalledWith({ id: In(['chunk-1']) });
+  });
+});

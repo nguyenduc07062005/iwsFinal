@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { GeminiService } from 'src/common/llm/gemini.service';
+import { UserDocumentRepository } from 'src/database/repositories/user-document.repository';
 import { RagArtifactCacheService } from './services/rag-artifact-cache.service';
 import { RagDocumentContextService } from './services/rag-document-context.service';
 import { RagIndexingService } from './services/rag-indexing.service';
@@ -35,6 +36,7 @@ export class RagService {
     private readonly ragSummaryService: RagSummaryService,
     private readonly ragQuestionAnsweringService: RagQuestionAnsweringService,
     private readonly ragSearchService: RagSearchService,
+    private readonly userDocumentRepository: UserDocumentRepository,
   ) {}
 
   async ensureDocumentIndexed(
@@ -84,7 +86,18 @@ export class RagService {
       documentId,
       ownerId,
     );
-    const cachedDiagram = this.ragArtifactCacheService.getDiagram(document);
+    const userDocument =
+      await this.userDocumentRepository.findByUserAndDocument(
+        ownerId,
+        documentId,
+      );
+
+    if (!userDocument) {
+      throw new NotFoundException('Document not found or not owned by user');
+    }
+
+    const cachedDiagram =
+      this.ragArtifactCacheService.getUserDiagram(userDocument);
 
     if (cachedDiagram?.mermaid && cachedDiagram.summaryText) {
       return {
@@ -115,7 +128,7 @@ export class RagService {
     const rawDiagram = await this.geminiService.generateText(diagramPrompt);
     const diagram = this.normalizeMermaid(rawDiagram);
 
-    await this.ragArtifactCacheService.saveDiagram(document, {
+    await this.ragArtifactCacheService.saveUserDiagram(userDocument, {
       mermaid: diagram,
       summaryText,
       generatedAt: new Date().toISOString(),

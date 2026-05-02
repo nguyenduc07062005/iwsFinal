@@ -1,0 +1,378 @@
+# 🐛 StudyVault — Bug Audit Report
+
+> Kiểm tra thực tế từ source code. Phân loại: 🔴 Critical · 🟠 Medium · 🟡 Minor · 🔵 Design Issue
+
+---
+
+## Module 1: Authentication
+
+### 🟠 BUG-1: Fallback secret key cố định trong JWT Strategy
+
+**File:** [src/modules/authentication/jwt/jwt.strategy.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/jwt/jwt.strategy.ts) — dòng 19
+
+```ts
+secretOrKey: configService.get<string>('JWT_SECRET') || 'sks_secret_key_2026',
+```
+
+**Vấn đề:** Nếu `JWT_SECRET` không được set trong [.env](file:///c:/Users/ndvng/Desktop/iwsFinal/.env), hệ thống vẫn khởi động với secret hardcode. Bất kỳ ai biết string này đều có thể forge JWT hợp lệ.
+
+**Fix:** Nên throw lỗi tại startup nếu `JWT_SECRET` thiếu (đã có `env.validation.ts` — kiểm tra xem `JWT_SECRET` có bị bỏ qua trong validation không).
+
+---
+
+### 🟡 BUG-2: [register()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/authentication.controller.ts#162-165) — race condition khi 2 request đồng thời cùng email chưa verify
+
+**File:** [src/modules/authentication/authentication.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/authentication.service.ts) — dòng 214-248
+
+```ts
+const existingUser = await this.userRepository.findOne({ where: { email } });
+// ... nếu 2 request đồng thời đến đây, cả 2 đều thấy existingUser = null
+// → cả 2 đều tạo DB record → duplicate email có thể xảy ra
+```
+
+**Vấn đề:** Không có unique constraint race guard khi tạo user mới. Nếu DB unique constraint tồn tại thì chỉ throw 500, không phải 400.
+
+---
+
+### 🟡 BUG-3: Cookie path `/api/auth` có thể không khớp trên production reverse proxy
+
+**File:** [src/modules/authentication/authentication.controller.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/authentication.controller.ts) — dòng 89
+
+```ts
+path: '/api/auth',
+```
+
+**Vấn đề:** Nếu reverse proxy (nginx) strip prefix `/api`, cookie sẽ không được gửi kèm request. Trong Docker setup, frontend gọi `http://localhost:8000/api`, không qua proxy, nên local OK. Nhưng khi deploy production với nginx, có thể bug.
+
+---
+
+### 🔵 DESIGN-1: [changePassword](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/authentication.service.ts#644-680) không revoke refresh token của session hiện tại ngay lập tức
+
+**File:** [authentication.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/authentication.service.ts) — dòng 674
+
+```ts
+await this.userSessionRepository.revokeAllForUser(user.id);
+```
+
+Thực ra đây là đúng — revoke ALL sessions. Nhưng response trả về chỉ có message, **frontend không clear cookie + CSRF ngay** → client tiếp tục dùng cookie cũ cho đến hết TTL hoặc page reload. Kiểm tra frontend để confirm.
+
+---
+
+## Module 2: Document
+
+### 🟡 BUG-4: [searchDocuments](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1233-1342) - SQL injection tiềm ẩn qua `keyword` (LIKE không escape)
+
+**File:** [document.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts) — dòng 1268-1270
+
+```ts
+.andWhere(
+  'LOWER(...) LIKE LOWER(:query)',
+  { query: `%${keyword}%` }   // ← keyword chưa được escape
+)
+```
+
+**Vấn đề:** Khác với [getDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#945-1081) (có [escapeLikePattern](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#941-944)), [searchDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1233-1342) **không escape** ký tự `%`, `_`, `\` trong keyword. User nhập `%` hoặc `_` sẽ match bất kỳ document nào.
+
+**[getDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#945-1081) có đúng:**
+```ts
+const keywordPattern = `%${this.escapeLikePattern(normalizedKeyword)}%`;
+```
+
+**[searchDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1233-1342) thiếu:**
+```ts
+// dòng 1268-1270: dùng trực tiếp keyword không qua escapeLikePattern
+```
+
+**Fix:** Áp dụng [escapeLikePattern](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#941-944) trước khi đưa vào LIKE pattern.
+
+---
+
+### 🟡 BUG-5: [getDocumentsByFolder](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts#345-393) (FolderService) - Khác behavior với [getDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#945-1081) khi filter folder root
+
+**File:** [folder.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts) — dòng 371-376
+
+```ts
+if (!folder.parentId) {
+  query.andWhere('(folder.id = :folderId OR userDocument.folder IS NULL)', { folderId });
+} else {
+  query.andWhere('folder.id = :folderId', { folderId });
+}
+```
+
+**[getDocuments()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#945-1081) cùng logic (dòng 904-914 document.service.ts):**
+```ts
+if (!folder.parentId) {
+  queryBuilder.andWhere(
+    '("folder"."id" = :folderId OR "userDocument"."folder_id" IS NULL)', { folderId }
+  );
+}
+```
+
+Behavior nhất quán. Tuy nhiên trong [getDocumentsByFolder](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts#345-393), dùng `folder.id = :folderId` thay vì `"folder"."id"` — alias có thể conflict trong complex join. Cần verify.
+
+---
+
+### 🟡 BUG-6: [deleteDocument](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1082-1178) — xóa chunk trong loop N+1 query
+
+**File:** [document.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts) — dòng 1146-1157
+
+```ts
+for (const chunkId of chunkIds) {
+  const relatedDocs = await chunkRepo
+    .createQueryBuilder('chunk')
+    .leftJoin('chunk.documents', 'document')
+    .where('chunk.id = :chunkId', { chunkId })
+    .getCount();   // ← N query cho N chunks
+
+  if (relatedDocs === 1) {
+    chunksToDelete.push(chunkId);
+  }
+}
+
+for (const chunkId of chunksToDelete) {
+  await chunkRepo.delete({ id: chunkId });  // ← M query cho M chunks
+}
+```
+
+**Vấn đề:** Với document nhiều chunks, màn hình xóa sẽ rất chậm. Nên dùng 1 query bulk.
+
+**Fix:** Dùng một query tổng hợp tìm chunk chỉ gắn với document đang xóa, rồi bulk delete.
+
+---
+
+### 🟠 BUG-7: [getRelatedDocuments](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1343-1469) — load ALL documents của user vào memory trước khi rank
+
+**File:** [document.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts) — dòng 1379-1403
+
+```ts
+const matches = await this.dataSource
+  .createQueryBuilder(UserDocument, 'userDocument')
+  // không có LIMIT
+  .getMany();  // ← load toàn bộ thư viện
+
+const ranked = matches
+  .map(...)
+  .filter(...)
+  .sort(...)
+  .slice(0, limit);
+```
+
+**Vấn đề:** User có hàng trăm documents → load hết vào memory để rank trong JS. Nên dùng vector similarity thay vì keyword matching nếu đã có embedding, hoặc ít nhất thêm `LIMIT` sơ bộ.
+
+---
+
+### 🔵 DESIGN-2: [updateDocumentName](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1599-1625) không validate tên mới
+
+**File:** [document.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts) — dòng 1602-1623
+
+```ts
+userDocument.documentName = newName;  // newName có thể là '' hoặc '   '
+await this.dataSource.getRepository(UserDocument).save(userDocument);
+```
+
+Không kiểm tra `newName.trim()`. User có thể đặt tên document thành chuỗi trắng.
+
+---
+
+## Module 3: RAG / AI
+
+### 🟠 BUG-8: [rag-indexing.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-indexing.service.ts) — indexing loop không concurrent, rất chậm với document nhiều chunk
+
+**File:** [rag-indexing.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-indexing.service.ts) — dòng 54-68
+
+```ts
+for (const chunk of chunks) {       // ← sequential
+  const embeddingValues = await this.geminiService.createEmbedding(chunk.chunkText);
+  // ...
+  await this.chunkRepository.getRepository().save(chunk);
+}
+```
+
+**Vấn đề:** 20 chunks = 20 sequential API calls. Nên dùng `Promise.all` với concurrency limit (ví dụ 3 concurrent).
+
+---
+
+### 🟡 BUG-9: [rag-summary.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-summary.service.ts) — [normalizeSummary](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-summary.service.ts#368-417) không consistent: `body` là `null` hay `''`
+
+**File:** [rag-summary.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-summary.service.ts) — dòng 414
+
+```ts
+return {
+  // ...
+  format: 'structured',
+  body: null,    // ← null
+};
+```
+
+Nhưng type `StructuredDocumentSummary.body` có thể là `string | null`. Frontend cần xử lý cả hai trường hợp `null` và `''`.
+
+---
+
+### 🟡 BUG-10: Vector search SQL hardcode `SOURCE_SNIPPET_LENGTH = 280` thay vì dùng parameterized
+
+**File:** [rag-question-answering.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/rag/services/rag-question-answering.service.ts) — dòng 271
+
+```ts
+LEFT(c.chunk_text, ${SOURCE_SNIPPET_LENGTH}) AS "snippet",
+```
+
+String interpolation vào SQL — không nguy hiểm vì là constant number, nhưng không phải practice tốt.
+
+---
+
+## Module 4: Folder
+
+### 🟡 BUG-11: [updateFolder](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts#115-175) — duplicate name check với `parentId = null` có thể sai
+
+**File:** [folder.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts) — dòng 150-162
+
+```ts
+const duplicate = await this.folderRepository.findOne({
+  where: {
+    ownerId,
+    parentId: parentId ?? IsNull(),  // ← nếu parentId = undefined thì IsNull()
+    name: dto.name,
+  },
+});
+```
+
+**Vấn đề:** `parentId` là `string | null | undefined`. Nếu `parentId = undefined`, TypeORM sẽ query `parentId IS NULL` — check duplicate trong root folder dù folder đang được cập nhật có thể không ở root.
+
+---
+
+### 🔵 DESIGN-3: [getFolders()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts#41-67) — mỗi lần gọi đều [ensureRootFolder()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#387-402) tạo thêm DB call
+
+**File:** [folder.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/folder/folder.service.ts) — dòng 41-42
+
+```ts
+async getFolders(ownerId: string) {
+  await this.ensureRootFolder(ownerId);  // ← 1 SELECT + 1 INSERT nếu chưa có
+  const folders = await this.folderRepository.findByOwner(ownerId);  // ← 1 SELECT nữa
+```
+
+Mỗi `GET /folders` = 2 queries bất kể root folder đã tồn tại. Nên cache hoặc upsert.
+
+---
+
+## Module 5: Admin
+
+### 🟡 BUG-12: [listUsers](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/admin/admin.service.ts#76-124) — keyword search không escape LIKE pattern
+
+**File:** [admin.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/admin/admin.service.ts) — dòng 90-93
+
+```ts
+queryBuilder.andWhere(
+  "(LOWER(user.email) LIKE LOWER(:keyword) OR ...)",
+  { keyword: `%${keyword}%` }  // ← không escape
+);
+```
+
+Cùng vấn đề như BUG-4 — `%` và `_` trong keyword không được escape.
+
+---
+
+### 🟡 BUG-13: [updateUserStatus](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/admin/admin.service.ts#125-176) — không revoke session khi **unlock** user (chỉ revoke khi lock)
+
+**File:** [admin.service.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/admin/admin.service.ts) — dòng 165-167
+
+```ts
+if (!dto.isActive) {
+  await this.userSessionRepository.revokeAllForUser(targetUser.id);
+}
+// Khi unlock: không làm gì với session
+```
+
+Behavior đúng về mặt logic (unlock không cần revoke session). Nhưng nếu user bị lock → các session cũ bị revoke → khi unlock xong, user phải đăng nhập lại. Nên document rõ cho UX.
+
+---
+
+## Module 6: Frontend (apiClient.js)
+
+### 🟡 BUG-14: Race condition khi refresh token — `_retry` flag không bảo vệ đủ
+
+**File:** [studyVault-frontend/src/services/apiClient.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js) — dòng 174-194
+
+```js
+if (error.response?.status === 401 && !originalRequest._retry && !isAuthFlowRequest(...)) {
+  const hadToken = Boolean(getToken());
+  if (hadToken) {
+    originalRequest._retry = true;
+    try {
+      const accessToken = await refreshAccessToken();
+      // retry
+    } catch {
+      redirectToLoginAfterSessionExpiry();
+      // ← không return Promise.reject(error)
+    }
+  }
+}
+return Promise.reject(error);
+```
+
+**Vấn đề:** Khi [refreshAccessToken()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js#104-133) thất bại, hàm gọi [redirectToLoginAfterSessionExpiry()](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js#87-103) nhưng không `return Promise.reject(...)` trong catch block → ngầm fall through đến `return Promise.reject(error)` bên ngoài — behavior đúng nhưng confusing, có thể gây double rejection nếu redirect không work.
+
+---
+
+### 🟡 BUG-15: `apiClient` request interceptor — nếu không có CSRF token, request vẫn được gửi không có Authorization
+
+**File:** [apiClient.js](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/services/apiClient.js) — dòng 142-145
+
+```js
+if (!activeToken || isTokenExpired()) {
+  if (!getCsrfToken()) {
+    return config;  // ← trả về config không có Bearer token
+  }
+  // ...
+}
+```
+
+**Vấn đề:** Nếu không có CSRF token (session mới hoàn toàn, chưa login), request được gửi đi không có token và không có error → server trả 401 → response interceptor xử lý. Đây là intentional nhưng không có comment giải thích.
+
+---
+
+### 🔵 DESIGN-4: Frontend WorkspacePage — [searchDocuments](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1233-1342) không có debounce visible
+
+**File:** [WorkspacePage.jsx](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-frontend/src/pages/WorkspacePage.jsx)
+
+Keyword search dùng URL query params (sync qua Enter/button), không phải live search → OK. Nhưng `searchInput` state và `keyword` URL param không được clear đồng bộ khi người dùng xóa search → minor UX issue.
+
+---
+
+## Module 7: Security / Config
+
+### 🟠 BUG-16: JWT Strategy validate session trên **mỗi protected request** — không có cache
+
+**File:** [jwt.strategy.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/authentication/jwt/jwt.strategy.ts) — dòng 28-39
+
+```ts
+const user = await this.userRepository.findById(payload.sub);    // DB call
+const session = await this.userSessionRepository.findActiveById(payload.sid);  // DB call
+```
+
+Mỗi protected API request = 2 DB queries để validate JWT. Với JWT 15 phút, hàng trăm request/phút sẽ tạo áp lực DB đáng kể. Nên có in-memory cache ngắn hạn (30-60s) cho session validation.
+
+---
+
+### 🟡 BUG-17: Rate limiter in-memory — sẽ bị bypass khi restart container
+
+**File:** [main.ts](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/main.ts) + `rate-limit.middleware.ts`
+
+Rate limit dùng Map in-memory → mỗi lần restart Docker container (build lại) = reset counter. Trong quá trình demo nhiều lần build lại, rate limit không còn hiệu quả.
+
+---
+
+## Tóm Tắt
+
+| Mức độ | Số lượng | Bug IDs |
+|---|---|---|
+| 🔴 Critical | 0 | — |
+| 🟠 Medium | 4 | BUG-1, BUG-7, BUG-8, BUG-16 |
+| 🟡 Minor | 11 | BUG-2,3,4,5,6,9,10,11,12,13,14,15,17 |
+| 🔵 Design | 4 | DESIGN-1,2,3,4 |
+
+### Ưu tiên fix trước demo
+
+1. **BUG-4** ([searchDocuments](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1233-1342) LIKE không escape) — ảnh hưởng user experience
+2. **BUG-7** ([getRelatedDocuments](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1343-1469) load all) — performance risk với nhiều docs
+3. **BUG-12** (Admin keyword search LIKE không escape) — consistency
+4. **DESIGN-2** ([updateDocumentName](file:///c:/Users/ndvng/Desktop/iwsFinal/studyVault-backend/src/modules/document/document.service.ts#1599-1625) không validate trim) — dễ fix, ít rủi ro

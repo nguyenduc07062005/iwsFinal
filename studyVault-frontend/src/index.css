@@ -9,10 +9,13 @@
     color-scheme: light;
     --font-serif: 'Playfair Display', serif;
     --color-brand-50: #fff5f2;
-    --color-brand-100: #ffe8e3;
-    --color-brand-500: #f08c7a;
-    --color-brand-600: #e37361;
-    --color-brand-900: #b85a4d;
+    --color-brand-100: #ffe0d8;
+    --color-brand-200: #ead2c9;
+    --color-brand-500: #e56f56;
+    --color-brand-600: #d86b54;
+    --color-brand-800: #6f3f3b;
+    --color-brand-900: #9b3f36;
+    --color-dark: #1f2a44;
     --color-accent: #b87333;
     --color-base-50: #faf9f6;
     --color-base-100: #f5f2eb;
@@ -44,6 +47,7 @@
     --sks-primary: var(--color-brand-500);
     --sks-primary-dark: var(--color-brand-900);
     --sks-primary-light: var(--color-brand-50);
+    --sks-dark: var(--color-dark);
     --sks-accent: var(--color-accent);
     --sks-shadow-sm: var(--shadow-soft);
     --sks-shadow-md: var(--shadow-medium);

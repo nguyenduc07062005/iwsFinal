@@ -24,6 +24,9 @@ import { cn } from '@/lib/utils.js';
 
 const MotionDiv = motion.div;
 
+/** Matches Tailwind `brand-900` token */
+const DEFAULT_TAG_COLOR = '#9b3f36';
+
 export const getFileExtension = (doc) => {
   const source = doc?.title || doc?.fileRef || '';
   const parts = source.split('.');
@@ -137,7 +140,7 @@ const DropdownActions = ({
   const [isOpen, setIsOpen] = useState(false);
   const [showTagPanel, setShowTagPanel] = useState(false);
   const [newTagName, setNewTagName] = useState('');
-  const [newTagColor, setNewTagColor] = useState('#9b3f36');
+  const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLOR);
   const [tagSaving, setTagSaving] = useState(false);
   const [tagError, setTagError] = useState('');
   const menuRef = useRef(null);
@@ -145,9 +148,9 @@ const DropdownActions = ({
   const hasTagActions = Boolean(onUpdateDocumentTags && (tagOptions.length > 0 || onCreateTag));
   const hasMoreActions = Boolean(
     onRenameDocument ||
-      onMoveDocument ||
-      onDeleteDocument ||
-      hasTagActions,
+    onMoveDocument ||
+    onDeleteDocument ||
+    hasTagActions,
   );
 
   useEffect(() => {
@@ -211,7 +214,7 @@ const DropdownActions = ({
       }
 
       setNewTagName('');
-      setNewTagColor('#9b3f36');
+      setNewTagColor(DEFAULT_TAG_COLOR);
     } catch {
       setTagError('The tag could not be created. Please check the name and try again.');
     } finally {
@@ -469,7 +472,7 @@ const TagBadges = ({ tags = [] }) => {
         <span
           key={tag.id}
           className="inline-flex max-w-[150px] items-center rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-white shadow-sm"
-          style={{ backgroundColor: tag.color || '#9b3f36' }}
+          style={{ backgroundColor: tag.color || DEFAULT_TAG_COLOR }}
           title={tag.type === 'SUBJECT' ? `Subject: ${tag.name}` : tag.name}
         >
           <span className="truncate">

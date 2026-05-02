@@ -117,6 +117,10 @@ export class FolderService {
 
     let parentId = folder.parentId;
     if (dto.parentId !== undefined) {
+      if (!folder.parentId) {
+        throw new BadRequestException('Cannot move root folder');
+      }
+
       if (dto.parentId === dto.folderId) {
         throw new BadRequestException('Folder cannot be its own parent');
       }
@@ -127,6 +131,17 @@ export class FolderService {
 
       if (!parent) {
         throw new BadRequestException('Invalid parent folder');
+      }
+
+      const isDescendant = await this.isDescendant(
+        dto.folderId,
+        dto.parentId,
+        ownerId,
+      );
+      if (isDescendant) {
+        throw new BadRequestException(
+          'Cannot move folder into one of its descendants',
+        );
       }
 
       parentId = dto.parentId;

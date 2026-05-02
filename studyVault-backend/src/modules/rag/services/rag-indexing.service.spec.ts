@@ -71,4 +71,41 @@ describe('RagIndexingService', () => {
       status: 'ai_failed',
     });
   });
+
+  it('starts multiple chunk embeddings without waiting for the first chunk to finish', async () => {
+    let resolveFirstEmbedding:
+      | ((embedding: number[] | PromiseLike<number[]>) => void)
+      | undefined;
+    const firstEmbedding = new Promise<number[]>((resolve) => {
+      resolveFirstEmbedding = resolve;
+    });
+    documentRepository.findOne.mockResolvedValue({
+      id: 'doc-1',
+      chunks: [
+        {
+          id: 'chunk-1',
+          chunkIndex: 0,
+          chunkText: 'First chunk',
+          embedding: null,
+        },
+        {
+          id: 'chunk-2',
+          chunkIndex: 1,
+          chunkText: 'Second chunk',
+          embedding: null,
+        },
+      ],
+    });
+    geminiService.createEmbedding
+      .mockReturnValueOnce(firstEmbedding)
+      .mockResolvedValueOnce([0.2]);
+
+    const indexing = service.ensureDocumentIndexed('doc-1');
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(geminiService.createEmbedding).toHaveBeenCalledTimes(2);
+
+    resolveFirstEmbedding?.([0.1]);
+    await indexing;
+  });
 });

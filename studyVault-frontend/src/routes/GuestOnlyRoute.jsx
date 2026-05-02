@@ -1,8 +1,8 @@
 import { Navigate, Outlet } from 'react-router-dom';
-import { hasValidAccessToken } from '../utils/auth.js';
+import { isAuthenticated } from '../utils/auth.js';
 
 const GuestOnlyRoute = () => {
-  if (hasValidAccessToken()) {
+  if (isAuthenticated()) {
     return <Navigate to="/app" replace />;
   }
 

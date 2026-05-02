@@ -58,9 +58,12 @@ export class UserSessionRepository extends BaseRepository<UserSession> {
   ): Promise<UserSession | null> {
     return this.dataSource.transaction(async (manager) => {
       const repository = manager.getRepository(UserSession);
+      const now = new Date();
       const currentSession = await repository.findOne({
         where: {
           id: sessionId,
+          revokedAt: IsNull(),
+          refreshTokenExpiresAt: MoreThan(now),
         },
       });
 
@@ -68,11 +71,21 @@ export class UserSessionRepository extends BaseRepository<UserSession> {
         return null;
       }
 
-      const now = new Date();
-      await repository.update(sessionId, {
-        revokedAt: now,
-        lastUsedAt: now,
-      });
+      const revokeResult = await repository.update(
+        {
+          id: sessionId,
+          revokedAt: IsNull(),
+          refreshTokenExpiresAt: MoreThan(now),
+        },
+        {
+          revokedAt: now,
+          lastUsedAt: now,
+        },
+      );
+
+      if ((revokeResult.affected ?? 0) !== 1) {
+        return null;
+      }
 
       const nextSession = repository.create({
         userId: currentSession.userId,

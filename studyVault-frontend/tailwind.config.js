@@ -5,20 +5,24 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#faebe8',
-          100: '#f4d6d0',
-          500: '#e2725b',
-          600: '#cc6652',
-          900: '#8c4238',
+          50: '#fff5f2',
+          100: '#ffe0d8',
+          200: '#ead2c9',
+          500: '#e56f56',
+          600: '#d86b54',
+          700: '#c05848',
+          800: '#6f3f3b',
+          900: '#9b3f36',
         },
+        dark: '#1f2a44',
         base: {
           50: '#faf9f6',
           100: '#f5f2eb',
         },
         accent: '#b87333',
-        'sks-primary': '#e2725b',
-        'sks-primary-dark': '#8c4238',
-        'sks-primary-light': '#faebe8',
+        'sks-primary': '#e56f56',
+        'sks-primary-dark': '#9b3f36',
+        'sks-primary-light': '#fff5f2',
         'sks-accent': '#b87333',
         'sks-slate': {
           50: '#faf9f6',
@@ -43,7 +47,7 @@ export default {
         'sks-soft': '0 18px 45px -28px rgba(45, 44, 47, 0.22)',
         'sks-medium': '0 22px 60px -30px rgba(45, 44, 47, 0.28)',
         'sks-heavy': '0 28px 70px -40px rgba(45, 44, 47, 0.32)',
-        'sks-glow': '0 22px 55px -28px rgba(140, 66, 56, 0.42)',
+        'sks-glow': '0 22px 55px -28px rgba(155, 63, 54, 0.42)',
       },
       borderRadius: {
         'sks-xl': '1.1rem',

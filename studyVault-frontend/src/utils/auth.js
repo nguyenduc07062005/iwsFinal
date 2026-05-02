@@ -271,3 +271,10 @@ export const logout = ({
     });
   }
 };
+
+export const finishPasswordChangeSessionReset = () => {
+  logout({
+    message: "Password updated successfully. Please sign in again.",
+    announce: true,
+  });
+};

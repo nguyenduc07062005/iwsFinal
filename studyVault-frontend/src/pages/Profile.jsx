@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -19,7 +19,7 @@ import {
   postLogout,
   updateProfile,
 } from "../service/authAPI.js";
-import { logout } from "../utils/auth.js";
+import { finishPasswordChangeSessionReset, logout } from "../utils/auth.js";
 import {
   isStrongPassword,
   PASSWORD_POLICY_MESSAGE,
@@ -28,7 +28,7 @@ import {
 const MotionDiv = motion.div;
 
 const inputClass =
-  "w-full rounded-2xl border border-white/75 bg-white/82 px-4 py-3 text-sm font-bold text-slate-800 outline-none shadow-sm transition-all placeholder:text-slate-400 focus:border-[#d86b54] focus:bg-white focus:ring-4 focus:ring-[#d86b54]/14";
+  "w-full rounded-2xl border border-white/75 bg-white/82 px-4 py-3 text-sm font-bold text-slate-800 outline-none shadow-sm transition-all placeholder:text-slate-400 focus:border-brand-600 focus:bg-white focus:ring-4 focus:ring-brand-600/14";
 
 const readOnlyClass =
   "flex min-h-[48px] items-center gap-3 rounded-2xl border border-white/75 bg-white/58 px-4 text-sm font-bold text-slate-600 shadow-sm";
@@ -56,7 +56,7 @@ const InfoPill = ({ icon, label, value }) => {
   return (
     <div className="rounded-[1.35rem] border border-white/70 bg-white/66 p-4 shadow-sm backdrop-blur-xl">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-[#9b3f36] shadow-sm">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-brand-900 shadow-sm">
           <IconComponent size={18} />
         </span>
         <div className="min-w-0">
@@ -239,10 +239,8 @@ const Profile = () => {
       });
       setPasswordOpen(false);
       setPasswordFeedback(null);
-      setPageFeedback({
-        tone: "success",
-        message: "Password updated successfully. Please sign in again",
-      });
+      finishPasswordChangeSessionReset();
+      navigate("/login", { replace: true });
     } catch (requestError) {
       setPasswordFeedback({
         tone: "error",
@@ -292,7 +290,7 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={() => navigate("/app")}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/82 text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-[#9b3f36]"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white/82 text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
                   aria-label="Back to workspace"
                 >
                   <ArrowLeft size={18} />
@@ -300,7 +298,7 @@ const Profile = () => {
                 <button
                   type="button"
                   onClick={() => void handleLogout()}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#9b3f36] px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+                  className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-4 py-2.5 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
                 >
                   <LogOut size={16} />
                   Sign out
@@ -315,7 +313,7 @@ const Profile = () => {
                     className="h-20 w-20 shrink-0 rounded-[1.6rem] border-4 border-white object-cover shadow-xl"
                   />
                   <div className="min-w-0">
-                    <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#9b3f36] shadow-sm">
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-brand-900 shadow-sm">
                       <ShieldCheck size={13} />
                       Personal profile
                     </div>
@@ -331,14 +329,6 @@ const Profile = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setPasswordOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-[#1f2a44] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#1f2a44]/18 transition-all hover:-translate-y-0.5"
-                >
-                  <KeyRound size={16} />
-                  Change password
-                </button>
               </div>
             </div>
           </div>
@@ -346,7 +336,7 @@ const Profile = () => {
           <div className="p-5 sm:p-7">
             {loading ? (
               <div className="flex min-h-[280px] items-center justify-center">
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/70 border-t-[#9b3f36]" />
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/70 border-t-brand-900" />
               </div>
             ) : error ? (
               <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
@@ -356,7 +346,7 @@ const Profile = () => {
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
                 <section className="rounded-[1.75rem] border border-white/70 bg-white/56 p-5 shadow-sm backdrop-blur-xl">
                   <div className="mb-5">
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#d86b54]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-600">
                       Display information
                     </p>
                   </div>
@@ -394,7 +384,7 @@ const Profile = () => {
                     <button
                       type="submit"
                       disabled={profileSaving}
-                      className="inline-flex items-center gap-2 rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Save size={16} />
                       {profileSaving ? "Saving..." : "Save changes"}
@@ -416,7 +406,7 @@ const Profile = () => {
 
                   <div className="rounded-[1.75rem] border border-white/70 bg-white/54 p-5 shadow-sm backdrop-blur-xl">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#1f2a44] text-white shadow-lg shadow-[#1f2a44]/12">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-dark text-white shadow-lg shadow-dark/12">
                         <KeyRound size={18} />
                       </span>
                       <div>
@@ -432,7 +422,7 @@ const Profile = () => {
                     <button
                       type="button"
                       onClick={() => setPasswordOpen(true)}
-                      className="mt-4 w-full rounded-full bg-white px-4 py-3 text-sm font-extrabold text-[#1f2a44] shadow-sm transition-all hover:-translate-y-0.5 hover:bg-[#1f2a44] hover:text-white"
+                      className="mt-4 w-full rounded-full bg-white px-4 py-3 text-sm font-extrabold text-dark shadow-sm transition-all hover:-translate-y-0.5 hover:bg-dark hover:text-white"
                     >
                       Change password
                     </button>
@@ -455,11 +445,11 @@ const Profile = () => {
             >
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#1f2a44] text-white shadow-lg shadow-[#1f2a44]/16">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-dark text-white shadow-lg shadow-dark/16">
                     <KeyRound size={19} />
                   </span>
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#d86b54]">
+                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-brand-600">
                       Security
                     </p>
                     <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
@@ -537,7 +527,7 @@ const Profile = () => {
                 <button
                   type="submit"
                   disabled={passwordSaving}
-                  className="mt-2 w-full rounded-full bg-[#1f2a44] px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-[#1f2a44]/16 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="mt-2 w-full rounded-full bg-dark px-4 py-3 text-sm font-extrabold text-white shadow-lg shadow-dark/16 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {passwordSaving ? "Updating..." : "Update password"}
                 </button>

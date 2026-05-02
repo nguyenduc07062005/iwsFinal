@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Bot,
@@ -42,6 +42,7 @@ import {
 } from '../service/ragAPI.js';
 import { cn } from '../lib/utils.js';
 import { getApiErrorMessage } from '../utils/apiError.js';
+import { getSafeWorkspaceReturnPath } from '../utils/workspaceNavigation.js';
 
 const MotionDiv = motion.div;
 
@@ -119,7 +120,7 @@ const buildDocxPreviewDocument = (bodyHtml) => `<!doctype html>
         height: auto;
       }
       a {
-        color: #9b3f36;
+        color: var(--color-brand-900);
       }
       @media (max-width: 720px) {
         body { padding: 28px; }
@@ -149,7 +150,7 @@ const markdownComponents = {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="font-bold text-[#9b3f36] underline underline-offset-4"
+      className="font-bold text-brand-900 underline underline-offset-4"
     >
       {children}
     </a>
@@ -169,7 +170,7 @@ const ActionButton = ({ children, className, label, onClick }) => (
     title={label}
     onClick={onClick}
     className={cn(
-      'inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 bg-white/82 text-slate-500 shadow-sm backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white hover:text-[#9b3f36] hover:shadow-md',
+      'inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/70 bg-white/82 text-slate-500 shadow-sm backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white hover:text-brand-900 hover:shadow-md',
       className,
     )}
   >
@@ -179,7 +180,7 @@ const ActionButton = ({ children, className, label, onClick }) => (
 
 const LoadingBlock = ({ label = 'Loading data...' }) => (
   <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-4 text-center">
-    <Loader2 className="h-9 w-9 animate-spin text-[#9b3f36]" />
+    <Loader2 className="h-9 w-9 animate-spin text-brand-900" />
     <p className="text-sm font-bold text-slate-500">{label}</p>
   </div>
 );
@@ -189,7 +190,7 @@ const EmptyState = ({ icon = FileText, title, description, action }) => {
 
   return (
     <div className="flex min-h-[300px] flex-col items-center justify-center rounded-[2rem] border border-dashed border-white/80 bg-white/48 px-6 py-10 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-[#9b3f36] shadow-sm">
+      <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-white text-brand-900 shadow-sm">
         <EmptyIcon className="h-7 w-7" />
       </div>
       <h3 className="mt-5 text-xl font-black tracking-tight text-slate-900">{title}</h3>
@@ -212,7 +213,7 @@ const RelatedCard = ({ document, onOpen }) => {
         {file.label}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-black text-slate-900 transition-colors group-hover:text-[#9b3f36]">
+        <p className="truncate text-sm font-black text-slate-900 transition-colors group-hover:text-brand-900">
           {document.title}
         </p>
         <p className="mt-1 truncate text-xs font-semibold text-slate-500">
@@ -224,10 +225,12 @@ const RelatedCard = ({ document, onOpen }) => {
 };
 
 const DocumentViewer = () => {
+  const location = useLocation();
   const navigate = useNavigate();
   const { id: documentId } = useParams();
   const { clearDocViewer } = useDocViewer();
   const fileUrlRef = useRef('');
+  const loadRequestIdRef = useRef(0);
 
   const [activeTab, setActiveTab] = useState('study');
   const [selectedLanguage, setSelectedLanguage] = useState('en');
@@ -265,6 +268,13 @@ const DocumentViewer = () => {
   const [noteSaving, setNoteSaving] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState('');
   const [editingNoteContent, setEditingNoteContent] = useState('');
+  const workspaceReturnPath = useMemo(
+    () => getSafeWorkspaceReturnPath(location.state?.returnTo),
+    [location.state],
+  );
+  const handleBackToWorkspace = useCallback(() => {
+    navigate(workspaceReturnPath, { replace: true });
+  }, [navigate, workspaceReturnPath]);
 
   const cleanupFileUrl = useCallback(() => {
     if (fileUrlRef.current) {
@@ -389,6 +399,9 @@ const DocumentViewer = () => {
   const loadViewer = useCallback(async () => {
     if (!documentId) return;
 
+    const requestId = ++loadRequestIdRef.current;
+    const isStaleViewerLoad = () => requestId !== loadRequestIdRef.current;
+
     try {
       setLoading(true);
       setViewerError('');
@@ -397,15 +410,28 @@ const DocumentViewer = () => {
       cleanupFileUrl();
 
       const detailResult = await getDocumentDetails(documentId);
+      if (isStaleViewerLoad()) return;
       setDocumentData(detailResult.document);
 
       void getRelatedDocuments(documentId)
-        .then((result) => setRelatedDocuments(result.documents || []))
-        .catch(() => setRelatedDocuments([]));
+        .then((result) => {
+          if (!isStaleViewerLoad()) {
+            setRelatedDocuments(result.documents || []);
+          }
+        })
+        .catch(() => {
+          if (!isStaleViewerLoad()) {
+            setRelatedDocuments([]);
+          }
+        });
 
       try {
         const { blob, contentType: nextContentType } = await fetchDocumentFile(documentId);
         const nextFileUrl = URL.createObjectURL(blob);
+        if (requestId !== loadRequestIdRef.current) {
+          URL.revokeObjectURL(nextFileUrl);
+          return;
+        }
         const file = getFilePresentation(detailResult.document || { title: '', fileRef: '' });
         const resolvedContentType = nextContentType || blob.type || '';
         fileUrlRef.current = nextFileUrl;
@@ -414,9 +440,11 @@ const DocumentViewer = () => {
 
         if (isDocxPreviewType(resolvedContentType, file.extension)) {
           const preview = await fetchDocumentPreviewHtml(documentId);
+          if (isStaleViewerLoad()) return;
           setDocxPreviewHtml(preview.html || '');
         }
       } catch (previewRequestError) {
+        if (isStaleViewerLoad()) return;
         setPreviewError(
           getApiErrorMessage(
             previewRequestError,
@@ -425,6 +453,7 @@ const DocumentViewer = () => {
         );
       }
     } catch (error) {
+      if (isStaleViewerLoad()) return;
       setViewerError(
         getApiErrorMessage(
           error,
@@ -432,7 +461,9 @@ const DocumentViewer = () => {
         ),
       );
     } finally {
-      setLoading(false);
+      if (!isStaleViewerLoad()) {
+        setLoading(false);
+      }
     }
   }, [cleanupFileUrl, documentId]);
 
@@ -441,6 +472,7 @@ const DocumentViewer = () => {
     void loadNotes();
 
     return () => {
+      loadRequestIdRef.current += 1;
       cleanupFileUrl();
       clearDocViewer?.();
     };
@@ -628,124 +660,124 @@ const DocumentViewer = () => {
 
   const renderStudy = () => (
     <div className="space-y-4">
-        <section className="rounded-[1.45rem] border border-white/82 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
-          <p className="text-[11px] font-black uppercase tracking-[0.17em] text-[#9b3f36]">
-            My study notes
-          </p>
-          <textarea
-            value={noteContent}
-            onChange={(event) => setNoteContent(event.target.value)}
-            rows={3}
-            placeholder="Write a note for this document..."
-            className="mt-3 w-full resize-none rounded-[1.1rem] border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand-200 focus:bg-white focus:ring-2 focus:ring-brand-500/15"
-          />
-          <div className="mt-2 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void handleCreateNote()}
-              disabled={!noteContent.trim() || noteSaving}
-              className="rounded-full bg-[#1f2a44] px-4 py-2 text-xs font-black text-white shadow-lg shadow-[#1f2a44]/16 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
-            >
-              Save note
-            </button>
-          </div>
+      <section className="rounded-[1.45rem] border border-white/82 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
+        <p className="text-[11px] font-black uppercase tracking-[0.17em] text-brand-900">
+          My study notes
+        </p>
+        <textarea
+          value={noteContent}
+          onChange={(event) => setNoteContent(event.target.value)}
+          rows={3}
+          placeholder="Write a note for this document..."
+          className="mt-3 w-full resize-none rounded-[1.1rem] border border-slate-100 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand-200 focus:bg-white focus:ring-2 focus:ring-brand-500/15"
+        />
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => void handleCreateNote()}
+            disabled={!noteContent.trim() || noteSaving}
+            className="rounded-full bg-dark px-4 py-2 text-xs font-black text-white shadow-lg shadow-dark/16 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            Save note
+          </button>
+        </div>
 
-          {noteError ? (
-            <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-              {noteError}
+        {noteError ? (
+          <div className="mt-3 rounded-2xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
+            {noteError}
+          </div>
+        ) : null}
+
+        <div className="mt-4 space-y-3">
+          {notesLoading ? (
+            <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
+              Loading notes...
             </div>
           ) : null}
 
-          <div className="mt-4 space-y-3">
-            {notesLoading ? (
-              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-500">
-                Loading notes...
-              </div>
-            ) : null}
+          {!notesLoading && studyNotes.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm font-semibold text-slate-500">
+              No notes yet.
+            </div>
+          ) : null}
 
-            {!notesLoading && studyNotes.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm font-semibold text-slate-500">
-                No notes yet.
-              </div>
-            ) : null}
-
-            {studyNotes.map((note) => {
-              const editing = editingNoteId === note.id;
-              return (
-                <article
-                  key={note.id}
-                  className="rounded-[1.2rem] border border-white/80 bg-white px-4 py-3 shadow-sm"
-                >
-                  {editing ? (
-                    <textarea
-                      value={editingNoteContent}
-                      onChange={(event) => setEditingNoteContent(event.target.value)}
-                      rows={3}
-                      className="w-full resize-none rounded-[1rem] border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold leading-6 text-slate-700 outline-none focus:border-brand-200 focus:bg-white"
-                    />
-                  ) : (
-                    <p className="whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-700">
-                      {note.content}
-                    </p>
-                  )}
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-bold text-slate-400">
-                      {new Date(note.updatedAt || note.createdAt).toLocaleDateString('vi-VN')}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {editing ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleUpdateNote(note.id)}
-                            className="rounded-full bg-[#9b3f36] px-3 py-1.5 text-xs font-black text-white"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingNoteId('');
-                              setEditingNoteContent('');
-                            }}
-                            className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingNoteId(note.id);
-                              setEditingNoteContent(note.content);
-                            }}
-                            aria-label="Edit note"
-                            title="Edit note"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-brand-50 hover:text-brand-600"
-                          >
-                            <PencilLine size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDeleteNote(note.id)}
-                            aria-label="Delete note"
-                            title="Delete note"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </>
-                      )}
-                    </div>
+          {studyNotes.map((note) => {
+            const editing = editingNoteId === note.id;
+            return (
+              <article
+                key={note.id}
+                className="rounded-[1.2rem] border border-white/80 bg-white px-4 py-3 shadow-sm"
+              >
+                {editing ? (
+                  <textarea
+                    value={editingNoteContent}
+                    onChange={(event) => setEditingNoteContent(event.target.value)}
+                    rows={3}
+                    className="w-full resize-none rounded-[1rem] border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold leading-6 text-slate-700 outline-none focus:border-brand-200 focus:bg-white"
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm font-semibold leading-6 text-slate-700">
+                    {note.content}
+                  </p>
+                )}
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold text-slate-400">
+                    {new Date(note.updatedAt || note.createdAt).toLocaleDateString('vi-VN')}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    {editing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void handleUpdateNote(note.id)}
+                          className="rounded-full bg-brand-900 px-3 py-1.5 text-xs font-black text-white"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoteId('');
+                            setEditingNoteContent('');
+                          }}
+                          className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoteId(note.id);
+                            setEditingNoteContent(note.content);
+                          }}
+                          aria-label="Edit note"
+                          title="Edit note"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-brand-50 hover:text-brand-600"
+                        >
+                          <PencilLine size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteNote(note.id)}
+                          aria-label="Delete note"
+                          title="Delete note"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </>
+                    )}
                   </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </div>
   );
 
   const renderSummary = () => {
@@ -771,11 +803,11 @@ const DocumentViewer = () => {
               'rounded-full px-3 py-1.5 text-[11px] font-black uppercase transition-all',
               selectedLanguage === language.value
                 ? variant === 'dark'
-                  ? 'bg-white text-[#9b3f36] shadow-sm'
-                  : 'bg-[#9b3f36] text-white shadow-sm'
+                  ? 'bg-white text-brand-900 shadow-sm'
+                  : 'bg-brand-900 text-white shadow-sm'
                 : variant === 'dark'
                   ? 'text-white/62 hover:text-white'
-                  : 'text-slate-500 hover:text-[#9b3f36]',
+                  : 'text-slate-500 hover:text-brand-900',
             )}
           >
             {language.label}
@@ -808,7 +840,7 @@ const DocumentViewer = () => {
               <button
                 type="button"
                 onClick={() => void generateSummary(selectedLanguage)}
-                className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+                className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
               >
                 Generate summary
               </button>
@@ -830,7 +862,7 @@ const DocumentViewer = () => {
               <button
                 type="button"
                 onClick={() => void generateSummary(selectedLanguage)}
-                className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+                className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
               >
                 Generate {selectedLanguageOption.label} summary
               </button>
@@ -842,7 +874,7 @@ const DocumentViewer = () => {
 
     return (
       <div className="space-y-3">
-        <div className="overflow-hidden rounded-[1.45rem] bg-gradient-to-br from-[#1f2a44] via-[#6f3f3b] to-[#e56f56] p-4 text-white shadow-xl shadow-[#1f2a44]/14">
+        <div className="overflow-hidden rounded-[1.45rem] bg-gradient-to-br from-dark via-brand-800 to-brand-500 p-4 text-white shadow-xl shadow-dark/14">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/62">
@@ -860,7 +892,7 @@ const DocumentViewer = () => {
                 aria-label="Regenerate summary"
                 title="Regenerate summary"
                 onClick={() => void generateSummary(selectedLanguage, { forceRefresh: true })}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/16 text-white/70 ring-1 ring-white/18 transition-colors hover:bg-white hover:text-[#9b3f36]"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-white/16 text-white/70 ring-1 ring-white/18 transition-colors hover:bg-white hover:text-brand-900"
               >
                 <RefreshCcw size={14} />
               </button>
@@ -870,7 +902,7 @@ const DocumentViewer = () => {
 
         {summaryBody ? (
           <div className="rounded-[1.45rem] border border-white/82 bg-white/84 p-4 shadow-sm backdrop-blur-xl">
-            <p className="mb-3 inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.17em] text-[#9b3f36]">
+            <p className="mb-3 inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.17em] text-brand-900">
               <Sparkles size={13} />
               Summary
             </p>
@@ -895,23 +927,23 @@ const DocumentViewer = () => {
               Key points
             </p>
             <div className="space-y-2">
-            {keyPoints.map((point, index) => (
-              <div
-                key={`${index}-${String(point).slice(0, 20)}`}
-                className="group flex gap-3 rounded-[1.1rem] bg-white/82 p-3 text-sm leading-7 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-white"
-              >
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#9b3f36] text-[11px] font-black text-white shadow-sm">
-                  {index + 1}
-                </span>
-                <span className="font-semibold text-slate-700">{point}</span>
-              </div>
-            ))}
+              {keyPoints.map((point, index) => (
+                <div
+                  key={`${index}-${String(point).slice(0, 20)}`}
+                  className="group flex gap-3 rounded-[1.1rem] bg-white/82 p-3 text-sm leading-7 text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-white"
+                >
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-900 text-[11px] font-black text-white shadow-sm">
+                    {index + 1}
+                  </span>
+                  <span className="font-semibold text-slate-700">{point}</span>
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
 
         {summaryConclusion ? (
-          <div className="rounded-[1.45rem] bg-gradient-to-br from-[#1f2a44] to-[#9b3f36] p-4 text-white shadow-xl shadow-[#1f2a44]/14">
+          <div className="rounded-[1.45rem] bg-gradient-to-br from-dark to-brand-900 p-4 text-white shadow-xl shadow-dark/14">
             <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/60">
               Conclusion
             </p>
@@ -927,7 +959,7 @@ const DocumentViewer = () => {
       {askHistory.length > 0 ? (
         <div className="mb-3 flex items-center justify-between rounded-[1.1rem] border border-white/82 bg-white/70 px-3 py-2 shadow-sm backdrop-blur-xl">
           <div className="flex min-w-0 items-center gap-2">
-            <Bot size={15} className="shrink-0 text-[#9b3f36]" />
+            <Bot size={15} className="shrink-0 text-brand-900" />
             <h3 className="truncate text-xs font-black uppercase tracking-[0.14em] text-slate-500">
               Conversation
             </h3>
@@ -952,7 +984,7 @@ const DocumentViewer = () => {
         {!askHistoryLoading && askHistory.length === 0 ? (
           <div className="rounded-[1.45rem] border border-white/82 bg-white/68 p-4 shadow-sm backdrop-blur-xl">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9b3f36]/10 text-[#9b3f36]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-brand-900/10 text-brand-900">
                 <MessageSquare size={18} />
               </div>
               <div>
@@ -968,7 +1000,7 @@ const DocumentViewer = () => {
                   key={question}
                   type="button"
                   onClick={() => setAskQuestion(question)}
-                  className="rounded-full border border-white/80 bg-white/82 px-3 py-2 text-left text-xs font-black text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-[#9b3f36]"
+                  className="rounded-full border border-white/80 bg-white/82 px-3 py-2 text-left text-xs font-black text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
                 >
                   {question}
                 </button>
@@ -980,12 +1012,12 @@ const DocumentViewer = () => {
         {askHistory.map((item) => (
           <div key={item.id} className="space-y-3">
             <div className="flex justify-end">
-              <div className="max-w-[86%] rounded-[1.25rem] rounded-tr-sm bg-[#1f2a44] px-4 py-3 text-sm font-semibold leading-7 text-white shadow-md">
+              <div className="max-w-[86%] rounded-[1.25rem] rounded-tr-sm bg-dark px-4 py-3 text-sm font-semibold leading-7 text-white shadow-md">
                 {item.question}
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#9b3f36]/10 text-[#9b3f36] shadow-sm">
+              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-900/10 text-brand-900 shadow-sm">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="flex-1 rounded-[1.25rem] rounded-tl-sm border border-white/82 bg-white/86 px-4 py-3 shadow-sm backdrop-blur-xl">
@@ -1000,18 +1032,18 @@ const DocumentViewer = () => {
         {askState.loading && askState.pendingQuestion ? (
           <div className="space-y-3">
             <div className="flex justify-end">
-              <div className="max-w-[86%] rounded-[1.25rem] rounded-tr-sm bg-[#1f2a44] px-4 py-3 text-sm font-semibold leading-7 text-white shadow-md">
+              <div className="max-w-[86%] rounded-[1.25rem] rounded-tr-sm bg-dark px-4 py-3 text-sm font-semibold leading-7 text-white shadow-md">
                 {askState.pendingQuestion}
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-[1.25rem] border border-white/82 bg-white/82 px-4 py-3 shadow-sm backdrop-blur-xl">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#9b3f36]/10 text-[#9b3f36]">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand-900/10 text-brand-900">
                 <Sparkles className="h-4 w-4" />
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[#9b3f36]/45 [animation-delay:-0.3s]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[#9b3f36]/45 [animation-delay:-0.15s]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[#9b3f36]/45" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-brand-900/45 [animation-delay:-0.3s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-brand-900/45 [animation-delay:-0.15s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-brand-900/45" />
               </div>
             </div>
           </div>
@@ -1042,7 +1074,7 @@ const DocumentViewer = () => {
           type="button"
           onClick={() => void handleAsk()}
           disabled={askState.loading || !askQuestion.trim()}
-          className="mb-0.5 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#9b3f36] px-3.5 text-xs font-black text-white shadow-lg shadow-[#9b3f36]/18 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+          className="mb-0.5 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-brand-900 px-3.5 text-xs font-black text-white shadow-lg shadow-brand-900/18 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
         >
           <Send size={13} />
           Send
@@ -1058,7 +1090,11 @@ const DocumentViewer = () => {
           <RelatedCard
             key={document.id}
             document={document}
-            onOpen={(nextDocumentId) => navigate(`/app/documents/${nextDocumentId}`)}
+            onOpen={(nextDocumentId) =>
+              navigate(`/app/documents/${nextDocumentId}`, {
+                state: { returnTo: workspaceReturnPath },
+              })
+            }
           />
         ))
       ) : (
@@ -1086,7 +1122,7 @@ const DocumentViewer = () => {
             <button
               type="button"
               onClick={() => void loadViewer()}
-              className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+              className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
             >
               Reload
             </button>
@@ -1129,7 +1165,7 @@ const DocumentViewer = () => {
             <button
               type="button"
               onClick={() => void downloadDocumentFile(documentId, documentData?.title)}
-              className="rounded-full bg-[#9b3f36] px-5 py-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+              className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
             >
               Download
             </button>
@@ -1150,8 +1186,8 @@ const DocumentViewer = () => {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
-            onClick={() => navigate('/app')}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/82 text-slate-500 shadow-sm transition-all hover:-translate-y-0.5 hover:text-[#9b3f36]"
+            onClick={handleBackToWorkspace}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/82 text-slate-500 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900"
             aria-label="Back to workspace"
             title="Back to workspace"
           >
@@ -1180,7 +1216,7 @@ const DocumentViewer = () => {
           <button
             type="button"
             onClick={() => void downloadDocumentFile(documentId, documentData?.title)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-[#9b3f36] px-3 text-sm font-black text-white shadow-lg shadow-[#9b3f36]/20 transition-all hover:-translate-y-0.5"
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-brand-900 px-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
           >
             <Download size={16} />
             <span className="hidden sm:inline">Download</span>
@@ -1197,7 +1233,7 @@ const DocumentViewer = () => {
           <div className="border-b border-white/70 px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#1f2a44] to-[#9b3f36] text-white shadow-lg shadow-[#1f2a44]/15">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-dark to-brand-900 text-white shadow-lg shadow-dark/15">
                   <Sparkles size={16} />
                 </div>
                 <h2 className="text-base font-black tracking-tight text-slate-950">
@@ -1222,7 +1258,7 @@ const DocumentViewer = () => {
                     className={cn(
                       'inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-black transition-all',
                       active
-                        ? 'bg-white text-[#9b3f36] shadow-sm'
+                        ? 'bg-white text-brand-900 shadow-sm'
                         : 'text-slate-500 hover:text-slate-800',
                     )}
                   >

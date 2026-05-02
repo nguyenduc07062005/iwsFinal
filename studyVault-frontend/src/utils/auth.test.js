@@ -111,3 +111,32 @@ test("keeps CSRF tokens out of localStorage while retaining a cookie fallback", 
   assert.equal(getCsrfToken(), "csrf-token");
   assert.equal(localStorage.getItem("csrf_token"), null);
 });
+
+test("clears local session state after password change revokes server sessions", async () => {
+  globalThis.window = {
+    localStorage: createStorage(),
+    sessionStorage: createStorage(),
+  };
+  globalThis.document = { cookie: "" };
+
+  const {
+    consumeAuthNotice,
+    finishPasswordChangeSessionReset,
+    getCsrfToken,
+    getToken,
+    setCsrfToken,
+    setToken,
+  } = await loadAuthModule();
+
+  setToken(createJwt({ exp: Math.floor(Date.now() / 1000) + 60 }));
+  setCsrfToken("csrf-token");
+
+  finishPasswordChangeSessionReset();
+
+  assert.equal(getToken(), null);
+  assert.equal(getCsrfToken(), null);
+  assert.deepEqual(consumeAuthNotice(), {
+    message: "Password updated successfully. Please sign in again.",
+    tone: "info",
+  });
+});

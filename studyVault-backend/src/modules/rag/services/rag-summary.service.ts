@@ -184,7 +184,17 @@ export class RagSummaryService {
       requestedSlot,
     );
 
-    if (cachedSummaryState && cachedSummarySlot && !forceRefresh) {
+    if (
+      cachedSummaryState &&
+      cachedSummarySlot &&
+      !forceRefresh &&
+      this.canReuseCachedSummary(
+        cachedSummaryState,
+        cachedSummarySlot,
+        requestedInstruction,
+        requestedSlot,
+      )
+    ) {
       return this.buildSummaryResponse(
         cachedSummaryState,
         cachedSummarySlot,
@@ -288,7 +298,11 @@ export class RagSummaryService {
       return null;
     }
 
-    return this.buildSummaryResponse(cachedSummaryState, cachedSummarySlot, true);
+    return this.buildSummaryResponse(
+      cachedSummaryState,
+      cachedSummarySlot,
+      true,
+    );
   }
 
   toPlainText(summary: StructuredDocumentSummary): string {
@@ -464,6 +478,27 @@ export class RagSummaryService {
     }
 
     return null;
+  }
+
+  private canReuseCachedSummary(
+    summaryState: SummaryLanguageCache,
+    selectedSlot: SummaryVersionSlot,
+    requestedInstruction: string | null,
+    requestedSlot?: SummaryVersionSlot,
+  ): boolean {
+    if (requestedSlot && selectedSlot !== requestedSlot) {
+      return false;
+    }
+
+    if (requestedInstruction && requestedSlot === 'custom') {
+      const selectedSummary = summaryState.versions?.[selectedSlot];
+      return (
+        this.normalizeInstruction(selectedSummary?.instruction ?? null) ===
+        requestedInstruction
+      );
+    }
+
+    return true;
   }
 
   private buildSummaryResponse(
