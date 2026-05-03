@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { shouldHydrateStoredWorkspaceQuery } from './workspacePreferenceHydration.js';
 
 const STORAGE_KEY = 'workspace:document-query';
 const DEFAULT_LIMIT = 12;
 const DEFAULT_SORT_BY = 'createdAt';
 const DEFAULT_SORT_ORDER = 'desc';
+const EMPTY_QUERY = {};
 
 const VALID_SORT_FIELDS = new Set(['createdAt', 'updatedAt', 'title', 'fileSize']);
 const VALID_SORT_ORDERS = new Set(['asc', 'desc']);
@@ -101,10 +103,6 @@ const writeWorkspaceDocumentPreferences = ({ query, viewMode }) => {
     }
 };
 
-/** Check if URL search params already contain workspace-specific query keys. */
-const hasWorkspaceQueryPreferences = (params) =>
-    ['sortBy', 'sortOrder', 'type', 'favorite', 'keyword', 'subjectId', 'tagId', 'folderId', 'limit'].some((key) => params.has(key));
-
 /** Merge stored preferences into URL search params (used on initial load). */
 const mergeStoredWorkspaceQuery = (params, storedQuery) => {
     const nextParams = new URLSearchParams(params);
@@ -126,15 +124,18 @@ const mergeStoredWorkspaceQuery = (params, storedQuery) => {
  * @returns Workspace query state and helpers
  */
 const useWorkspacePreferences = (rootFolder) => {
+    const location = useLocation();
     const [searchParams, setSearchParams] = useSearchParams();
-    const initialPreferencesRef = useRef(null);
-    const [queryPreferencesHydrated, setQueryPreferencesHydrated] = useState(false);
-
-    if (!initialPreferencesRef.current) {
-        initialPreferencesRef.current = readWorkspaceDocumentPreferences();
-    }
-
-    const [viewMode, setViewMode] = useState(initialPreferencesRef.current.viewMode);
+    const [initialPreferences] = useState(() => readWorkspaceDocumentPreferences());
+    const [initialLocationKey] = useState(() => location.key);
+    const [viewMode, setViewMode] = useState(initialPreferences.viewMode);
+    const storedQuery = initialPreferences.query ?? EMPTY_QUERY;
+    const isInitialWorkspaceLocation = location.key === initialLocationKey;
+    const queryPreferencesHydrated = !shouldHydrateStoredWorkspaceQuery({
+        hydrationCompleted: !isInitialWorkspaceLocation,
+        searchParams,
+        storedQuery,
+    });
 
     // Derived query values from URL search params
     const page = readPositiveInt(searchParams.get('page'), 1);
@@ -156,24 +157,22 @@ const useWorkspacePreferences = (rootFolder) => {
 
     // Hydrate saved preferences into URL on initial load
     useEffect(() => {
-        if (queryPreferencesHydrated) return;
-
-        const storedQuery = initialPreferencesRef.current?.query || {};
-        const shouldRestoreStoredQuery =
-            !hasWorkspaceQueryPreferences(searchParams) &&
-            Object.keys(storedQuery).length > 0;
-
-        if (shouldRestoreStoredQuery) {
-            const nextParams = mergeStoredWorkspaceQuery(searchParams, storedQuery);
-
-            if (nextParams.toString() !== searchParams.toString()) {
-                setSearchParams(nextParams, { replace: true });
-                return;
-            }
+        if (
+            !shouldHydrateStoredWorkspaceQuery({
+                hydrationCompleted: !isInitialWorkspaceLocation,
+                searchParams,
+                storedQuery,
+            })
+        ) {
+            return;
         }
 
-        setQueryPreferencesHydrated(true);
-    }, [queryPreferencesHydrated, searchParams, setSearchParams]);
+        const nextParams = mergeStoredWorkspaceQuery(searchParams, storedQuery);
+
+        if (nextParams.toString() !== searchParams.toString()) {
+            setSearchParams(nextParams, { replace: true });
+        }
+    }, [isInitialWorkspaceLocation, searchParams, setSearchParams, storedQuery]);
 
     // Persist preferences when query values change
     useEffect(() => {

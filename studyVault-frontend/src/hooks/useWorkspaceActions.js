@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     deleteDocument,
     downloadDocumentFile,
@@ -62,18 +62,21 @@ const useWorkspaceActions = ({
     // Tag options
     const [tagOptions, setTagOptions] = useState([]);
 
-    const loadTags = useCallback(async () => {
-        try {
-            const result = await getTags();
-            setTagOptions(sortTagOptions(result.tags || []));
-        } catch {
-            setTagOptions([]);
-        }
-    }, []);
-
     useEffect(() => {
-        void loadTags();
-    }, [loadTags]);
+        let active = true;
+
+        getTags()
+            .then((result) => {
+                if (active) setTagOptions(sortTagOptions(result.tags || []));
+            })
+            .catch(() => {
+                if (active) setTagOptions([]);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     // Rename state
     const [renameTarget, setRenameTarget] = useState(null);

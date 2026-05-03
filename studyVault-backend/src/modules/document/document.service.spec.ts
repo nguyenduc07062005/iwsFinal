@@ -66,10 +66,10 @@ describe('DocumentService.uploadDocument duplicate folders', () => {
 
         throw new Error('Unexpected repository');
       }),
-      save: jest.fn(async (entity: unknown, payload: unknown) => {
+      save: jest.fn((entity: unknown, payload: unknown) => {
         if (entity === Document) {
           if (Array.isArray(payload)) {
-            return payload.map((chunk, index) => ({
+            return (payload as Record<string, unknown>[]).map((chunk, index) => ({
               ...chunk,
               id: `chunk-${index + 1}`,
             }));
@@ -131,7 +131,7 @@ describe('DocumentService.uploadDocument duplicate folders', () => {
     };
     const { manager } = createUploadManager();
     const dataSource = {
-      transaction: jest.fn(async (callback: (value: unknown) => unknown) =>
+      transaction: jest.fn((callback: (value: unknown) => unknown) =>
         callback(manager),
       ),
     };
@@ -157,7 +157,7 @@ describe('DocumentService.uploadDocument duplicate folders', () => {
     expect(manager.save).toHaveBeenCalledWith(
       Document,
       expect.objectContaining({
-        contentHash: expect.any(String),
+        contentHash: expect.any(String) as unknown,
         title: 'Notes',
       }),
     );

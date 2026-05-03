@@ -1,9 +1,8 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
-  BarChart3,
   ChevronLeft,
   ChevronRight,
   FileText,
@@ -17,6 +16,7 @@ import {
   ShieldCheck,
   UnlockKeyhole,
   UsersRound,
+  X,
 } from "lucide-react";
 import {
   getAdminAuditLogs,
@@ -68,9 +68,11 @@ const formatAuditStatus = (value) =>
   typeof value === "boolean" ? getStatusLabel(value) : "Unknown";
 
 const formatAuditAction = (action) => {
-  if (action === "USER_LOCKED") return "Locked account";
-  if (action === "USER_UNLOCKED") return "Unlocked account";
-  return action || "Admin action";
+  if (action === "USER_LOCKED")
+    return { label: "Locked account", icon: LockKeyhole, tone: "rose" };
+  if (action === "USER_UNLOCKED")
+    return { label: "Unlocked account", icon: UnlockKeyhole, tone: "emerald" };
+  return { label: action || "Action", icon: History, tone: "slate" };
 };
 
 const formatDateTime = (value) => {
@@ -85,29 +87,311 @@ const formatDateTime = (value) => {
   }).format(date);
 };
 
-const StatCard = ({ icon, label, value, subLabel }) => {
+const formatRelativeTime = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+
+  return `${Math.floor(seconds / 86400)}d ago`;
+};
+
+/* ──────────────────────────── Stat Card ──────────────────────────── */
+
+const StatCard = ({ icon, label, value, subLabel, index = 0 }) => {
   const StatIcon = icon;
 
   return (
-    <div className="rounded-[1.6rem] border border-white/70 bg-white/66 p-4 shadow-sm backdrop-blur-xl">
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-900 text-white shadow-lg shadow-brand-900/18">
-          <StatIcon size={19} />
-        </span>
-        <BarChart3 className="h-5 w-5 text-slate-300" />
+    <MotionDiv
+      initial={{ opacity: 0, y: 20, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        delay: index * 0.07,
+        duration: 0.45,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className="workspace-metric-tile group relative flex-col !items-start !gap-0 !p-0"
+    >
+      <div className="relative flex w-full flex-col justify-between overflow-hidden rounded-[inherit] p-5">
+        {/* brand accent top bar */}
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-900 to-brand-500" />
+
+        <div className="flex items-center justify-between">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-900 text-white shadow-md shadow-brand-900/20">
+            <StatIcon size={18} strokeWidth={2.4} />
+          </span>
+        </div>
+
+        <div className="mt-4">
+          <p className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400">
+            {label}
+          </p>
+          <p className="mt-1.5 text-3xl font-black tracking-tight text-slate-950">
+            {value}
+          </p>
+          {subLabel ? (
+            <p className="mt-1 text-[11.5px] font-semibold leading-snug text-slate-500">
+              {subLabel}
+            </p>
+          ) : null}
+        </div>
       </div>
-      <p className="mt-5 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
-        {value}
-      </p>
-      {subLabel ? (
-        <p className="mt-1 text-xs font-bold text-slate-500">{subLabel}</p>
-      ) : null}
-    </div>
+    </MotionDiv>
   );
 };
+
+/* ──────────────────────────── Timeline Item ──────────────────────── */
+
+const TimelineItem = ({ log, index }) => {
+  const actionInfo = formatAuditAction(log.action);
+  const ActionIcon = actionInfo.icon;
+  const beforeActive = log.metadata?.previousIsActive;
+  const afterActive = log.metadata?.nextIsActive;
+
+  return (
+    <MotionDiv
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.35 }}
+      className="group relative flex gap-3.5 py-3"
+    >
+      {/* timeline line */}
+      <div className="absolute bottom-0 left-[17px] top-0 w-px bg-gradient-to-b from-brand-200 via-brand-100 to-transparent" />
+
+      {/* icon dot */}
+      <div
+        className={cn(
+          "relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white shadow-sm transition-transform group-hover:scale-110",
+          actionInfo.tone === "rose"
+            ? "bg-rose-50 text-rose-600"
+            : actionInfo.tone === "emerald"
+              ? "bg-emerald-50 text-emerald-600"
+              : "bg-slate-100 text-slate-600",
+        )}
+      >
+        <ActionIcon size={14} strokeWidth={2.4} />
+      </div>
+
+      {/* content */}
+      <div className="flex flex-1 flex-col gap-1.5">
+        <div className="min-w-0">
+          <p className="text-[13px] font-bold text-slate-800">
+            {actionInfo.label}{" "}
+            <span className="font-black text-slate-950">
+              {log.metadata?.targetName || "User"}
+            </span>
+          </p>
+          <p className="mt-0.5 truncate text-[11px] font-medium text-slate-400">
+            {log.metadata?.targetEmail || log.targetUserId || "Unknown"}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={cn(
+              "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black",
+              beforeActive === true
+                ? "bg-emerald-50 text-emerald-700"
+                : beforeActive === false
+                  ? "bg-rose-50 text-rose-600"
+                  : "bg-slate-50 text-slate-500",
+            )}
+          >
+            {formatAuditStatus(beforeActive)}
+          </span>
+          <span className="text-[10px] text-slate-300">→</span>
+          <span
+            className={cn(
+              "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black",
+              afterActive === true
+                ? "bg-emerald-50 text-emerald-700"
+                : afterActive === false
+                  ? "bg-rose-50 text-rose-600"
+                  : "bg-slate-50 text-slate-500",
+            )}
+          >
+            {formatAuditStatus(afterActive)}
+          </span>
+          <span className="ml-auto whitespace-nowrap text-[10px] font-semibold text-slate-400">
+            {formatRelativeTime(log.createdAt) || formatDateTime(log.createdAt)}
+          </span>
+        </div>
+      </div>
+    </MotionDiv>
+  );
+};
+
+/* ──────────────────────────── User Row ──────────────────────────── */
+
+const UserRow = ({ user, index, updatingUserId, onToggle }) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  const isAdmin = user.role === "admin";
+  const isUpdating = updatingUserId === user.id;
+
+  const handleAction = () => {
+    if (isAdmin) return;
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    setShowConfirm(false);
+    onToggle(user);
+  };
+
+  return (
+    <MotionDiv
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04, duration: 0.3 }}
+      className="group flex items-center gap-3.5 border-b border-slate-100 px-5 py-3.5 transition-colors last:border-b-0 hover:bg-brand-50/30"
+    >
+      {/* avatar */}
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[13px] font-black text-white shadow-sm",
+          isAdmin
+            ? "bg-brand-900"
+            : user.isActive
+              ? "bg-dark"
+              : "bg-slate-400",
+        )}
+      >
+        {(user.name || user.email || "U").slice(0, 2).toUpperCase()}
+      </div>
+
+      {/* info */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <p className="truncate text-sm font-black text-slate-950">
+            {user.name || "Unnamed"}
+          </p>
+          {isAdmin && (
+            <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-brand-900">
+              Admin
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] font-medium text-slate-500">
+          <Mail size={11} />
+          <span className="truncate">{user.email}</span>
+        </p>
+      </div>
+
+      {/* role */}
+      <span className="hidden rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 sm:inline-block">
+        {getRoleLabel(user.role)}
+      </span>
+
+      {/* status */}
+      <div className="flex items-center gap-1.5">
+        <span
+          className={cn(
+            "h-2 w-2 rounded-full",
+            user.isActive
+              ? "bg-emerald-500 shadow-[0_0_6px] shadow-emerald-500/40"
+              : "bg-rose-500 shadow-[0_0_6px] shadow-rose-500/40",
+          )}
+        />
+        <span
+          className={cn(
+            "text-[11px] font-bold",
+            user.isActive ? "text-emerald-700" : "text-rose-600",
+          )}
+        >
+          {getStatusLabel(user.isActive)}
+        </span>
+      </div>
+
+      {/* action */}
+      <div className="ml-1 shrink-0">
+        <AnimatePresence mode="wait">
+          {showConfirm ? (
+            <MotionDiv
+              key="confirm"
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              className="flex items-center gap-1.5"
+            >
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={isUpdating}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition-all hover:-translate-y-0.5",
+                  user.isActive
+                    ? "bg-rose-500 hover:bg-rose-600"
+                    : "bg-emerald-500 hover:bg-emerald-600",
+                )}
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  "Confirm"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowConfirm(false)}
+                className="rounded-lg bg-slate-100 p-1.5 text-slate-500 transition-colors hover:bg-slate-200"
+              >
+                <X size={12} />
+              </button>
+            </MotionDiv>
+          ) : (
+            <MotionDiv
+              key="action"
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+            >
+              <button
+                type="button"
+                onClick={handleAction}
+                disabled={isAdmin || isUpdating}
+                title={
+                  isAdmin
+                    ? "Admin accounts cannot be locked"
+                    : user.isActive
+                      ? "Lock this account"
+                      : "Unlock this account"
+                }
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-black shadow-sm transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35",
+                  user.isActive
+                    ? "bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white"
+                    : "bg-emerald-50 text-emerald-700 hover:bg-emerald-500 hover:text-white",
+                )}
+              >
+                {isUpdating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : user.isActive ? (
+                  <>
+                    <LockKeyhole size={12} />
+                    <span>Lock</span>
+                  </>
+                ) : (
+                  <>
+                    <UnlockKeyhole size={12} />
+                    <span>Unlock</span>
+                  </>
+                )}
+              </button>
+            </MotionDiv>
+          )}
+        </AnimatePresence>
+      </div>
+    </MotionDiv>
+  );
+};
+
+/* ─────────────────────────── Main Component ─────────────────────── */
 
 const Admin = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -135,16 +419,12 @@ const Admin = () => {
   const [error, setError] = useState("");
   const [accessDenied, setAccessDenied] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const requestIdRef = useRef(0);
 
   const page = readPositiveInt(searchParams.get("page"), 1);
   const limit = readPositiveInt(searchParams.get("limit"), DEFAULT_LIMIT);
   const keyword = (searchParams.get("keyword") || "").trim();
-  const status = STATUS_FILTERS.some(
-    (item) => item.value === searchParams.get("status"),
-  )
-    ? searchParams.get("status")
-    : "all";
 
   useEffect(() => {
     setKeywordInput(keyword);
@@ -192,7 +472,6 @@ const Admin = () => {
           keyword: keyword || undefined,
           limit,
           page,
-          status,
         }),
         getAdminAuditLogs({
           limit: 5,
@@ -224,11 +503,17 @@ const Admin = () => {
         setLoading(false);
       }
     }
-  }, [keyword, limit, page, status]);
+  }, [keyword, limit, page]);
 
   useEffect(() => {
     void loadAdminData();
   }, [loadAdminData]);
+
+  const filteredUsers = useMemo(() => {
+    if (statusFilter === "all") return users;
+    if (statusFilter === "active") return users.filter((user) => user.isActive);
+    return users.filter((user) => !user.isActive);
+  }, [users, statusFilter]);
 
   const statCards = useMemo(() => {
     const usersStat = stats?.users || {};
@@ -272,10 +557,40 @@ const Admin = () => {
   };
 
   const handleToggleStatus = async (user) => {
+    const nextIsActive = !user.isActive;
+
     try {
       setUpdatingUserId(user.id);
-      await updateAdminUserStatus(user.id, !user.isActive);
-      await loadAdminData();
+      await updateAdminUserStatus(user.id, nextIsActive);
+
+      // Optimistic update — patch local state without full reload
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === user.id ? { ...item, isActive: nextIsActive } : item,
+        ),
+      );
+
+      // Update stat counters locally
+      setStats((current) => {
+        if (!current?.users) return current;
+        const delta = nextIsActive ? 1 : -1;
+        return {
+          ...current,
+          users: {
+            ...current.users,
+            active: (current.users.active || 0) + delta,
+            locked: (current.users.locked || 0) - delta,
+          },
+        };
+      });
+
+      // Silently refresh audit logs in background (no loading flash)
+      getAdminAuditLogs({ limit: 5, page: 1 })
+        .then((auditResult) => {
+          setAuditLogs(auditResult.data || []);
+          setAuditPagination((current) => auditResult.pagination || current);
+        })
+        .catch(() => { });
     } catch (requestError) {
       setError(
         getApiErrorMessage(
@@ -296,24 +611,36 @@ const Admin = () => {
         <MotionDiv
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mx-auto w-full max-w-[1480px] rounded-[2rem] border border-white/70 bg-white/62 p-4 shadow-[0_30px_90px_-62px_rgba(45,44,47,0.55)] backdrop-blur-xl sm:p-5"
+          className="mx-auto w-full max-w-[1480px]"
         >
-          <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          {/* ─── Header ─── */}
+          <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/78 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-brand-900 shadow-sm">
+              <MotionDiv
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="inline-flex items-center gap-2 rounded-full bg-brand-50 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-widest text-brand-900"
+              >
                 <ShieldCheck size={14} />
                 System administration
-              </div>
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">
+              </MotionDiv>
+              <h1 className="workspace-hero-title mt-4 text-4xl font-black sm:text-5xl">
                 Admin Dashboard
               </h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-500">
-                Monitor accounts, user status, and StudyVault data scale.
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-7 text-slate-500">
+                Monitor accounts, manage user status, and track platform
+                metrics.
               </p>
             </div>
 
-            <div className="relative flex w-full items-center rounded-full border border-brand-200 bg-white/95 p-1.5 shadow-[0_24px_72px_-42px_rgba(66,53,48,0.72)] lg:max-w-md">
-              <Search className="ml-4 h-5 w-5 text-slate-400" />
+            <MotionDiv
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="control-surface relative flex w-full items-center !rounded-xl p-1.5 lg:max-w-md"
+            >
+              <Search className="ml-3 h-5 w-5 text-slate-400" />
               <input
                 value={keywordInput}
                 onChange={(event) => setKeywordInput(event.target.value)}
@@ -321,300 +648,184 @@ const Admin = () => {
                   if (event.key === "Enter") handleSearch();
                 }}
                 placeholder="Search name or email..."
-                className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400"
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400"
               />
               <button
                 type="button"
                 onClick={handleSearch}
-                className="rounded-full bg-brand-900 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5"
+                className="sks-button-primary !rounded-lg !px-5 !py-2 !text-sm"
               >
                 Search
               </button>
-            </div>
+            </MotionDiv>
           </header>
 
+          {/* ─── Errors ─── */}
           {accessDenied ? (
-            <div className="mt-6 rounded-[1.75rem] border border-rose-100 bg-rose-50 px-5 py-5 text-sm font-bold text-rose-700">
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-5 text-sm font-bold text-rose-700">
               You do not have permission to access the admin page.
             </div>
           ) : null}
 
           {error && !accessDenied ? (
-            <div className="mt-6 flex items-center gap-3 rounded-[1.75rem] border border-rose-100 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
+            <div className="mt-6 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-bold text-rose-700">
               <AlertTriangle size={18} />
               {error}
             </div>
           ) : null}
 
-          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {statCards.map((card) => (
-              <StatCard key={card.label} {...card} />
+          {/* ─── Stat Cards ─── */}
+          <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {statCards.map((card, index) => (
+              <StatCard key={card.label} {...card} index={index} />
             ))}
           </section>
 
-          <section className="mt-6 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white/68 shadow-sm backdrop-blur-xl">
-            <div className="flex items-center justify-between gap-4 border-b border-white/70 px-4 py-4 sm:px-5">
-              <div>
-                <h2 className="flex items-center gap-2 text-xl font-black tracking-tight text-slate-950">
-                  <History size={20} className="text-brand-900" />
-                  Admin audit log
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {formatNumber(auditPagination.total)} recorded actions
-                </p>
+          {/* ─── Two-Column Layout ─── */}
+          <div className="mt-8 grid gap-5 xl:grid-cols-5">
+            {/* ─── Activity Timeline ─── */}
+            <section className="sks-card xl:col-span-2">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm shadow-brand-900/20">
+                    <History size={16} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-950">
+                      Activity
+                    </h2>
+                    <p className="text-[11px] font-semibold text-slate-500">
+                      {formatNumber(auditPagination.total)} recorded actions
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/70">
-                <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    <th className="px-5 py-3">Action</th>
-                    <th className="px-5 py-3">Target</th>
-                    <th className="px-5 py-3">Before</th>
-                    <th className="px-5 py-3">After</th>
-                    <th className="px-5 py-3 text-right">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/70">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center">
-                        <div className="inline-flex items-center gap-3 text-sm font-bold text-slate-500">
-                          <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
-                          Loading audit logs...
-                        </div>
-                      </td>
-                    </tr>
-                  ) : auditLogs.length > 0 ? (
-                    auditLogs.map((log) => (
-                      <tr
-                        key={log.id}
-                        className="transition-colors hover:bg-white/45"
+              <div className="px-5 py-2">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
+                    <span className="ml-3 text-sm font-bold text-slate-500">
+                      Loading...
+                    </span>
+                  </div>
+                ) : auditLogs.length > 0 ? (
+                  <div className="relative pl-1">
+                    {auditLogs.map((log, index) => (
+                      <TimelineItem key={log.id} log={log} index={index} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center">
+                    <p className="text-sm font-black text-slate-900">
+                      No actions recorded yet
+                    </p>
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      Lock or unlock a user to create the first entry.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* ─── Users ─── */}
+            <section className="sks-card overflow-hidden xl:col-span-3">
+              <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm shadow-brand-900/20">
+                    <UsersRound size={16} strokeWidth={2.5} />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black text-slate-950">
+                      Users
+                    </h2>
+                    <p className="text-[11px] font-semibold text-slate-500">
+                      {formatNumber(pagination.total)} accounts
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_FILTERS.map((item) => {
+                    const active = statusFilter === item.value;
+
+                    return (
+                      <button
+                        key={item.value}
+                        type="button"
+                        onClick={() => setStatusFilter(item.value)}
+                        className={cn(
+                          "rounded-lg px-3.5 py-1.5 text-[11px] font-bold transition-all",
+                          active
+                            ? "bg-brand-900 text-white shadow-sm shadow-brand-900/20"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700",
+                        )}
                       >
-                        <td className="px-5 py-4">
-                          <span
-                            className={cn(
-                              "rounded-full px-3 py-1.5 text-xs font-black shadow-sm",
-                              log.action === "USER_LOCKED"
-                                ? "bg-rose-50 text-rose-700"
-                                : "bg-emerald-50 text-emerald-700",
-                            )}
-                          >
-                            {formatAuditAction(log.action)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="min-w-[220px]">
-                            <p className="truncate text-sm font-black text-slate-950">
-                              {log.metadata?.targetName || "User account"}
-                            </p>
-                            <p className="mt-1 truncate text-xs font-bold text-slate-500">
-                              {log.metadata?.targetEmail ||
-                                log.targetUserId ||
-                                "Unknown target"}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-600">
-                          {formatAuditStatus(log.metadata?.previousIsActive)}
-                        </td>
-                        <td className="px-5 py-4 text-sm font-bold text-slate-600">
-                          {formatAuditStatus(log.metadata?.nextIsActive)}
-                        </td>
-                        <td className="px-5 py-4 text-right text-sm font-bold text-slate-500">
-                          {formatDateTime(log.createdAt)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-10 text-center">
-                        <p className="text-sm font-black text-slate-900">
-                          No admin actions recorded yet
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                          Lock or unlock a user account to create the first
-                          audit entry.
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="mt-6 overflow-hidden rounded-[1.8rem] border border-white/70 bg-white/68 shadow-sm backdrop-blur-xl">
-            <div className="flex flex-col gap-4 border-b border-white/70 px-4 py-4 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h2 className="text-xl font-black tracking-tight text-slate-950">
-                  Users
-                </h2>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  {formatNumber(pagination.total)} accounts
-                </p>
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {STATUS_FILTERS.map((item) => {
-                  const active = status === item.value;
-
-                  return (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() =>
-                        updateQuery({ status: item.value }, { resetPage: true })
+              <div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
+                    <span className="ml-3 text-sm font-bold text-slate-500">
+                      Loading...
+                    </span>
+                  </div>
+                ) : filteredUsers.length > 0 ? (
+                  filteredUsers.map((user, index) => (
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      index={index}
+                      updatingUserId={updatingUserId}
+                      onToggle={(userToToggle) =>
+                        void handleToggleStatus(userToToggle)
                       }
-                      className={cn(
-                        "rounded-full px-4 py-2 text-xs font-black transition-all",
-                        active
-                          ? "bg-brand-900 text-white shadow-lg shadow-brand-900/18"
-                          : "bg-white/78 text-slate-500 hover:bg-white hover:text-brand-900",
-                      )}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
+                    />
+                  ))
+                ) : (
+                  <div className="py-16 text-center">
+                    <p className="text-sm font-black text-slate-900">
+                      No matching accounts
+                    </p>
+                    <p className="mt-2 text-xs font-semibold text-slate-500">
+                      Try changing the keyword or status filter.
+                    </p>
+                  </div>
+                )}
               </div>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-white/70">
-                <thead>
-                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                    <th className="px-5 py-3">Account</th>
-                    <th className="px-5 py-3">Role</th>
-                    <th className="px-5 py-3">Status</th>
-                    <th className="px-5 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/70">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={4} className="px-5 py-12 text-center">
-                        <div className="inline-flex items-center gap-3 text-sm font-bold text-slate-500">
-                          <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
-                          Loading data...
-                        </div>
-                      </td>
-                    </tr>
-                  ) : users.length > 0 ? (
-                    users.map((user) => (
-                      <tr
-                        key={user.id}
-                        className="transition-colors hover:bg-white/45"
-                      >
-                        <td className="px-5 py-4">
-                          <div className="flex min-w-[260px] items-center gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-dark text-sm font-black text-white shadow-lg shadow-dark/12">
-                              {(user.name || user.email || "U")
-                                .slice(0, 2)
-                                .toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-black text-slate-950">
-                                {user.name || "Unnamed"}
-                              </p>
-                              <p className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs font-bold text-slate-500">
-                                <Mail size={13} />
-                                <span className="truncate">{user.email}</span>
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className="rounded-full bg-white/80 px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm">
-                            {getRoleLabel(user.role)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span
-                            className={cn(
-                              "rounded-full px-3 py-1.5 text-xs font-black shadow-sm",
-                              user.isActive
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-rose-50 text-rose-700",
-                            )}
-                          >
-                            {getStatusLabel(user.isActive)}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right">
-                          <button
-                            type="button"
-                            onClick={() => void handleToggleStatus(user)}
-                            disabled={
-                              updatingUserId === user.id ||
-                              user.role === "admin"
-                            }
-                            title={
-                              user.role === "admin"
-                                ? "Admin accounts cannot be locked from this interface"
-                                : user.isActive
-                                  ? "Lock account"
-                                  : "Unlock account"
-                            }
-                            className={cn(
-                              "inline-flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45",
-                              user.isActive
-                                ? "bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white"
-                                : "bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white",
-                            )}
-                          >
-                            {updatingUserId === user.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : user.isActive ? (
-                              <LockKeyhole size={17} />
-                            ) : (
-                              <UnlockKeyhole size={17} />
-                            )}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="px-5 py-12 text-center">
-                        <p className="text-sm font-black text-slate-900">
-                          No matching accounts
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-slate-500">
-                          Try changing the keyword or status filter.
-                        </p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex flex-col gap-3 border-t border-white/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-bold text-slate-500">
-                Page {pagination.currentPage} / {pagination.totalPages}
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={!pagination.hasPreviousPage}
-                  onClick={() => updateQuery({ page: page - 1 })}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <ChevronLeft size={18} />
-                </button>
-                <button
-                  type="button"
-                  disabled={!pagination.hasNextPage}
-                  onClick={() => updateQuery({ page: page + 1 })}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-600 shadow-sm transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <ChevronRight size={18} />
-                </button>
+              {/* pagination */}
+              <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-bold text-slate-500">
+                  Page {pagination.currentPage} / {pagination.totalPages}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={!pagination.hasPreviousPage}
+                    onClick={() => updateQuery({ page: page - 1 })}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!pagination.hasNextPage}
+                    onClick={() => updateQuery({ page: page + 1 })}
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </MotionDiv>
       </main>
     </div>

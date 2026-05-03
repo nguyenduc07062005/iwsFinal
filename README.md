@@ -11,16 +11,16 @@ StudyVault is a full-stack web application designed for university students to *
 
 ### Key Features
 
-| Category | Features |
-|---|---|
-| **Authentication** | Registration with email verification, login, forgot/reset password, JWT-based session management |
-| **Document Management** | Upload (PDF, DOCX, TXT), preview, download, rename, delete, favorites |
-| **Organization** | Folder hierarchy, tag system with color coding, multi-parameter search & filtering |
-| **AI Integration** | Document summarization (EN/VI), context-aware Q&A with RAG pipeline, Q&A history |
-| **Study Tools** | Personal notes per document, favorites collection, recent documents |
-| **Admin Panel** | User management, lock/unlock accounts, audit logs, system statistics |
-| **Server-Side Data** | Dynamic sorting (5 fields), pagination with metadata, composable filters |
-| **Security** | Rate limiting, CORS whitelist, Helmet headers, bcrypt hashing, input validation |
+| Category                | Features                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
+| **Authentication**      | Registration with email verification, login, forgot/reset password, JWT-based session management |
+| **Document Management** | Upload (PDF, DOCX, TXT), preview, download, rename, delete, favorites                            |
+| **Organization**        | Folder hierarchy, tag system with color coding, multi-parameter search & filtering               |
+| **AI Integration**      | Document summarization (EN/VI), context-aware Q&A with RAG pipeline, Q&A history                 |
+| **Study Tools**         | Personal notes per document, favorites collection, recent documents                              |
+| **Admin Panel**         | User management, lock/unlock accounts, audit logs, system statistics                             |
+| **Server-Side Data**    | Dynamic sorting (5 fields), pagination with metadata, composable filters                         |
+| **Security**            | Rate limiting, CORS whitelist, Helmet headers, bcrypt hashing, input validation                  |
 
 ---
 
@@ -28,36 +28,36 @@ StudyVault is a full-stack web application designed for university students to *
 
 ### Frontend
 
-| Technology | Purpose |
-|---|---|
-| **React 19** | UI framework with component-based architecture |
-| **Vite** | Build tool and development server |
-| **React Router v7** | Client-side routing and navigation |
-| **TailwindCSS v4** | Utility-first CSS framework for responsive design |
-| **Axios** | HTTP client for API communication |
-| **Framer Motion** | Animation library for micro-interactions |
-| **Lucide React** | Icon system |
+| Technology          | Purpose                                           |
+| ------------------- | ------------------------------------------------- |
+| **React 19**        | UI framework with component-based architecture    |
+| **Vite**            | Build tool and development server                 |
+| **React Router v7** | Client-side routing and navigation                |
+| **Tailwind CSS v3** | Utility-first CSS framework for responsive design |
+| **Axios**           | HTTP client for API communication                 |
+| **Framer Motion**   | Animation library for micro-interactions          |
+| **Lucide React**    | Icon system                                       |
 
 ### Backend
 
-| Technology | Purpose |
-|---|---|
-| **NestJS** | Node.js framework with modular architecture |
-| **TypeORM** | ORM for database operations and migrations |
-| **PostgreSQL** | Relational database with JSONB support |
-| **pgvector** | Vector similarity search for RAG embeddings |
-| **JWT** | Stateless authentication tokens |
-| **class-validator** | DTO validation and sanitization |
-| **Helmet** | HTTP security headers |
-| **Nodemailer** | Email delivery for verification and password reset |
-| **Google Gemini** | LLM for summarization, Q&A, and embeddings |
+| Technology          | Purpose                                            |
+| ------------------- | -------------------------------------------------- |
+| **NestJS**          | Node.js framework with modular architecture        |
+| **TypeORM**         | ORM for database operations and migrations         |
+| **PostgreSQL**      | Relational database with JSONB support             |
+| **pgvector**        | Vector similarity search for RAG embeddings        |
+| **JWT**             | Stateless authentication tokens                    |
+| **class-validator** | DTO validation and sanitization                    |
+| **Helmet**          | HTTP security headers                              |
+| **Nodemailer**      | Email delivery for verification and password reset |
+| **Google Gemini**   | LLM for summarization, Q&A, and embeddings         |
 
 ### Infrastructure
 
-| Technology | Purpose |
-|---|---|
-| **Docker Compose** | Multi-container orchestration |
-| **PostgreSQL 17 + pgvector** | Database container with vector extension |
+| Technology                   | Purpose                                  |
+| ---------------------------- | ---------------------------------------- |
+| **Docker Compose**           | Multi-container orchestration            |
+| **PostgreSQL 16 + pgvector** | Database container with vector extension |
 
 ---
 
@@ -109,8 +109,9 @@ StudyVault is a full-stack web application designed for university students to *
 ├── docs/                         # Project documentation
 │   ├── postman/                  # API testing collections
 │   ├── authorization-matrix.md   # Permission matrix
-│   ├── security-architecture-and-demo.md
-│   └── demo-runbook.md
+│   ├── final-project-submission.md
+│   ├── final-project-submission.vi.md
+│   └── security-architecture-and-demo.md
 │
 ├── docker-compose.yml            # Development Docker stack
 ├── docker-compose.prod.yml       # Production-like Docker stack
@@ -124,14 +125,14 @@ StudyVault is a full-stack web application designed for university students to *
 
 ### RESTful Endpoints
 
-The backend exposes a fully RESTful API with proper HTTP method usage:
+The backend exposes RESTful APIs with proper HTTP method usage. Main endpoints include:
 
-| Method | Endpoints | Purpose |
-|---|---|---|
-| `GET` | `/api/documents`, `/api/documents/:id`, `/api/folders`, `/api/tags`, `/api/auth/profile`, `/api/admin/users`, `/api/admin/stats`, `/api/admin/audit-logs` | Retrieve resources |
-| `POST` | `/api/documents/upload`, `/api/folders`, `/api/tags`, `/api/auth/register`, `/api/auth/login`, `/api/auth/forgot-password`, `/api/rag/ask` | Create resources |
-| `PATCH` | `/api/documents/:id/rename`, `/api/documents/:id/tags`, `/api/documents/:id/favorite`, `/api/folders/:id`, `/api/auth/profile`, `/api/auth/change-password` | Update resources |
-| `DELETE` | `/api/documents/:id`, `/api/folders/:id`, `/api/tags/:id`, `/api/rag/documents/:id/qa-history` | Remove resources |
+| Method   | Endpoints                                                                                                                                                                                                                                                          | Purpose                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| `GET`    | `/api/documents`, `/api/documents/:id`, `/api/documents/:id/file`, `/api/documents/favorites`, `/api/folders`, `/api/tags`, `/api/auth/profile`, `/api/admin/users`, `/api/admin/stats`, `/api/admin/audit-logs`, `/api/rag/documents/:documentId/ask/history`     | Retrieve resources                        |
+| `POST`   | `/api/documents/upload`, `/api/folders`, `/api/tags`, `/api/auth/register`, `/api/auth/login`, `/api/auth/refresh`, `/api/auth/forgot-password`, `/api/auth/complete-registration`, `/api/rag/documents/:documentId/ask`, `/api/rag/documents/:documentId/summary` | Create resources or start auth/AI actions |
+| `PATCH`  | `/api/documents/:documentId`, `/api/documents/:id/tags`, `/api/folders/:id`, `/api/tags/:tagId`, `/api/auth/profile`, `/api/auth/password`, `/api/admin/users/:id/status`                                                                                          | Update resources                          |
+| `DELETE` | `/api/documents/:id`, `/api/folders/:id`, `/api/tags/:tagId`, `/api/rag/documents/:documentId/ask/history`                                                                                                                                                         | Remove resources                          |
 
 ### Server-Side Sorting
 
@@ -152,6 +153,7 @@ GET /api/documents?page=1&limit=12
 ```
 
 **Response format:**
+
 ```json
 {
   "data": [...],
@@ -178,18 +180,18 @@ All filters are composable and validated server-side.
 
 ## 5. Security Implementation
 
-| Security Measure | Implementation |
-|---|---|
-| **Authentication** | JWT access tokens (15min) + HttpOnly refresh cookie |
-| **Password Hashing** | bcrypt with 12 salt rounds |
-| **Input Validation** | `class-validator` with `whitelist: true`, `forbidNonWhitelisted: true` |
-| **Rate Limiting** | Custom middleware with 9 path-specific configurations, dual-key (IP + Identity) |
-| **CORS** | Strict origin whitelist, explicit methods/headers |
-| **Security Headers** | Helmet middleware (X-Frame-Options, CSP, etc.) |
-| **SQL Injection** | Parameterized queries via TypeORM QueryBuilder |
-| **XSS Prevention** | Input sanitization, Content-Type validation |
-| **CSRF Protection** | Token-based verification for state-changing cookie operations |
-| **Access Control** | Ownership scoping — users can only access their own documents |
+| Security Measure     | Implementation                                                                  |
+| -------------------- | ------------------------------------------------------------------------------- |
+| **Authentication**   | JWT access tokens (15min) + HttpOnly refresh cookie                             |
+| **Password Hashing** | bcrypt with 12 salt rounds                                                      |
+| **Input Validation** | `class-validator` with `whitelist: true`, `forbidNonWhitelisted: true`          |
+| **Rate Limiting**    | Custom middleware with 9 path-specific configurations, dual-key (IP + Identity) |
+| **CORS**             | Strict origin whitelist, explicit methods/headers                               |
+| **Security Headers** | Helmet middleware (X-Frame-Options, CSP, etc.)                                  |
+| **SQL Injection**    | Parameterized queries via TypeORM QueryBuilder                                  |
+| **XSS Prevention**   | Input sanitization, Content-Type validation                                     |
+| **CSRF Protection**  | Token-based verification for state-changing cookie operations                   |
+| **Access Control**   | Ownership scoping — users can only access their own documents                   |
 
 ---
 
@@ -198,16 +200,18 @@ All filters are composable and validated server-side.
 ### Prerequisites
 
 - **Docker** and **Docker Compose** (recommended)
-- OR: **Node.js 20+**, **PostgreSQL 17** with pgvector extension
+- OR: **Node.js 20+**, **PostgreSQL 16** with pgvector extension
 
 ### Option A: Full Docker (Recommended)
 
 **Step 1**: Create environment file
+
 ```powershell
 copy docker.env.example .env
 ```
 
 **Step 2**: Configure required variables in `.env`
+
 ```env
 # Required for email verification
 SMTP_USER=your-email@gmail.com
@@ -222,6 +226,7 @@ ADMIN_BOOTSTRAP_PASSWORD=Admin#12345678
 ```
 
 **Step 3**: Start the system
+
 ```powershell
 docker compose up --build
 ```
@@ -259,6 +264,7 @@ npm run dev
 ## 7. Testing
 
 ### Backend Tests
+
 ```powershell
 cd studyVault-backend
 npm run lint          # ESLint check
@@ -268,6 +274,7 @@ npm run build         # TypeScript compilation check
 ```
 
 ### Frontend Tests
+
 ```powershell
 cd studyVault-frontend
 npm run lint          # ESLint check
@@ -298,22 +305,22 @@ npm run build         # Production build check
 
 ### Backend / Docker
 
-| Variable | Description | Default |
-|---|---|---|
-| `DATABASE_NAME` | PostgreSQL database name | `studyvault_iws` |
-| `DATABASE_USERNAME` | Database user | `postgres` |
-| `DATABASE_PASSWORD` | Database password | `postgres` |
-| `JWT_SECRET` | JWT signing secret | (required) |
-| `JWT_EXPIRES_IN` | Access token TTL | `15m` |
-| `CORS_ORIGIN` | Allowed frontend origins | `http://localhost:3000,...` |
-| `ADMIN_EMAILS` | Admin bootstrap email(s) | `admin@example.com` |
-| `SMTP_USER` / `SMTP_PASS` | Email service credentials | (optional) |
-| `GEMINI_API_KEY` | Google Gemini API key | (optional) |
+| Variable                  | Description               | Default                     |
+| ------------------------- | ------------------------- | --------------------------- |
+| `DATABASE_NAME`           | PostgreSQL database name  | `studyvault_iws`            |
+| `DATABASE_USERNAME`       | Database user             | `postgres`                  |
+| `DATABASE_PASSWORD`       | Database password         | `postgres`                  |
+| `JWT_SECRET`              | JWT signing secret        | (required)                  |
+| `JWT_EXPIRES_IN`          | Access token TTL          | `15m`                       |
+| `CORS_ORIGIN`             | Allowed frontend origins  | `http://localhost:3000,...` |
+| `ADMIN_EMAILS`            | Admin bootstrap email(s)  | `admin@example.com`         |
+| `SMTP_USER` / `SMTP_PASS` | Email service credentials | (optional)                  |
+| `GEMINI_API_KEY`          | Google Gemini API key     | (optional)                  |
 
 ### Frontend
 
-| Variable | Description | Default |
-|---|---|---|
+| Variable            | Description     | Default                     |
+| ------------------- | --------------- | --------------------------- |
 | `VITE_API_BASE_URL` | Backend API URL | `http://localhost:8000/api` |
 
 ---

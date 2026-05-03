@@ -207,10 +207,12 @@ const Favorites = () => {
   const [documents, setDocuments] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [flash, setFlash] = useState(null);
   const [viewMode, setViewMode] = useState(initialPreferencesRef.current.viewMode);
   const [searchInput, setSearchInput] = useState(searchParams.get('keyword') || '');
   const requestIdRef = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -314,7 +316,12 @@ const Favorites = () => {
 
     const loadFavorites = async () => {
       try {
-        setLoading(true);
+        const isInitial = !hasLoadedRef.current;
+        if (isInitial) {
+          setLoading(true);
+        } else {
+          setIsRefetching(true);
+        }
         const result = await getFavorites({
           keyword: keyword || undefined,
           limit,
@@ -338,6 +345,7 @@ const Favorites = () => {
           },
         );
         setError('');
+        hasLoadedRef.current = true;
       } catch (requestError) {
         if (requestId !== requestIdRef.current) return;
         setDocuments([]);
@@ -358,6 +366,7 @@ const Favorites = () => {
       } finally {
         if (requestId === requestIdRef.current) {
           setLoading(false);
+          setIsRefetching(false);
         }
       }
     };
@@ -587,37 +596,44 @@ const Favorites = () => {
             </div>
           </div>
 
-          <div className="mt-5">
-            <DocumentLibraryPanel
-              viewMode={viewMode}
-              childFolders={[]}
-              documents={documents}
-              emptyTitle="No favorite documents yet"
-              emptyDescription="Star important files to reopen them quickly while studying or reviewing."
-              emptyAction={(
-                <button
-                  type="button"
-                  onClick={() => navigate('/app')}
-                  className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-[var(--shadow-brand)] transition-all hover:-translate-y-0.5 hover:bg-brand-600"
-                >
-                  <Sparkles size={17} />
-                  Back to workspace
-                </button>
-              )}
-              error={error}
-              loading={loading}
-              showFolderContext
-              onOpenFolder={() => {}}
-              onOpenDocument={handleOpenDocument}
-              onDownloadDocument={handleDownloadDocument}
-              onToggleFavorite={handleToggleFavorite}
-              pagination={{
-                currentPage: pagination.currentPage,
-                totalPages: pagination.totalPages,
-                total: pagination.total,
-                onPageChange: (nextPage) => updateQuery({ page: nextPage }),
-              }}
-            />
+          <div className="relative mt-5">
+            {isRefetching && (
+              <div className="absolute inset-x-0 top-0 z-20 flex justify-center">
+                <div className="h-0.5 w-32 animate-pulse rounded-full bg-brand-500/60" />
+              </div>
+            )}
+            <div className={isRefetching ? 'pointer-events-none opacity-60 transition-opacity' : 'transition-opacity'}>
+              <DocumentLibraryPanel
+                viewMode={viewMode}
+                childFolders={[]}
+                documents={documents}
+                emptyTitle="No favorite documents yet"
+                emptyDescription="Star important files to reopen them quickly while studying or reviewing."
+                emptyAction={(
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app')}
+                    className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-extrabold text-white shadow-[var(--shadow-brand)] transition-all hover:-translate-y-0.5 hover:bg-brand-600"
+                  >
+                    <Sparkles size={17} />
+                    Back to workspace
+                  </button>
+                )}
+                error={error}
+                loading={loading}
+                showFolderContext
+                onOpenFolder={() => { }}
+                onOpenDocument={handleOpenDocument}
+                onDownloadDocument={handleDownloadDocument}
+                onToggleFavorite={handleToggleFavorite}
+                pagination={{
+                  currentPage: pagination.currentPage,
+                  totalPages: pagination.totalPages,
+                  total: pagination.total,
+                  onPageChange: (nextPage) => updateQuery({ page: nextPage }),
+                }}
+              />
+            </div>
           </div>
         </MotionDiv>
       </main>

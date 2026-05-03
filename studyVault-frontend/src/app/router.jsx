@@ -15,6 +15,7 @@ import AppShell from '../layouts/AppShell.jsx';
 import DetailLayout from '../layouts/DetailLayout.jsx';
 import GuestOnlyRoute from '../routes/GuestOnlyRoute.jsx';
 import ProtectedWorkspaceRoute from '../routes/ProtectedWorkspaceRoute.jsx';
+import AdminRoute from '../routes/AdminRoute.jsx';
 import { isAuthenticated } from '../utils/auth.js';
 
 const WorkspacePage = lazy(() => import('../pages/WorkspacePage.jsx'));
@@ -90,7 +91,11 @@ const router = createBrowserRouter([
               },
               {
                 path: 'admin',
-                element: withSuspense(<Admin />),
+                element: withSuspense(
+                  <AdminRoute>
+                    <Admin />
+                  </AdminRoute>,
+                ),
               },
             ],
           },
