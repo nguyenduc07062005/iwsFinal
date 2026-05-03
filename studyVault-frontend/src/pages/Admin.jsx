@@ -208,11 +208,13 @@ const TimelineItem = ({ log, index }) => {
           <span
             className={cn(
               "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black",
-              beforeActive === true
-                ? "bg-emerald-50 text-emerald-700"
-                : beforeActive === false
-                  ? "bg-rose-50 text-rose-600"
-                  : "bg-slate-50 text-slate-500",
+              isRoleChange
+                ? "bg-slate-50 text-slate-600"
+                : beforeActive === true
+                  ? "bg-emerald-50 text-emerald-700"
+                  : beforeActive === false
+                    ? "bg-rose-50 text-rose-600"
+                    : "bg-slate-50 text-slate-500",
             )}
           >
             {isRoleChange
