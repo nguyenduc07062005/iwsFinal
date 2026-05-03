@@ -44,10 +44,18 @@ const SUGGESTED_QUESTIONS = [
   'Suggest review questions',
 ];
 
-const SUMMARY_LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'EN', name: 'English' },
-  { value: 'vi', label: 'VI', name: 'Tiếng Việt' },
-];
+const getInstructionSummaryLanguage = (instruction) => {
+  const normalized = instruction
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+  if (/\b(tieng viet|vietnamese|viet nam|vietnam)\b/.test(normalized)) {
+    return 'vi';
+  }
+
+  return 'en';
+};
 
 const buildDocxPreviewDocument = (bodyHtml) => `<!doctype html>
 <html>
@@ -107,6 +115,26 @@ const LoadingBlock = ({ label = 'Loading data...' }) => (
   </div>
 );
 
+const EmptyState = ({ action, description, icon, title }) => {
+  const Icon = icon;
+
+  return (
+    <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-[1.45rem] border border-white/82 bg-white/76 px-5 py-10 text-center shadow-sm backdrop-blur-xl">
+      {Icon ? (
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-900 shadow-sm ring-1 ring-brand-100">
+          <Icon size={22} strokeWidth={2.4} />
+        </div>
+      ) : null}
+      <h3 className="text-base font-black tracking-tight text-slate-950">
+        {title}
+      </h3>
+      <p className="mt-2 max-w-sm text-sm font-semibold leading-7 text-slate-500">
+        {description}
+      </p>
+      {action ? <div className="mt-5">{action}</div> : null}
+    </div>
+  );
+};
 
 const RelatedCard = ({ document, onOpen }) => {
   const file = getFilePresentation(document);
@@ -146,6 +174,8 @@ const DocumentViewer = () => {
   }, [navigate, workspaceReturnPath]);
 
   const [activeTab, setActiveTab] = useState('study');
+  const [showSummaryRegenerateModal, setShowSummaryRegenerateModal] = useState(false);
+  const [summaryInstruction, setSummaryInstruction] = useState('');
 
   // ── Custom hooks ───────────────────────────────────────────────────────────
 
@@ -168,43 +198,55 @@ const DocumentViewer = () => {
   }, [documentId]);
 
   // Destructure stable values to avoid depending on the entire viewer object (new ref every render)
-  const { askHistoryLoaded, loadAskHistory, loading, viewerError } = viewer;
+  const {
+    activeSummary,
+    askHistoryLoaded,
+    generateSummary,
+    loadAskHistory,
+    loading,
+    summaryState,
+    viewerError,
+  } = viewer;
   useEffect(() => {
     if (activeTab === 'ask' && !askHistoryLoaded && !loading && !viewerError) {
       void loadAskHistory();
     }
   }, [activeTab, askHistoryLoaded, loadAskHistory, loading, viewerError]);
 
+  useEffect(() => {
+    if (activeTab !== 'summary') return;
+    if (summaryState.loading || !summaryState.checked || summaryState.error) return;
+
+    if (!activeSummary) {
+      void generateSummary();
+    }
+  }, [
+    activeSummary,
+    activeTab,
+    generateSummary,
+    summaryState.checked,
+    summaryState.error,
+    summaryState.loading,
+  ]);
+
+  const openSummaryRegenerateModal = useCallback(() => {
+    setSummaryInstruction('');
+    setShowSummaryRegenerateModal(true);
+  }, []);
+
+  const handleRegenerateSummary = useCallback(() => {
+    const trimmedInstruction = summaryInstruction.trim();
+    if (!trimmedInstruction || summaryState.loading) return;
+
+    setShowSummaryRegenerateModal(false);
+    void generateSummary({
+      forceRefresh: true,
+      instruction: trimmedInstruction,
+      language: getInstructionSummaryLanguage(trimmedInstruction),
+    });
+  }, [generateSummary, summaryInstruction, summaryState.loading]);
+
   // ── Render helpers ─────────────────────────────────────────────────────────
-
-  const renderLanguageSelector = (variant = 'light') => {
-
-    return (
-      <div className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full p-1',
-        variant === 'dark'
-          ? 'bg-white/16 ring-1 ring-white/18 backdrop-blur-xl'
-          : 'bg-white/82 shadow-sm ring-1 ring-slate-100',
-      )}>
-        {SUMMARY_LANGUAGE_OPTIONS.map((language) => (
-          <button
-            key={language.value}
-            type="button"
-            onClick={() => viewer.setSelectedLanguage(language.value)}
-            title={language.name}
-            className={cn(
-              'rounded-full px-3 py-1.5 text-[11px] font-black uppercase transition-all',
-              viewer.selectedLanguage === language.value
-                ? variant === 'dark' ? 'bg-white text-brand-900 shadow-sm' : 'bg-brand-900 text-white shadow-sm'
-                : variant === 'dark' ? 'text-white/62 hover:text-white' : 'text-slate-500 hover:text-brand-900',
-            )}
-          >
-            {language.label}
-          </button>
-        ))}
-      </div>
-    );
-  };
 
   const renderPreview = () => {
     if (viewer.loading) return <LoadingBlock label="Opening preview..." />;
@@ -312,26 +354,20 @@ const DocumentViewer = () => {
   );
 
   const renderSummary = () => {
-    const selectedLangOption = SUMMARY_LANGUAGE_OPTIONS.find((o) => o.value === viewer.selectedLanguage) || SUMMARY_LANGUAGE_OPTIONS[0];
-
     if (viewer.summaryState.loading) {
-      return <LoadingBlock label={viewer.summaryState.generating ? `Generating ${selectedLangOption.name} summary...` : 'Checking saved summary...'} />;
+      return <LoadingBlock label={viewer.summaryState.generating ? 'Generating summary...' : 'Checking saved English summary...'} />;
     }
 
     if (viewer.summaryState.error) {
       return (
         <EmptyState icon={RefreshCcw} title="Summary could not be loaded" description={viewer.summaryState.error}
-          action={<div className="flex flex-col items-center gap-3">{renderLanguageSelector()}<button type="button" onClick={() => void viewer.generateSummary(viewer.selectedLanguage)} className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5">Generate summary</button></div>}
+          action={<button type="button" onClick={() => void viewer.generateSummary()} className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5">Try again</button>}
         />
       );
     }
 
     if (!viewer.activeSummary) {
-      return (
-        <EmptyState icon={Sparkles} title="No summary yet" description="Select a language, then generate a saved summary for this document."
-          action={<div className="flex flex-col items-center gap-3">{renderLanguageSelector()}<button type="button" onClick={() => void viewer.generateSummary(viewer.selectedLanguage)} className="rounded-full bg-brand-900 px-5 py-3 text-sm font-black text-white shadow-lg shadow-brand-900/20 transition-all hover:-translate-y-0.5">Generate {selectedLangOption.label} summary</button></div>}
-        />
-      );
+      return <LoadingBlock label="Preparing English summary..." />;
     }
 
     return (
@@ -341,13 +377,13 @@ const DocumentViewer = () => {
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/62">AI summary</p>
               <h3 className="mt-2 line-clamp-2 text-lg font-black leading-snug tracking-tight text-white">
-                {viewer.activeSummary.title || viewer.documentData?.title || 'Main content'}
+                {viewer.summaryTitle || viewer.documentData?.title || 'Main content'}
               </h3>
             </div>
             <div className="flex shrink-0 items-center gap-1">
-              {renderLanguageSelector('dark')}
-              <button type="button" aria-label="Regenerate summary" title="Regenerate summary" onClick={() => void viewer.generateSummary(viewer.selectedLanguage, { forceRefresh: true })} className="flex h-9 w-9 items-center justify-center rounded-full bg-white/16 text-white/70 ring-1 ring-white/18 transition-colors hover:bg-white hover:text-brand-900">
+              <button type="button" aria-label="Regenerate summary" title="Regenerate summary" onClick={openSummaryRegenerateModal} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/16 px-3 text-xs font-black text-white/78 ring-1 ring-white/18 transition-colors hover:bg-white hover:text-brand-900">
                 <RefreshCcw size={14} />
+                <span>Regenerate</span>
               </button>
             </div>
           </div>
@@ -497,12 +533,13 @@ const DocumentViewer = () => {
   // ── Layout ─────────────────────────────────────────────────────────────────
 
   return (
-    <MotionDiv
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="flex min-h-[calc(100dvh-10.75rem)] flex-col overflow-visible rounded-[1.35rem] border border-white/74 bg-white/30 shadow-[0_30px_90px_-58px_rgba(31,42,68,0.42)] backdrop-blur-xl xl:h-full xl:min-h-0 xl:overflow-hidden"
-    >
+    <>
+      <MotionDiv
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="flex min-h-[calc(100dvh-10.75rem)] flex-col overflow-visible rounded-[1.35rem] border border-white/74 bg-white/30 shadow-[0_30px_90px_-58px_rgba(31,42,68,0.42)] backdrop-blur-xl xl:h-full xl:min-h-0 xl:overflow-hidden"
+      >
       <header className="flex min-h-[3.25rem] items-center gap-2 border-b border-white/70 bg-white/42 px-2 py-2 backdrop-blur-2xl sm:px-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button type="button" onClick={handleBackToWorkspace} aria-label="Back to workspace" title="Back to workspace" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/82 text-slate-500 shadow-sm transition-all hover:-translate-y-0.5 hover:text-brand-900">
@@ -569,7 +606,68 @@ const DocumentViewer = () => {
           </div>
         </aside>
       </div>
-    </MotionDiv>
+      </MotionDiv>
+
+      {showSummaryRegenerateModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 py-6 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setShowSummaryRegenerateModal(false);
+          }}
+          role="presentation"
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleRegenerateSummary();
+            }}
+            className="w-full max-w-lg rounded-[1.35rem] border border-white/80 bg-white p-5 shadow-[0_28px_90px_-42px_rgba(15,23,42,0.52)]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-brand-900">Summary</p>
+                <h3 className="mt-1 text-lg font-black tracking-tight text-slate-950">Regenerate summary</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSummaryRegenerateModal(false)}
+                className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-600 transition-all hover:bg-slate-200"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <textarea
+              autoFocus
+              aria-label="Summary instruction"
+              value={summaryInstruction}
+              onChange={(event) => setSummaryInstruction(event.target.value)}
+              rows={5}
+              placeholder="Make it shorter, focus on formulas, write as bullet points..."
+              className="mt-4 w-full resize-none rounded-[1rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-brand-200 focus:bg-white focus:ring-2 focus:ring-brand-500/15"
+            />
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowSummaryRegenerateModal(false)}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-600 transition-all hover:bg-slate-50"
+              >
+                Close
+              </button>
+              <button
+                type="submit"
+                disabled={!summaryInstruction.trim() || summaryState.loading}
+                className="inline-flex items-center gap-2 rounded-full bg-brand-900 px-4 py-2 text-xs font-black text-white shadow-lg shadow-brand-900/18 transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                {summaryState.loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw size={14} />}
+                Regenerate
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </>
   );
 };
 

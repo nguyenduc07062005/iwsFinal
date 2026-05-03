@@ -6,6 +6,13 @@ Start here for final submission:
 
 - [final-project-submission.vi.md](./final-project-submission.vi.md) - Vietnamese main report packet for submission.
 - [final-project-submission.md](./final-project-submission.md) - English version of the same report packet.
+- [StudyVault_Final_Report_Template_EN_Black.docx](./StudyVault_Final_Report_Template_EN_Black.docx) - English black-and-white reference template.
+- [StudyVault_Final_Report_Template.docx](./StudyVault_Final_Report_Template.docx) - older draft template kept for reference.
+- [member-report-evidence-plan.md](./member-report-evidence-plan.md) - per-member contribution split and required UI/API/DB screenshots.
+- [personal-reports/Group4_Member1_Authentication_Security_Admin_Report_EN_Black.docx](./personal-reports/Group4_Member1_Authentication_Security_Admin_Report_EN_Black.docx) - English black-and-white individual report for member 1.
+- [personal-reports/Group4_Member2_Document_Workspace_CRUD_Report_EN_Black.docx](./personal-reports/Group4_Member2_Document_Workspace_CRUD_Report_EN_Black.docx) - English black-and-white individual report for member 2.
+- [personal-reports/Group4_Member3_AI_RAG_Document_Assistant_Report_EN_Black.docx](./personal-reports/Group4_Member3_AI_RAG_Document_Assistant_Report_EN_Black.docx) - English black-and-white individual report for member 3.
+- [personal-reports/Group4_Member4_Frontend_Responsive_Docs_Testing_Report_EN_Black.docx](./personal-reports/Group4_Member4_Frontend_Responsive_Docs_Testing_Report_EN_Black.docx) - English black-and-white individual report for member 4.
 
 Supporting documents:
 

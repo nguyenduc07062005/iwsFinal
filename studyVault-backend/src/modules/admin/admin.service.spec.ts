@@ -134,3 +134,74 @@ describe('AdminService.updateUserStatus', () => {
     );
   });
 });
+
+describe('AdminService.updateUserRole', () => {
+  it('promotes a user account to admin and records an audit log', async () => {
+    const {
+      service,
+      userRepository,
+      auditLogRepository,
+      userSessionRepository,
+    } = createService();
+    const targetUser = createAdminUser({
+      id: '33333333-3333-4333-8333-333333333333',
+      email: 'student@example.com',
+      name: 'Student',
+      role: UserRole.USER,
+      isActive: false,
+    });
+    const updatedUser = {
+      ...targetUser,
+      role: UserRole.ADMIN,
+      isActive: true,
+      updatedAt: new Date(),
+    };
+    userRepository.findById.mockResolvedValue(targetUser);
+    userRepository.update.mockResolvedValue(updatedUser);
+
+    const result = await service.updateUserRole(
+      targetUser.id,
+      '11111111-1111-4111-8111-111111111111',
+      { role: UserRole.ADMIN },
+    );
+
+    expect(userRepository.update).toHaveBeenCalledWith(targetUser.id, {
+      isActive: true,
+      role: UserRole.ADMIN,
+    });
+    expect(auditLogRepository.create).toHaveBeenCalledWith({
+      action: 'USER_PROMOTED_TO_ADMIN',
+      adminId: '11111111-1111-4111-8111-111111111111',
+      metadata: {
+        nextIsActive: true,
+        nextRole: UserRole.ADMIN,
+        previousIsActive: false,
+        previousRole: UserRole.USER,
+        targetEmail: 'student@example.com',
+        targetName: 'Student',
+      },
+      targetType: 'user',
+      targetUserId: targetUser.id,
+    });
+    expect(userSessionRepository.revokeAllForUser).toHaveBeenCalledWith(
+      targetUser.id,
+    );
+    expect(result.data.role).toBe(UserRole.ADMIN);
+    expect(result.data.isActive).toBe(true);
+  });
+
+  it('rejects role changes for users that are already admins', async () => {
+    const { service, userRepository } = createService();
+    userRepository.findById.mockResolvedValue(createAdminUser());
+
+    await expect(
+      service.updateUserRole(
+        '22222222-2222-4222-8222-222222222222',
+        '11111111-1111-4111-8111-111111111111',
+        { role: UserRole.ADMIN },
+      ),
+    ).rejects.toThrow(BadRequestException);
+
+    expect(userRepository.update).not.toHaveBeenCalled();
+  });
+});

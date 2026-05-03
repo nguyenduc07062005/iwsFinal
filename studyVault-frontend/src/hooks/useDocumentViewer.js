@@ -16,9 +16,16 @@ import {
     getDocumentSummary,
 } from '../service/ragAPI.js';
 import { getApiErrorMessage } from '../utils/apiError.js';
+import {
+    getActiveSummary,
+    getSummaryKeyPoints,
+    getSummaryVersions,
+    normalizeSummaryText,
+} from '../utils/summary.js';
 
 const DOCX_MIME_TYPE =
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const DEFAULT_SUMMARY_LANGUAGE = 'en';
 
 const isDocxPreviewType = (contentType = '', fileExtension = '') => {
     const normalized = contentType.toLowerCase();
@@ -28,12 +35,6 @@ const isDocxPreviewType = (contentType = '', fileExtension = '') => {
         normalized.includes('wordprocessingml') ||
         ext === 'docx'
     );
-};
-
-const getSummaryKeyPoints = (summary) => {
-    if (Array.isArray(summary?.key_points)) return summary.key_points;
-    if (Array.isArray(summary?.keyPoints)) return summary.keyPoints;
-    return [];
 };
 
 /**
@@ -50,6 +51,7 @@ const getSummaryKeyPoints = (summary) => {
 const useDocumentViewer = (documentId) => {
     const fileUrlRef = useRef('');
     const loadRequestIdRef = useRef(0);
+    const summaryRequestIdRef = useRef(0);
 
     // Document metadata + file
     const [documentData, setDocumentData] = useState(null);
@@ -69,7 +71,6 @@ const useDocumentViewer = (documentId) => {
         data: null,
         checked: false,
     });
-    const [selectedLanguage, setSelectedLanguage] = useState('en');
 
     // Q&A
     const [askHistory, setAskHistory] = useState([]);
@@ -152,14 +153,25 @@ const useDocumentViewer = (documentId) => {
         }
     }, [cleanupFileUrl, documentId]);
 
-    const loadCachedSummary = useCallback(async (language) => {
+    const loadCachedSummary = useCallback(async () => {
         if (!documentId) return;
 
+        const requestId = ++summaryRequestIdRef.current;
+        const isStale = () => requestId !== summaryRequestIdRef.current;
+
         try {
-            setSummaryState((s) => ({ ...s, loading: true, generating: false, error: '' }));
-            const result = await getCachedDocumentSummary(documentId, language);
+            setSummaryState({
+                loading: true,
+                generating: false,
+                error: '',
+                data: null,
+                checked: false,
+            });
+            const result = await getCachedDocumentSummary(documentId, DEFAULT_SUMMARY_LANGUAGE);
+            if (isStale()) return;
             setSummaryState({ loading: false, generating: false, error: '', data: result.summary || null, checked: true });
         } catch (error) {
+            if (isStale()) return;
             setSummaryState({
                 loading: false,
                 generating: false,
@@ -170,14 +182,20 @@ const useDocumentViewer = (documentId) => {
         }
     }, [documentId]);
 
-    const generateSummary = useCallback(async (language, options = {}) => {
+    const generateSummary = useCallback(async (options = {}) => {
         if (!documentId) return;
+
+        const language = options.language || DEFAULT_SUMMARY_LANGUAGE;
+        const requestId = ++summaryRequestIdRef.current;
+        const isStale = () => requestId !== summaryRequestIdRef.current;
 
         try {
             setSummaryState((s) => ({ ...s, loading: true, generating: true, error: '' }));
             const result = await getDocumentSummary(documentId, language, options);
+            if (isStale()) return;
             setSummaryState({ loading: false, generating: false, error: '', data: result, checked: true });
         } catch (error) {
+            if (isStale()) return;
             setSummaryState({
                 loading: false,
                 generating: false,
@@ -210,8 +228,8 @@ const useDocumentViewer = (documentId) => {
     // ── Effects ────────────────────────────────────────────────────────────────
 
     useEffect(() => {
-        void loadCachedSummary(selectedLanguage);
-    }, [loadCachedSummary, selectedLanguage]);
+        void loadCachedSummary();
+    }, [loadCachedSummary]);
 
     // ── Actions ────────────────────────────────────────────────────────────────
 
@@ -294,14 +312,16 @@ const useDocumentViewer = (documentId) => {
     );
 
     const summaryVersions = useMemo(
-        () => (Array.isArray(summaryState.data?.versions) ? summaryState.data.versions : []),
+        () => getSummaryVersions(summaryState.data),
+        [summaryState.data],
+    );
+    const activeSummary = useMemo(
+        () => getActiveSummary(summaryState.data),
         [summaryState.data],
     );
 
-    const activeSummary =
-        summaryVersions.find((v) => v.active) || summaryVersions[0] || summaryState.data;
-
     const keyPoints = getSummaryKeyPoints(activeSummary);
+    const summaryTitle = normalizeSummaryText(activeSummary?.title);
     const summaryBody = typeof activeSummary?.body === 'string' ? activeSummary.body : '';
     const summaryOverview = typeof activeSummary?.overview === 'string' ? activeSummary.overview : '';
     const summaryConclusion = typeof activeSummary?.conclusion === 'string' ? activeSummary.conclusion : '';
@@ -326,10 +346,10 @@ const useDocumentViewer = (documentId) => {
         loadRequestIdRef,
         // Summary
         summaryState,
-        selectedLanguage,
-        setSelectedLanguage,
         generateSummary,
+        summaryVersions,
         activeSummary,
+        summaryTitle,
         keyPoints,
         summaryBody,
         summaryOverview,

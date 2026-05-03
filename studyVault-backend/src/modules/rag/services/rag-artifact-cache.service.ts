@@ -77,9 +77,7 @@ export class RagArtifactCacheService {
     owner: Document | UserDocument,
     language: SummaryLanguage,
   ): MindMapArtifact | null {
-    return (
-      this.getArtifactCache(owner).mindMapByLanguage?.[language] ?? null
-    );
+    return this.getArtifactCache(owner).mindMapByLanguage?.[language] ?? null;
   }
 
   async saveMindMap(
@@ -281,7 +279,9 @@ export class RagArtifactCacheService {
     };
   }
 
-  private isUserDocument(owner: Document | UserDocument): owner is UserDocument {
+  private isUserDocument(
+    owner: Document | UserDocument,
+  ): owner is UserDocument {
     return (
       'documentName' in owner || 'isFavorite' in owner || 'folder' in owner
     );

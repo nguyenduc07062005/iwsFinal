@@ -18,6 +18,7 @@ import { UserDocumentRepository } from 'src/database/repositories/user-document.
 import { UserRepository } from 'src/database/repositories/user.repository';
 import { ListAdminAuditLogsDto } from './dtos/list-admin-audit-logs.dto';
 import { ListAdminUsersDto } from './dtos/list-admin-users.dto';
+import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 
 type TypeCountRow = {
@@ -172,6 +173,59 @@ export class AdminService {
         ? 'User account unlocked successfully.'
         : 'User account locked successfully.',
       data: sanitizeUser(updatedUser || targetUser),
+    };
+  }
+
+  async updateUserRole(
+    targetUserId: string,
+    adminUserId: string,
+    dto: UpdateUserRoleDto,
+  ) {
+    if (targetUserId === adminUserId) {
+      throw new BadRequestException('Admin cannot change their own role');
+    }
+
+    if (dto.role !== UserRole.ADMIN) {
+      throw new BadRequestException('Only promotion to admin is supported');
+    }
+
+    const targetUser = await this.userRepository.findById(targetUserId);
+
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (targetUser.role === UserRole.ADMIN) {
+      throw new BadRequestException('User is already an admin');
+    }
+
+    const updatedUser = await this.userRepository.update(targetUser.id, {
+      isActive: true,
+      role: UserRole.ADMIN,
+    });
+
+    await this.adminAuditLogRepository.create({
+      action: AdminAuditAction.USER_PROMOTED_TO_ADMIN,
+      adminId: adminUserId,
+      metadata: {
+        previousRole: targetUser.role,
+        nextRole: UserRole.ADMIN,
+        previousIsActive: targetUser.isActive,
+        nextIsActive: true,
+        targetEmail: targetUser.email,
+        targetName: targetUser.name,
+      },
+      targetType: AdminAuditTargetType.USER,
+      targetUserId: targetUser.id,
+    });
+
+    await this.userSessionRepository.revokeAllForUser(targetUser.id);
+
+    return {
+      message: 'User promoted to admin successfully.',
+      data: sanitizeUser(
+        updatedUser || { ...targetUser, role: UserRole.ADMIN, isActive: true },
+      ),
     };
   }
 

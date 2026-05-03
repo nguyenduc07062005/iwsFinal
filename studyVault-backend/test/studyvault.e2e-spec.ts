@@ -7,6 +7,8 @@ import { AuthenticationService } from '../src/modules/authentication/authenticat
 import { AdminController } from '../src/modules/admin/admin.controller';
 import { AdminService } from '../src/modules/admin/admin.service';
 import { DocumentController } from '../src/modules/document/document.controller';
+import { DocumentFileService } from '../src/modules/document/document-file.service';
+import { DocumentNotesService } from '../src/modules/document/document-notes.service';
 import { DocumentService } from '../src/modules/document/document.service';
 import { FolderController } from '../src/modules/folder/folder.controller';
 import { FolderService } from '../src/modules/folder/folder.service';
@@ -453,6 +455,7 @@ describe('StudyVault admin API (e2e)', () => {
   const adminService = {
     listUsers: jest.fn(),
     listAuditLogs: jest.fn(),
+    updateUserRole: jest.fn(),
     updateUserStatus: jest.fn(),
     getStats: jest.fn(),
   };
@@ -502,6 +505,15 @@ describe('StudyVault admin API (e2e)', () => {
         id: TEST_SECONDARY_USER_ID,
         email: 'student@example.com',
         isActive: false,
+      },
+    });
+    adminService.updateUserRole.mockResolvedValue({
+      message: 'User promoted to admin successfully.',
+      data: {
+        id: TEST_SECONDARY_USER_ID,
+        email: 'student@example.com',
+        role: 'admin',
+        isActive: true,
       },
     });
     adminService.getStats.mockResolvedValue({
@@ -595,6 +607,23 @@ describe('StudyVault admin API (e2e)', () => {
       TEST_SECONDARY_USER_ID,
       TEST_USER_ID,
       { isActive: false },
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/api/admin/users/${TEST_SECONDARY_USER_ID}/role`)
+      .set(authHeader)
+      .send({
+        role: 'admin',
+      })
+      .expect(200)
+      .expect(({ body }) => {
+        expect(body.data.role).toBe('admin');
+      });
+
+    expect(adminService.updateUserRole).toHaveBeenCalledWith(
+      TEST_SECONDARY_USER_ID,
+      TEST_USER_ID,
+      { role: 'admin' },
     );
 
     await request(app.getHttpServer())
@@ -942,10 +971,17 @@ describe('StudyVault document API (e2e)', () => {
     toggleFavorite: jest.fn(),
     getFavorites: jest.fn(),
     getDocumentDetails: jest.fn(),
-    getDocumentFilePath: jest.fn(),
     updateDocumentName: jest.fn(),
     syncDocumentTags: jest.fn(),
     getDocumentTags: jest.fn(),
+  };
+
+  const documentFileService = {
+    getDocumentHtmlPreview: jest.fn(),
+    getDocumentFilePath: jest.fn(),
+  };
+
+  const documentNotesService = {
     listStudyNotes: jest.fn(),
     createStudyNote: jest.fn(),
     updateStudyNote: jest.fn(),
@@ -965,6 +1001,14 @@ describe('StudyVault document API (e2e)', () => {
         {
           provide: DocumentService,
           useValue: documentService,
+        },
+        {
+          provide: DocumentFileService,
+          useValue: documentFileService,
+        },
+        {
+          provide: DocumentNotesService,
+          useValue: documentNotesService,
         },
         {
           provide: RagService,
@@ -1351,18 +1395,20 @@ describe('StudyVault document API (e2e)', () => {
     documentService.getDocumentTags.mockResolvedValue([
       { id: TEST_TAG_ID, name: 'Security' },
     ]);
-    documentService.listStudyNotes.mockResolvedValue([
+    documentNotesService.listStudyNotes.mockResolvedValue([
       { id: TEST_NOTE_ID, content: 'Review authorization matrix.' },
     ]);
-    documentService.createStudyNote.mockResolvedValue({
+    documentNotesService.createStudyNote.mockResolvedValue({
       id: TEST_NOTE_ID,
       content: 'Review authorization matrix.',
     });
-    documentService.updateStudyNote.mockResolvedValue({
+    documentNotesService.updateStudyNote.mockResolvedValue({
       id: TEST_NOTE_ID,
       content: 'Review CSRF protection.',
     });
-    documentService.deleteStudyNote.mockResolvedValue({ id: TEST_NOTE_ID });
+    documentNotesService.deleteStudyNote.mockResolvedValue({
+      id: TEST_NOTE_ID,
+    });
 
     await request(app.getHttpServer())
       .patch(`/api/documents/${TEST_DOCUMENT_ID}/tags`)
@@ -1406,21 +1452,21 @@ describe('StudyVault document API (e2e)', () => {
       TEST_DOCUMENT_ID,
       TEST_USER_ID,
     );
-    expect(documentService.listStudyNotes).toHaveBeenCalledWith(
+    expect(documentNotesService.listStudyNotes).toHaveBeenCalledWith(
       TEST_DOCUMENT_ID,
       TEST_USER_ID,
     );
-    expect(documentService.createStudyNote).toHaveBeenCalledWith(
+    expect(documentNotesService.createStudyNote).toHaveBeenCalledWith(
       TEST_DOCUMENT_ID,
       TEST_USER_ID,
       { content: 'Review authorization matrix.' },
     );
-    expect(documentService.updateStudyNote).toHaveBeenCalledWith(
+    expect(documentNotesService.updateStudyNote).toHaveBeenCalledWith(
       TEST_NOTE_ID,
       TEST_USER_ID,
       { content: 'Review CSRF protection.' },
     );
-    expect(documentService.deleteStudyNote).toHaveBeenCalledWith(
+    expect(documentNotesService.deleteStudyNote).toHaveBeenCalledWith(
       TEST_NOTE_ID,
       TEST_USER_ID,
     );

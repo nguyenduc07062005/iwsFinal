@@ -69,10 +69,12 @@ describe('DocumentService.uploadDocument duplicate folders', () => {
       save: jest.fn((entity: unknown, payload: unknown) => {
         if (entity === Document) {
           if (Array.isArray(payload)) {
-            return (payload as Record<string, unknown>[]).map((chunk, index) => ({
-              ...chunk,
-              id: `chunk-${index + 1}`,
-            }));
+            return (payload as Record<string, unknown>[]).map(
+              (chunk, index) => ({
+                ...chunk,
+                id: `chunk-${index + 1}`,
+              }),
+            );
           }
 
           const documentPayload = payload as Record<string, unknown>;

@@ -26,9 +26,17 @@ const updateAdminUserStatus = async (userId, isActive) => {
   return response.data;
 };
 
+const updateAdminUserRole = async (userId, role) => {
+  const response = await apiClient.patch(`/admin/users/${userId}/role`, {
+    role,
+  });
+  return response.data;
+};
+
 export {
   getAdminAuditLogs,
   getAdminStats,
   getAdminUsers,
+  updateAdminUserRole,
   updateAdminUserStatus,
 };

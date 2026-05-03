@@ -3,6 +3,7 @@ import { BaseEntity } from './base.entity';
 
 export enum AdminAuditAction {
   USER_LOCKED = 'USER_LOCKED',
+  USER_PROMOTED_TO_ADMIN = 'USER_PROMOTED_TO_ADMIN',
   USER_UNLOCKED = 'USER_UNLOCKED',
 }
 

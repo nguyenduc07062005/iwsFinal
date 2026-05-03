@@ -22,6 +22,7 @@ import {
   getAdminAuditLogs,
   getAdminStats,
   getAdminUsers,
+  updateAdminUserRole,
   updateAdminUserStatus,
 } from "../service/adminAPI.js";
 import { cn } from "../lib/utils.js";
@@ -36,6 +37,7 @@ const STATUS_FILTERS = [
 ];
 
 const DEFAULT_LIMIT = 10;
+const AUDIT_LOG_LIMIT = 5;
 
 const readPositiveInt = (value, fallback) => {
   const parsedValue = Number(value);
@@ -67,9 +69,14 @@ const getStatusLabel = (isActive) => (isActive ? "Active" : "Locked");
 const formatAuditStatus = (value) =>
   typeof value === "boolean" ? getStatusLabel(value) : "Unknown";
 
+const formatAuditRole = (value) =>
+  value === "admin" || value === "user" ? getRoleLabel(value) : "Unknown";
+
 const formatAuditAction = (action) => {
   if (action === "USER_LOCKED")
     return { label: "Locked account", icon: LockKeyhole, tone: "rose" };
+  if (action === "USER_PROMOTED_TO_ADMIN")
+    return { label: "Promoted account", icon: ShieldCheck, tone: "brand" };
   if (action === "USER_UNLOCKED")
     return { label: "Unlocked account", icon: UnlockKeyhole, tone: "emerald" };
   return { label: action || "Action", icon: History, tone: "slate" };
@@ -153,13 +160,16 @@ const TimelineItem = ({ log, index }) => {
   const ActionIcon = actionInfo.icon;
   const beforeActive = log.metadata?.previousIsActive;
   const afterActive = log.metadata?.nextIsActive;
+  const beforeRole = log.metadata?.previousRole;
+  const afterRole = log.metadata?.nextRole;
+  const isRoleChange = log.action === "USER_PROMOTED_TO_ADMIN";
 
   return (
     <MotionDiv
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05, duration: 0.35 }}
-      className="group relative flex gap-3.5 py-3"
+      className="group relative flex min-h-[5.75rem] gap-3.5 py-3"
     >
       {/* timeline line */}
       <div className="absolute bottom-0 left-[17px] top-0 w-px bg-gradient-to-b from-brand-200 via-brand-100 to-transparent" />
@@ -172,7 +182,9 @@ const TimelineItem = ({ log, index }) => {
             ? "bg-rose-50 text-rose-600"
             : actionInfo.tone === "emerald"
               ? "bg-emerald-50 text-emerald-600"
-              : "bg-slate-100 text-slate-600",
+              : actionInfo.tone === "brand"
+                ? "bg-brand-50 text-brand-900"
+                : "bg-slate-100 text-slate-600",
         )}
       >
         <ActionIcon size={14} strokeWidth={2.4} />
@@ -203,20 +215,26 @@ const TimelineItem = ({ log, index }) => {
                   : "bg-slate-50 text-slate-500",
             )}
           >
-            {formatAuditStatus(beforeActive)}
+            {isRoleChange
+              ? formatAuditRole(beforeRole)
+              : formatAuditStatus(beforeActive)}
           </span>
           <span className="text-[10px] text-slate-300">→</span>
           <span
             className={cn(
               "inline-block rounded-md px-1.5 py-0.5 text-[10px] font-black",
-              afterActive === true
-                ? "bg-emerald-50 text-emerald-700"
-                : afterActive === false
-                  ? "bg-rose-50 text-rose-600"
-                  : "bg-slate-50 text-slate-500",
+              isRoleChange
+                ? "bg-brand-50 text-brand-900"
+                : afterActive === true
+                  ? "bg-emerald-50 text-emerald-700"
+                  : afterActive === false
+                    ? "bg-rose-50 text-rose-600"
+                    : "bg-slate-50 text-slate-500",
             )}
           >
-            {formatAuditStatus(afterActive)}
+            {isRoleChange
+              ? formatAuditRole(afterRole)
+              : formatAuditStatus(afterActive)}
           </span>
           <span className="ml-auto whitespace-nowrap text-[10px] font-semibold text-slate-400">
             {formatRelativeTime(log.createdAt) || formatDateTime(log.createdAt)}
@@ -229,19 +247,41 @@ const TimelineItem = ({ log, index }) => {
 
 /* ──────────────────────────── User Row ──────────────────────────── */
 
-const UserRow = ({ user, index, updatingUserId, onToggle }) => {
+const UserRow = ({
+  user,
+  index,
+  updatingUserId,
+  updatingRoleUserId,
+  onToggle,
+  onPromote,
+}) => {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showPromoteConfirm, setShowPromoteConfirm] = useState(false);
   const isAdmin = user.role === "admin";
   const isUpdating = updatingUserId === user.id;
+  const isPromoting = updatingRoleUserId === user.id;
+  const isBusy = isUpdating || isPromoting;
 
   const handleAction = () => {
     if (isAdmin) return;
+    setShowPromoteConfirm(false);
     setShowConfirm(true);
   };
 
   const handleConfirm = () => {
     setShowConfirm(false);
     onToggle(user);
+  };
+
+  const handlePromoteAction = () => {
+    if (isAdmin) return;
+    setShowConfirm(false);
+    setShowPromoteConfirm(true);
+  };
+
+  const handlePromoteConfirm = () => {
+    setShowPromoteConfirm(false);
+    onPromote(user);
   };
 
   return (
@@ -309,7 +349,66 @@ const UserRow = ({ user, index, updatingUserId, onToggle }) => {
       </div>
 
       {/* action */}
-      <div className="ml-1 shrink-0">
+      <div className="ml-1 flex shrink-0 items-center gap-1.5">
+        {!isAdmin ? (
+          <AnimatePresence mode="wait">
+            {showPromoteConfirm ? (
+              <MotionDiv
+                key="promote-confirm"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+                className="flex items-center gap-1.5"
+              >
+                <button
+                  type="button"
+                  onClick={handlePromoteConfirm}
+                  disabled={isBusy}
+                  className="rounded-lg bg-brand-900 px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isPromoting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Promote"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPromoteConfirm(false)}
+                  disabled={isBusy}
+                  className="rounded-lg bg-slate-100 p-1.5 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X size={12} />
+                </button>
+              </MotionDiv>
+            ) : (
+              <MotionDiv
+                key="promote-action"
+                initial={{ opacity: 0, scale: 0.92 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.92 }}
+              >
+                <button
+                  type="button"
+                  onClick={handlePromoteAction}
+                  disabled={isBusy}
+                  title="Make this user an admin"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-3 py-1.5 text-[11px] font-black text-brand-900 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-brand-900 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isPromoting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <ShieldCheck size={12} />
+                      <span>Make admin</span>
+                    </>
+                  )}
+                </button>
+              </MotionDiv>
+            )}
+          </AnimatePresence>
+        ) : null}
+
         <AnimatePresence mode="wait">
           {showConfirm ? (
             <MotionDiv
@@ -322,7 +421,7 @@ const UserRow = ({ user, index, updatingUserId, onToggle }) => {
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={isUpdating}
+                disabled={isBusy}
                 className={cn(
                   "rounded-lg px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition-all hover:-translate-y-0.5",
                   user.isActive
@@ -339,7 +438,8 @@ const UserRow = ({ user, index, updatingUserId, onToggle }) => {
               <button
                 type="button"
                 onClick={() => setShowConfirm(false)}
-                className="rounded-lg bg-slate-100 p-1.5 text-slate-500 transition-colors hover:bg-slate-200"
+                disabled={isBusy}
+                className="rounded-lg bg-slate-100 p-1.5 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X size={12} />
               </button>
@@ -354,7 +454,7 @@ const UserRow = ({ user, index, updatingUserId, onToggle }) => {
               <button
                 type="button"
                 onClick={handleAction}
-                disabled={isAdmin || isUpdating}
+                disabled={isAdmin || isBusy}
                 title={
                   isAdmin
                     ? "Admin accounts cannot be locked"
@@ -398,11 +498,14 @@ const Admin = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditPage, setAuditPage] = useState(1);
   const [auditPagination, setAuditPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     total: 0,
-    limit: 5,
+    limit: AUDIT_LOG_LIMIT,
+    hasNextPage: false,
+    hasPreviousPage: false,
   });
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -416,11 +519,14 @@ const Admin = () => {
     searchParams.get("keyword") || "",
   );
   const [loading, setLoading] = useState(true);
+  const [auditLoading, setAuditLoading] = useState(false);
   const [error, setError] = useState("");
   const [accessDenied, setAccessDenied] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState("");
+  const [updatingRoleUserId, setUpdatingRoleUserId] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const requestIdRef = useRef(0);
+  const auditRequestIdRef = useRef(0);
 
   const page = readPositiveInt(searchParams.get("page"), 1);
   const limit = readPositiveInt(searchParams.get("limit"), DEFAULT_LIMIT);
@@ -457,6 +563,42 @@ const Admin = () => {
     setSearchParams(nextParams);
   };
 
+  const loadAuditLogs = useCallback(async (nextPage, options = {}) => {
+    const auditRequestId = auditRequestIdRef.current + 1;
+    auditRequestIdRef.current = auditRequestId;
+
+    try {
+      if (!options.silent) {
+        setAuditLoading(true);
+      }
+
+      const auditResult = await getAdminAuditLogs({
+        limit: AUDIT_LOG_LIMIT,
+        page: nextPage,
+      });
+
+      if (auditRequestId !== auditRequestIdRef.current) return;
+
+      setAuditLogs(auditResult.data || []);
+      setAuditPagination((current) => auditResult.pagination || current);
+    } catch (requestError) {
+      if (auditRequestId !== auditRequestIdRef.current) return;
+
+      setAuditLogs([]);
+      setAccessDenied(requestError.response?.status === 403);
+      setError(
+        getApiErrorMessage(
+          requestError,
+          "Activity logs could not be loaded. Please refresh and try again.",
+        ),
+      );
+    } finally {
+      if (auditRequestId === auditRequestIdRef.current) {
+        setAuditLoading(false);
+      }
+    }
+  }, []);
+
   const loadAdminData = useCallback(async () => {
     const requestId = requestIdRef.current + 1;
     requestIdRef.current = requestId;
@@ -466,16 +608,12 @@ const Admin = () => {
       setError("");
       setAccessDenied(false);
 
-      const [statsResult, usersResult, auditResult] = await Promise.all([
+      const [statsResult, usersResult] = await Promise.all([
         getAdminStats(),
         getAdminUsers({
           keyword: keyword || undefined,
           limit,
           page,
-        }),
-        getAdminAuditLogs({
-          limit: 5,
-          page: 1,
         }),
       ]);
 
@@ -484,8 +622,6 @@ const Admin = () => {
       setStats(statsResult.data || null);
       setUsers(usersResult.data || []);
       setPagination((current) => usersResult.pagination || current);
-      setAuditLogs(auditResult.data || []);
-      setAuditPagination((current) => auditResult.pagination || current);
     } catch (requestError) {
       if (requestId !== requestIdRef.current) return;
       setUsers([]);
@@ -508,6 +644,10 @@ const Admin = () => {
   useEffect(() => {
     void loadAdminData();
   }, [loadAdminData]);
+
+  useEffect(() => {
+    void loadAuditLogs(auditPage);
+  }, [auditPage, loadAuditLogs]);
 
   const filteredUsers = useMemo(() => {
     if (statusFilter === "all") return users;
@@ -549,6 +689,27 @@ const Admin = () => {
     ];
   }, [stats]);
 
+  const auditCurrentPage = auditPage;
+  const auditTotalPages = Math.max(auditPagination.totalPages || 1, 1);
+  const auditHasPreviousPage = auditCurrentPage > 1;
+  const auditHasNextPage = auditCurrentPage < auditTotalPages;
+  const activityInitialLoading = auditLoading && auditLogs.length === 0;
+  const activityRefreshing = auditLoading && auditLogs.length > 0;
+  const activitySlotPlaceholders = Math.max(
+    AUDIT_LOG_LIMIT - auditLogs.length,
+    0,
+  );
+  const userCurrentPage = page;
+  const userTotalPages = Math.max(pagination.totalPages || 1, 1);
+  const usersInitialLoading = loading && users.length === 0;
+  const usersRefreshing = loading && users.length > 0;
+
+  const handleAuditPageChange = (nextPage) => {
+    const boundedPage = Math.min(Math.max(nextPage, 1), auditTotalPages);
+    if (boundedPage === auditCurrentPage) return;
+    setAuditPage(boundedPage);
+  };
+
   const handleSearch = () => {
     updateQuery(
       { keyword: keywordInput.trim() || undefined },
@@ -584,13 +745,12 @@ const Admin = () => {
         };
       });
 
-      // Silently refresh audit logs in background (no loading flash)
-      getAdminAuditLogs({ limit: 5, page: 1 })
-        .then((auditResult) => {
-          setAuditLogs(auditResult.data || []);
-          setAuditPagination((current) => auditResult.pagination || current);
-        })
-        .catch(() => { });
+      // New status actions should appear at the top of the activity timeline.
+      if (auditPage === 1) {
+        void loadAuditLogs(1, { silent: true });
+      } else {
+        setAuditPage(1);
+      }
     } catch (requestError) {
       setError(
         getApiErrorMessage(
@@ -600,6 +760,54 @@ const Admin = () => {
       );
     } finally {
       setUpdatingUserId("");
+    }
+  };
+
+  const handlePromoteToAdmin = async (user) => {
+    if (user.role === "admin") return;
+
+    try {
+      setUpdatingRoleUserId(user.id);
+      const result = await updateAdminUserRole(user.id, "admin");
+      const updatedUser = result.data || {
+        ...user,
+        isActive: true,
+        role: "admin",
+      };
+
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === user.id ? { ...item, ...updatedUser } : item,
+        ),
+      );
+
+      setStats((current) => {
+        if (!current?.users || user.isActive) return current;
+
+        return {
+          ...current,
+          users: {
+            ...current.users,
+            active: (current.users.active || 0) + 1,
+            locked: Math.max((current.users.locked || 0) - 1, 0),
+          },
+        };
+      });
+
+      if (auditPage === 1) {
+        void loadAuditLogs(1, { silent: true });
+      } else {
+        setAuditPage(1);
+      }
+    } catch (requestError) {
+      setError(
+        getApiErrorMessage(
+          requestError,
+          "User role could not be updated. Please refresh and try again.",
+        ),
+      );
+    } finally {
+      setUpdatingRoleUserId("");
     }
   };
 
@@ -682,9 +890,9 @@ const Admin = () => {
           </section>
 
           {/* ─── Two-Column Layout ─── */}
-          <div className="mt-8 grid gap-5 xl:grid-cols-5">
+          <div className="mt-8 grid items-stretch gap-5 xl:grid-cols-5">
             {/* ─── Activity Timeline ─── */}
-            <section className="sks-card xl:col-span-2">
+            <section className="sks-card flex h-full min-h-[38rem] flex-col overflow-hidden xl:col-span-2">
               <div className="border-b border-slate-100 px-5 py-4">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm shadow-brand-900/20">
@@ -698,38 +906,88 @@ const Admin = () => {
                       {formatNumber(auditPagination.total)} recorded actions
                     </p>
                   </div>
+                  {activityRefreshing ? (
+                    <Loader2 className="ml-auto h-4 w-4 animate-spin text-brand-900" />
+                  ) : null}
                 </div>
               </div>
 
-              <div className="px-5 py-2">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
+              <div className="flex-1 px-5 py-2">
+                {activityInitialLoading ? (
+                  <div className="flex min-h-[28.75rem] items-center justify-center">
                     <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
                     <span className="ml-3 text-sm font-bold text-slate-500">
                       Loading...
                     </span>
                   </div>
                 ) : auditLogs.length > 0 ? (
-                  <div className="relative pl-1">
+                  <div
+                    className={cn(
+                      "relative pl-1 transition-opacity duration-200",
+                      activityRefreshing && "opacity-70",
+                    )}
+                  >
                     {auditLogs.map((log, index) => (
                       <TimelineItem key={log.id} log={log} index={index} />
                     ))}
+                    {Array.from({ length: activitySlotPlaceholders }).map(
+                      (_, index) => (
+                        <div
+                          key={`activity-placeholder-${index}`}
+                          aria-hidden="true"
+                          className="min-h-[5.75rem]"
+                        />
+                      ),
+                    )}
                   </div>
                 ) : (
-                  <div className="py-12 text-center">
-                    <p className="text-sm font-black text-slate-900">
-                      No actions recorded yet
-                    </p>
-                    <p className="mt-2 text-xs font-semibold text-slate-500">
-                      Lock or unlock a user to create the first entry.
-                    </p>
+                  <div className="flex min-h-[28.75rem] items-center justify-center text-center">
+                    <div>
+                      <p className="text-sm font-black text-slate-900">
+                        No actions recorded yet
+                      </p>
+                      <p className="mt-2 text-xs font-semibold text-slate-500">
+                        Lock, unlock, or promote a user to create the first
+                        entry.
+                      </p>
+                    </div>
                   </div>
                 )}
+              </div>
+
+              <div className="mt-auto flex flex-col gap-3 border-t border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs font-bold text-slate-500">
+                  Page {auditCurrentPage} / {auditTotalPages}
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={auditLoading || !auditHasPreviousPage}
+                    onClick={() =>
+                      handleAuditPageChange(auditCurrentPage - 1)
+                    }
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Previous activity page"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={auditLoading || !auditHasNextPage}
+                    onClick={() =>
+                      handleAuditPageChange(auditCurrentPage + 1)
+                    }
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Next activity page"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
               </div>
             </section>
 
             {/* ─── Users ─── */}
-            <section className="sks-card overflow-hidden xl:col-span-3">
+            <section className="sks-card flex h-full min-h-[38rem] flex-col overflow-hidden xl:col-span-3">
               <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-900 text-white shadow-sm shadow-brand-900/20">
@@ -743,6 +1001,9 @@ const Admin = () => {
                       {formatNumber(pagination.total)} accounts
                     </p>
                   </div>
+                  {usersRefreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-brand-900" />
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -768,8 +1029,8 @@ const Admin = () => {
                 </div>
               </div>
 
-              <div>
-                {loading ? (
+              <div className="flex-1">
+                {usersInitialLoading ? (
                   <div className="flex items-center justify-center py-16">
                     <Loader2 className="h-5 w-5 animate-spin text-brand-900" />
                     <span className="ml-3 text-sm font-bold text-slate-500">
@@ -777,17 +1038,28 @@ const Admin = () => {
                     </span>
                   </div>
                 ) : filteredUsers.length > 0 ? (
-                  filteredUsers.map((user, index) => (
-                    <UserRow
-                      key={user.id}
-                      user={user}
-                      index={index}
-                      updatingUserId={updatingUserId}
-                      onToggle={(userToToggle) =>
-                        void handleToggleStatus(userToToggle)
-                      }
-                    />
-                  ))
+                  <div
+                    className={cn(
+                      "transition-opacity duration-200",
+                      usersRefreshing && "opacity-70",
+                    )}
+                  >
+                    {filteredUsers.map((user, index) => (
+                      <UserRow
+                        key={user.id}
+                        user={user}
+                        index={index}
+                        updatingUserId={updatingUserId}
+                        updatingRoleUserId={updatingRoleUserId}
+                        onToggle={(userToToggle) =>
+                          void handleToggleStatus(userToToggle)
+                        }
+                        onPromote={(userToPromote) =>
+                          void handlePromoteToAdmin(userToPromote)
+                        }
+                      />
+                    ))}
+                  </div>
                 ) : (
                   <div className="py-16 text-center">
                     <p className="text-sm font-black text-slate-900">
@@ -801,23 +1073,23 @@ const Admin = () => {
               </div>
 
               {/* pagination */}
-              <div className="flex flex-col gap-3 border-t border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-auto flex flex-col gap-3 border-t border-slate-100 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs font-bold text-slate-500">
-                  Page {pagination.currentPage} / {pagination.totalPages}
+                  Page {userCurrentPage} / {userTotalPages}
                 </p>
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    disabled={!pagination.hasPreviousPage}
-                    onClick={() => updateQuery({ page: page - 1 })}
+                    disabled={loading || userCurrentPage <= 1}
+                    onClick={() => updateQuery({ page: userCurrentPage - 1 })}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ChevronLeft size={15} />
                   </button>
                   <button
                     type="button"
-                    disabled={!pagination.hasNextPage}
-                    onClick={() => updateQuery({ page: page + 1 })}
+                    disabled={loading || userCurrentPage >= userTotalPages}
+                    onClick={() => updateQuery({ page: userCurrentPage + 1 })}
                     className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition-all hover:-translate-y-0.5 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <ChevronRight size={15} />

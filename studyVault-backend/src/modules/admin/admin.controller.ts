@@ -18,6 +18,7 @@ import { RolesGuard } from '../authentication/roles/roles.guard';
 import { AdminService } from './admin.service';
 import { ListAdminAuditLogsDto } from './dtos/list-admin-audit-logs.dto';
 import { ListAdminUsersDto } from './dtos/list-admin-users.dto';
+import { UpdateUserRoleDto } from './dtos/update-user-role.dto';
 import { UpdateUserStatusDto } from './dtos/update-user-status.dto';
 
 type AdminRequest = Request & {
@@ -56,6 +57,15 @@ export class AdminController {
       req.user.userId,
       dto,
     );
+  }
+
+  @Patch('users/:id/role')
+  async updateUserRole(
+    @Param('id', ParseUUIDPipe) targetUserId: string,
+    @Req() req: AdminRequest,
+    @Body() dto: UpdateUserRoleDto,
+  ) {
+    return this.adminService.updateUserRole(targetUserId, req.user.userId, dto);
   }
 
   @Get('stats')
