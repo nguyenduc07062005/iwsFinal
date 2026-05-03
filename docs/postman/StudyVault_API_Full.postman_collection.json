@@ -4278,6 +4278,54 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get document preview HTML",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Preview HTML returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains HTML content', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.include('<');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/documents/{{documentId}}/preview-html",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "documents",
+                "{{documentId}}",
+                "preview-html"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Returns the document content rendered as HTML for in-browser preview. Supports PDF, DOCX, and TXT files."
+          },
+          "response": []
         }
       ]
     },
@@ -4865,6 +4913,55 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get cached document summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get summary returns 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains summary field', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('summary');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rag/documents/{{documentId}}/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rag",
+                "documents",
+                "{{documentId}}",
+                "summary"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Retrieves the cached AI-generated summary for a document. Returns the previously generated summary without re-processing."
+          },
+          "response": []
         }
       ]
     },

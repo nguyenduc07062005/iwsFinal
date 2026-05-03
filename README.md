@@ -183,7 +183,7 @@ All filters are composable and validated server-side.
 | Security Measure     | Implementation                                                                  |
 | -------------------- | ------------------------------------------------------------------------------- |
 | **Authentication**   | JWT access tokens (15min) + HttpOnly refresh cookie                             |
-| **Password Hashing** | bcrypt with 12 salt rounds                                                      |
+| **Password Hashing** | bcrypt with 10 salt rounds                                                      |
 | **Input Validation** | `class-validator` with `whitelist: true`, `forbidNonWhitelisted: true`          |
 | **Rate Limiting**    | Custom middleware with 9 path-specific configurations, dual-key (IP + Identity) |
 | **CORS**             | Strict origin whitelist, explicit methods/headers                               |
