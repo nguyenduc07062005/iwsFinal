@@ -18,7 +18,6 @@ import type { Request as ExpressRequest } from 'express';
 import { AskRagDto } from './dtos/ask-rag.dto';
 import { GenerateSummaryDto } from './dtos/generate-summary.dto';
 import { RagService } from './rag.service';
-import { RagMindMapService } from './services/rag-mind-map.service';
 import { RagSummaryService } from './services/rag-summary.service';
 import type { SummaryLanguage } from './types/rag.types';
 import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
@@ -30,7 +29,6 @@ import { JwtAuthGuard } from '../authentication/jwt/jwt-auth.guard';
 export class RagController {
   constructor(
     private readonly ragService: RagService,
-    private readonly ragMindMapService: RagMindMapService,
     private readonly ragSummaryService: RagSummaryService,
   ) {}
 
@@ -150,27 +148,6 @@ export class RagController {
         : 'No cached document summary found',
       language: normalizedLanguage,
       summary,
-    };
-  }
-
-  @HttpCode(HttpStatus.OK)
-  @Post('documents/:documentId/mindmap')
-  async getDocumentMindMap(
-    @Param('documentId', ParseUUIDPipe) documentId: string,
-    @Body() body: GenerateSummaryDto,
-    @Request() req: ExpressRequest,
-  ) {
-    const ownerId = this.getUserId(req);
-    const result = await this.ragMindMapService.getDocumentMindMap(
-      documentId,
-      ownerId,
-      body?.language ?? 'en',
-      body?.forceRefresh ?? false,
-    );
-
-    return {
-      message: 'Document mind map generated successfully',
-      ...result,
     };
   }
 

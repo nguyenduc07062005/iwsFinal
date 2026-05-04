@@ -263,8 +263,10 @@ const useDocumentViewer = (documentId) => {
         try {
             setAskState({ loading: true, error: '', pendingQuestion: trimmed });
             const result = await askDocument(documentId, trimmed);
-            setAskHistory((current) => [...current, result.historyItem].slice(-8));
-            setAskHistoryLoaded(true);
+            if (result?.historyItem) {
+                setAskHistory((current) => [...current, result.historyItem].slice(-8));
+                setAskHistoryLoaded(true);
+            }
             setAskQuestion('');
             setAskState({ loading: false, error: '', pendingQuestion: '' });
         } catch (error) {

@@ -66,38 +66,6 @@ export type SummaryLanguageCache = {
   versions?: Partial<Record<SummaryVersionSlot, SummaryArtifact>>;
 };
 
-export type MindMapNodeKind =
-  | 'root'
-  | 'overview'
-  | 'cluster'
-  | 'insight'
-  | 'detail'
-  | 'takeaway';
-
-export type MindMapNode = {
-  id: string;
-  label: string;
-  summary: string;
-  kind: MindMapNodeKind;
-  children: MindMapNode[];
-};
-
-export type MindMapArtifact = {
-  root: MindMapNode;
-  summaryText: string;
-  generatedAt: string;
-  summaryLanguage: SummaryLanguage;
-  version: number;
-};
-
-export type DocumentMindMapResponse = {
-  mindMap: MindMapNode;
-  summary: string;
-  language: SummaryLanguage;
-  generatedAt: string;
-  cached: boolean;
-};
-
 export type DiagramArtifact = {
   mermaid: string;
   summaryText: string;
@@ -114,7 +82,6 @@ export type DocumentArtifactCache = {
   summaryByLanguage?: Partial<
     Record<SummaryLanguage, SummaryLanguageCache | SummaryArtifact>
   >;
-  mindMapByLanguage?: Partial<Record<SummaryLanguage, MindMapArtifact>>;
   diagram?: DiagramArtifact;
 };
 

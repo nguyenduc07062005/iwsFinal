@@ -1,7 +1,0 @@
-StudyVault API fixture
-
-This is a valid TXT document used by the Postman API regression collection.
-It contains enough plain text for upload, preview, notes, search, and AI/RAG smoke requests.
-
-Topic: Internet and Web Services final project.
-Purpose: verify document upload, ownership, tags, folders, notes, and AI workflows.

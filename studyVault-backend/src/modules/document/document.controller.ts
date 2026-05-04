@@ -430,7 +430,15 @@ export class DocumentController {
       documentId,
       ownerId,
     );
-    res.sendFile(filePath);
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) {
+        res.status(404).json({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'The requested file could not be served.',
+        });
+      }
+    });
   }
 
   // --- Update document name ---

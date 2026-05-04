@@ -16,7 +16,6 @@ import { RagService } from './rag.service';
 import { RagArtifactCacheService } from './services/rag-artifact-cache.service';
 import { RagDocumentContextService } from './services/rag-document-context.service';
 import { RagIndexingService } from './services/rag-indexing.service';
-import { RagMindMapService } from './services/rag-mind-map.service';
 import { RagQuestionAnsweringService } from './services/rag-question-answering.service';
 import { RagSearchService } from './services/rag-search.service';
 import { RagSummaryService } from './services/rag-summary.service';
@@ -36,7 +35,6 @@ import { RagStructuredGenerationService } from './services/rag-structured-genera
   controllers: [RagController],
   providers: [
     RagService,
-    RagMindMapService,
     RagSummaryService,
     RagArtifactCacheService,
     RagDocumentContextService,
@@ -50,6 +48,6 @@ import { RagStructuredGenerationService } from './services/rag-structured-genera
     UserDocumentRepository,
     DocumentAskHistoryRepository,
   ],
-  exports: [RagService, RagMindMapService, RagSummaryService],
+  exports: [RagService, RagSummaryService],
 })
 export class RagModule {}

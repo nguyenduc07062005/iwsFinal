@@ -17,7 +17,6 @@ import { TagService } from '../src/modules/tag/tag.service';
 import { LlmController } from '../src/common/llm/llm.controller';
 import { GeminiService } from '../src/common/llm/gemini.service';
 import { RagController } from '../src/modules/rag/rag.controller';
-import { RagMindMapService } from '../src/modules/rag/services/rag-mind-map.service';
 import { RagSummaryService } from '../src/modules/rag/services/rag-summary.service';
 import { RagService } from '../src/modules/rag/rag.service';
 import {
@@ -1618,10 +1617,6 @@ describe('StudyVault RAG API (e2e)', () => {
     generateSummary: jest.fn(),
   };
 
-  const ragMindMapService = {
-    getDocumentMindMap: jest.fn(),
-  };
-
   beforeAll(async () => {
     app = await createHttpTestApp({
       controllers: [RagController],
@@ -1633,10 +1628,6 @@ describe('StudyVault RAG API (e2e)', () => {
         {
           provide: RagSummaryService,
           useValue: ragSummaryService,
-        },
-        {
-          provide: RagMindMapService,
-          useValue: ragMindMapService,
         },
       ],
     });
@@ -1697,19 +1688,6 @@ describe('StudyVault RAG API (e2e)', () => {
       activeSlot: 'custom',
       versions: [],
     });
-    ragMindMapService.getDocumentMindMap.mockResolvedValue({
-      mindMap: {
-        id: 'root',
-        label: 'Week 5 Notes',
-        summary: 'Mind map root',
-        kind: 'root',
-        children: [],
-      },
-      summary: 'Mind map summary',
-      language: 'vi',
-      generatedAt: '2026-04-30T00:00:00.000Z',
-      cached: false,
-    });
     ragService.getDocumentDiagram.mockResolvedValue({
       mermaid: 'graph TD; A-->B',
       summaryText: 'Diagram summary',
@@ -1757,18 +1735,6 @@ describe('StudyVault RAG API (e2e)', () => {
       });
 
     await request(app.getHttpServer())
-      .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/mindmap`)
-      .set(userAuthHeader)
-      .send({
-        language: 'vi',
-        forceRefresh: true,
-      })
-      .expect(200)
-      .expect(({ body }) => {
-        expect(body.mindMap.id).toBe('root');
-      });
-
-    await request(app.getHttpServer())
       .post(`/api/rag/documents/${TEST_DOCUMENT_ID}/diagram`)
       .set(userAuthHeader)
       .expect(200)
@@ -1796,12 +1762,6 @@ describe('StudyVault RAG API (e2e)', () => {
       true,
       'Focus on exam points',
       'custom',
-    );
-    expect(ragMindMapService.getDocumentMindMap).toHaveBeenCalledWith(
-      TEST_DOCUMENT_ID,
-      TEST_USER_ID,
-      'vi',
-      true,
     );
     expect(ragService.getDocumentDiagram).toHaveBeenCalledWith(
       TEST_DOCUMENT_ID,

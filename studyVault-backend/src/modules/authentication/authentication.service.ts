@@ -679,15 +679,17 @@ export class AuthenticationService {
       name: nextName,
     });
 
+    const resultUser = updatedUser || { ...user, name: nextName };
+
     return {
       message: 'Profile updated successfully.',
       user: {
-        id: updatedUser?.id,
-        email: updatedUser?.email,
-        name: updatedUser?.name,
-        role: updatedUser?.role,
-        isActive: updatedUser?.isActive,
-        isEmailVerified: updatedUser?.isEmailVerified,
+        id: resultUser.id,
+        email: resultUser.email,
+        name: resultUser.name,
+        role: resultUser.role,
+        isActive: resultUser.isActive,
+        isEmailVerified: resultUser.isEmailVerified,
       },
     };
   }

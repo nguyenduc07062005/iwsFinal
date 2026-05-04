@@ -410,11 +410,23 @@ export class DocumentService {
       return existingRoot;
     }
 
-    return this.folderRepository.create({
-      ownerId,
-      name: 'Root',
-      parentId: null,
-    });
+    try {
+      return await this.folderRepository.create({
+        ownerId,
+        name: 'Root',
+        parentId: null,
+      });
+    } catch {
+      const root = await this.folderRepository.findOne({
+        where: { ownerId, parentId: IsNull() },
+      });
+
+      if (root) {
+        return root;
+      }
+
+      throw new NotFoundException('Could not create or find root folder');
+    }
   }
 
   private async resolveTargetFolderId(

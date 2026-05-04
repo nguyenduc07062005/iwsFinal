@@ -2,6 +2,7 @@
 /temp-rag-doc.txt
 /plan.md
 /*.docx
+**/~$*
 **/runtime-logs/
 
 # Dependencies

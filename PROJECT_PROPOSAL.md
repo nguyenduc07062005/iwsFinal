@@ -118,8 +118,7 @@ Mục tiêu của dự án là một **sản phẩm web thật** mà sinh viên 
 
 ## 4.2. Chức năng không còn là luồng frontend trọng tâm
 
-- Mindmap frontend route riêng không nằm trong luồng sử dụng chính
-- Diagram/mindmap hiện được xem là backend capability hoặc bonus, không phải phần bắt buộc để demo workspace
+- Diagram không nằm trong luồng frontend chính
 - Các trang AI showcase riêng không nằm trong router chính
 
 Lý do:
@@ -305,7 +304,6 @@ Module này đang phục vụ production flow cho:
 - `summary`
 - `ask document`
 - `related document` thông qua document module
-- backend endpoint `mindmap`
 - backend endpoint `diagram`
 
 Flow AI hiện tại:
@@ -483,7 +481,7 @@ Lý do:
 - workspace vẫn là trọng tâm demo vì thể hiện CRUD, auth, ownership, search/filter/sort/pagination
 - landing page được giữ gọn, rõ tương phản, có CTA trực tiếp vào auth/workspace
 
-### Quyết định 2: bỏ mindmap khỏi production frontend
+### Quyết định 2: không đưa AI visualization vào production frontend
 
 Lý do:
 
@@ -536,7 +534,7 @@ Frontend chạy mặc định tại:
 - auth flow hiện đang lưu token ra sao
 - workspace page đang là trung tâm của sản phẩm
 - summary và ask document là 2 AI feature chính
-- mindmap không còn là phần cần tiếp tục ưu tiên
+- AI visualization không còn là phần cần tiếp tục ưu tiên
 
 ## 17. Kết Luận
 

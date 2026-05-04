@@ -6,7 +6,6 @@ import { UserDocumentRepository } from 'src/database/repositories/user-document.
 import {
   DiagramArtifact,
   DocumentArtifactCache,
-  MindMapArtifact,
   RagSource,
   SummaryArtifact,
   SummaryFormat,
@@ -71,31 +70,6 @@ export class RagArtifactCacheService {
         [summary.language]: nextSummaryState,
       },
     });
-  }
-
-  getMindMap(
-    owner: Document | UserDocument,
-    language: SummaryLanguage,
-  ): MindMapArtifact | null {
-    return this.getArtifactCache(owner).mindMapByLanguage?.[language] ?? null;
-  }
-
-  async saveMindMap(
-    owner: Document | UserDocument,
-    mindMap: MindMapArtifact,
-  ): Promise<void> {
-    const patch = {
-      mindMapByLanguage: {
-        [mindMap.summaryLanguage]: mindMap,
-      },
-    };
-
-    if (this.isUserDocument(owner)) {
-      await this.saveUserDocumentArtifactCache(owner, patch);
-      return;
-    }
-
-    await this.saveDocumentArtifactCache(owner, patch);
   }
 
   getDiagram(document: Document): DiagramArtifact | null {
@@ -198,10 +172,6 @@ export class RagArtifactCacheService {
         ...(currentArtifacts.summaryByLanguage ?? {}),
         ...(patch.summaryByLanguage ?? {}),
       },
-      mindMapByLanguage: {
-        ...(currentArtifacts.mindMapByLanguage ?? {}),
-        ...(patch.mindMapByLanguage ?? {}),
-      },
     };
 
     return {
@@ -277,14 +247,6 @@ export class RagArtifactCacheService {
       ),
       versions,
     };
-  }
-
-  private isUserDocument(
-    owner: Document | UserDocument,
-  ): owner is UserDocument {
-    return (
-      'documentName' in owner || 'isFavorite' in owner || 'folder' in owner
-    );
   }
 
   private getShareableFallbackSummaryState(

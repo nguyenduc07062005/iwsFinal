@@ -141,7 +141,11 @@ apiClient.interceptors.request.use(async (config) => {
 
   if (!activeToken || isTokenExpired()) {
     if (!getCsrfToken()) {
-      return config;
+      redirectToLoginAfterSessionExpiry();
+
+      return Promise.reject(
+        new axios.CanceledError("Session expired. Please sign in again."),
+      );
     }
 
     try {

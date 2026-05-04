@@ -614,6 +614,7 @@ const Admin = () => {
         getAdminStats(),
         getAdminUsers({
           keyword: keyword || undefined,
+          status: statusFilter !== "all" ? statusFilter : undefined,
           limit,
           page,
         }),
@@ -641,7 +642,7 @@ const Admin = () => {
         setLoading(false);
       }
     }
-  }, [keyword, limit, page]);
+  }, [keyword, limit, page, statusFilter]);
 
   useEffect(() => {
     void loadAdminData();
@@ -650,12 +651,6 @@ const Admin = () => {
   useEffect(() => {
     void loadAuditLogs(auditPage);
   }, [auditPage, loadAuditLogs]);
-
-  const filteredUsers = useMemo(() => {
-    if (statusFilter === "all") return users;
-    if (statusFilter === "active") return users.filter((user) => user.isActive);
-    return users.filter((user) => !user.isActive);
-  }, [users, statusFilter]);
 
   const statCards = useMemo(() => {
     const usersStat = stats?.users || {};
@@ -1039,14 +1034,14 @@ const Admin = () => {
                       Loading...
                     </span>
                   </div>
-                ) : filteredUsers.length > 0 ? (
+                ) : users.length > 0 ? (
                   <div
                     className={cn(
                       "transition-opacity duration-200",
                       usersRefreshing && "opacity-70",
                     )}
                   >
-                    {filteredUsers.map((user, index) => (
+                    {users.map((user, index) => (
                       <UserRow
                         key={user.id}
                         user={user}
